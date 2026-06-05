@@ -1,0 +1,5 @@
+export { AIController } from './AIController.js'
+export { BalancedAI, AggressiveAI, DefensiveAI } from './strategies/index.js'
+export type { AIStrategy } from './strategies/index.js'
+export { ThreatEvaluator, CardValueEvaluator } from './evaluators/index.js'
+export type { AIAction, BoardInfo } from './evaluators/index.js'
