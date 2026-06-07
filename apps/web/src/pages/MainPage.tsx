@@ -18,10 +18,8 @@ export function MainPage() {
       const res = await fetch(`${API}/save/${userId}`)
       const save = await res.json()
       setSave(save)
-      navigate('/stages')
-    } catch {
-      navigate('/stages')
-    }
+    } catch { /* ignore */ }
+    navigate('/city')
   }
 
   return (
@@ -37,7 +35,7 @@ export function MainPage() {
       </p>
       <button className="primary" style={{ fontSize: '18px', padding: '12px 40px', marginTop: '20px' }}
         onClick={handleStart}>
-        开始冒险
+        进入游戏
       </button>
     </div>
   )

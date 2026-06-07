@@ -63,8 +63,9 @@ export function StageSelectPage() {
         })}
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: '30px' }}>
-        <button onClick={() => navigate('/')}>返回主页</button>
+      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '30px' }}>
+        <button onClick={() => navigate('/city')}>主城</button>
+        <button onClick={() => navigate('/heroes')}>英雄</button>
       </div>
     </div>
   )
