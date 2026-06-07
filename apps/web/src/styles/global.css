@@ -1,0 +1,54 @@
+:root {
+  --bg-dark: #1a0a00;
+  --bg-medium: #2a1a0a;
+  --bg-light: #3a2510;
+  --border-gold: #ffd700;
+  --border-wood: #6a4a2a;
+  --text-gold: #ffd700;
+  --text-light: #e8d5b0;
+  --text-muted: #a89060;
+  --color-red: #ff6b6b;
+  --color-green: #6bff6b;
+  --color-blue: #6bb3ff;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg-dark);
+  color: var(--text-light);
+  font-family: 'SimSun', 'STSong', serif;
+  min-height: 100vh;
+}
+
+#root { min-height: 100vh; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border-wood);
+  background: linear-gradient(135deg, #6a4a2a, #8a6a3a);
+  color: var(--text-light);
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+button:hover {
+  background: linear-gradient(135deg, #8a6a3a, #aa8a5a);
+}
+
+button.primary {
+  background: linear-gradient(135deg, #8a6a1a, #aa8a2a);
+  border-color: var(--border-gold);
+}
+
+button.primary:hover {
+  background: linear-gradient(135deg, #aa8a2a, #ccaa3a);
+}
+
+button.danger {
+  background: linear-gradient(135deg, #6a2a2a, #8a3a3a);
+  border-color: #aa5a5a;
+}
