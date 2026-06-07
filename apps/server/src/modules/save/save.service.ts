@@ -1,0 +1,61 @@
+import { Injectable } from '@nestjs/common'
+import { InjectModel } from '@nestjs/mongoose'
+import { Model } from 'mongoose'
+import { SaveDoc } from './save.schema'
+
+@Injectable()
+export class SaveService {
+  constructor(@InjectModel(SaveDoc.name) private saveModel: Model<SaveDoc>) {}
+
+  async getSave(userId: string): Promise<SaveDoc | null> {
+    return this.saveModel.findOne({ userId }).exec()
+  }
+
+  async createSave(userId: string): Promise<SaveDoc> {
+    const save = new this.saveModel({
+      userId,
+      mainCityLevel: 1,
+      buildings: [
+        { type: 'mainCity', level: 1 },
+        { type: 'recruit', level: 1 },
+        { type: 'smelt', level: 1 },
+        { type: 'treasureWorkshop', level: 1 },
+        { type: 'training', level: 1 },
+        { type: 'commandPost', level: 1 },
+      ],
+      heroes: [],
+      treasures: [],
+      materials: [{ type: 'gold', amount: 1000 }],
+      stageProgress: [
+        { stageId: 'xu-zhou', battlesCompleted: 0, stars: 0, unlocked: true },
+        { stageId: 'yang-zhou', battlesCompleted: 0, stars: 0, unlocked: false },
+        { stageId: 'yi-zhou', battlesCompleted: 0, stars: 0, unlocked: false },
+      ],
+    })
+    return save.save()
+  }
+
+  async updateSave(userId: string, update: Partial<SaveDoc>): Promise<SaveDoc | null> {
+    return this.saveModel.findOneAndUpdate(
+      { userId },
+      { ...update, updatedAt: Date.now() },
+      { new: true },
+    ).exec()
+  }
+
+  async addHero(userId: string, hero: any): Promise<SaveDoc | null> {
+    return this.saveModel.findOneAndUpdate(
+      { userId },
+      { $push: { heroes: hero }, updatedAt: Date.now() },
+      { new: true },
+    ).exec()
+  }
+
+  async addMaterial(userId: string, type: string, amount: number): Promise<SaveDoc | null> {
+    await this.saveModel.updateOne(
+      { userId, 'materials.type': type },
+      { $inc: { 'materials.$.amount': amount }, updatedAt: Date.now() },
+    ).exec()
+    return this.getSave(userId)
+  }
+}

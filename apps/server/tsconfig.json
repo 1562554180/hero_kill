@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "strictPropertyInitialization": false,
+    "module": "CommonJS",
+    "target": "ES2022",
+    "moduleResolution": "node"
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/game-data" },
+    { "path": "../../packages/game-engine" },
+    { "path": "../../packages/ai-engine" }
+  ]
+}
