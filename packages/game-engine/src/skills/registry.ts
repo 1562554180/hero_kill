@@ -402,6 +402,21 @@ class ZongHengSkill extends SkillExecutor {
   }
 }
 
+// 笼络(宇文化及)：回合结束弃X张牌指定X名角色，其受到的伤害转移给你1点
+// 持续到你下个回合开始
+class LongLuoSkill extends SkillExecutor {
+  canActivate(ctx: SkillContext): boolean {
+    return ctx.data?.event === 'phase:end' && ctx.data?.phase === 'play' && ctx.player.getHandSize() > 0 && this.checkUses(ctx.player)
+  }
+  execute(ctx: SkillContext): SkillEffect[] {
+    this.recordUse(ctx.player)
+    const handSize = ctx.player.getHandSize()
+    // 弃牌数 = 最多指定多少名角色（简化：弃所有牌保护所有友方）
+    const discardCount = Math.min(handSize, 3) // 最多保护3个目标
+    return [{ type: 'modifyDamage', sourceHeroId: ctx.player.getId(), data: { reason: '笼络', discardCount, damageRedirect: true, duration: 1 } }]
+  }
+}
+
 // ============================================================
 // 注册表
 // ============================================================
@@ -447,6 +462,7 @@ const skillRegistry: Map<string, (skill: Skill) => SkillExecutor> = new Map([
   ['qin-zheng', (s) => new QinZhengSkill(s)],
   ['cuan-quan', (s) => new CuanQuanSkill(s)],
   ['zong-heng', (s) => new ZongHengSkill(s)],
+  ['long-luo', (s) => new LongLuoSkill(s)],
 ])
 
 export function createSkillExecutor(skill: Skill): SkillExecutor | null {
