@@ -41,3 +41,11 @@ export function isSchemeCard(card: Card): card is SchemeCard {
 export function isEquipmentCard(card: Card): card is EquipmentCard {
   return card.type === 'equipment'
 }
+
+export function isRedSuit(suit: Suit): boolean {
+  return suit === 'heart' || suit === 'diamond'
+}
+
+export function isBlackSuit(suit: Suit): boolean {
+  return suit === 'spade' || suit === 'club'
+}

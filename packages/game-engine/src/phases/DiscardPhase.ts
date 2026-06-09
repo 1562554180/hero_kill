@@ -4,20 +4,27 @@ export class DiscardPhase extends Phase {
   readonly type = 'discard' as const
 
   async execute(context: any): Promise<any> {
-    const { player, cardDeck, eventBus } = context
+    const { player, cardDeck, eventBus, game } = context
     const handLimit = player.getHandLimit()
     const handSize = player.getHandSize()
-    const actions = []
 
+    // 隐忍: 出牌阶段没出过杀，不用弃牌
+    if (player.hasSkillOrTreasure('yin-ren') && !player.hasUsedKillThisTurn()) {
+      return { completed: true, actions: [] }
+    }
+
+    // 控局: 手牌数≤体力值不用弃牌
+    if (player.hasSkillOrTreasure('kong-ju') && handSize <= handLimit) {
+      return { completed: true, actions: [] }
+    }
+
+    const actions = []
     if (handSize > handLimit) {
-      // 需要弃牌 - 在完整实现中这里需要等待玩家选择
-      // 目前自动弃掉多余的牌（优先弃价值低的）
       const discardCount = handSize - handLimit
       const discarded = []
       for (let i = 0; i < discardCount; i++) {
         const hand = player.getHand()
         if (hand.length === 0) break
-        // 简单策略：弃最后一张
         const card = player.removeCard(hand[hand.length - 1].id)
         if (card) {
           cardDeck.discard([card])

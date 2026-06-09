@@ -1,98 +1,135 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useBattleStore } from '../stores/battleStore'
+import { BattleBoard } from '../components/BattleBoard'
+import type { GameConfig } from '@hero-legend/game-engine'
 
-interface BattleState {
-  turnNumber: number; currentHeroId: string; isOver: boolean; winner: string | null
-  heroes: any[]; logs: string[]
-}
+const API = '/api'
 
 export function BattlePage() {
   const { stageId } = useParams()
   const navigate = useNavigate()
   const [stage, setStage] = useState<any>(null)
   const [battleIdx, setBattleIdx] = useState(0)
-  const [battleState, setBattleState] = useState<BattleState | null>(null)
-  const [result, setResult] = useState<any>(null)
+  const [save, setSave] = useState<any>(null)
+  const [starting, setStarting] = useState(false)
+
+  const { phase, result, startBattle } = useBattleStore()
+
+  const userId = localStorage.getItem('hero-legend-userId') || ''
 
   useEffect(() => {
-    fetch('/api/stage').then(r => r.json()).then(data => {
-      const s = data.stages?.find((st: any) => st.id === stageId)
+    if (!userId) { navigate('/'); return }
+    Promise.all([
+      fetch(`${API}/stage`).then(r => r.json()),
+      fetch(`${API}/save/${userId}`).then(r => r.json()),
+    ]).then(([stageData, saveData]) => {
+      const s = stageData.stages?.find((st: any) => st.id === stageId)
       setStage(s)
+      setSave(saveData)
     })
-  }, [stageId])
+  }, [stageId, userId])
 
-  const startBattle = async (battle: any) => {
-    const res = await fetch('/api/battle/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        playerHeroId: 'yu-ji',
-        playerInstance: { heroId: 'yu-ji', level: 1, growthValue: 0, starLevel: 3, treasures: { main: [], sub: [] } },
-        allyHeroIds: battle.allies ?? [],
-        enemyHeroIds: battle.enemies,
-      }),
-    })
-    const data = await res.json()
-    setResult(data)
-    setBattleState({
-      turnNumber: data.turnCount,
-      currentHeroId: '',
-      isOver: true,
-      winner: data.won ? 'player' : 'enemy',
-      heroes: [],
-      logs: [],
-    })
-  }
-
-  if (!stage) return <div style={{ padding: 40, textAlign: 'center' }}>加载中...</div>
+  if (!stage || !save) return <div style={{ padding: 40, textAlign: 'center' }}>加载中...</div>
 
   const currentBattle = stage.battles[battleIdx]
 
+  const handleStartBattle = async () => {
+    // Use player's first hero, or fallback to yu-ji
+    const heroInstance = save.heroes?.[0]
+    if (!heroInstance) {
+      alert('请先招募一个英雄!')
+      navigate('/heroes')
+      return
+    }
+
+    setStarting(true)
+
+    const config: GameConfig = {
+      playerHeroId: heroInstance.heroId,
+      playerInstance: heroInstance,
+      allyHeroIds: currentBattle.allies ?? [],
+      enemyHeroIds: currentBattle.enemies,
+    }
+
+    try {
+      const battleResult = await startBattle(config)
+
+      // Save result to server
+      await fetch(`${API}/battle/result`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          stageId: stage.id,
+          battleIdx,
+          result: battleResult,
+        }),
+      })
+
+      // Refresh save data
+      const freshSave = await fetch(`${API}/save/${userId}`).then(r => r.json())
+      setSave(freshSave)
+    } catch (e) {
+      console.error('Battle error:', e)
+    }
+    setStarting(false)
+  }
+
+  const handleNext = () => {
+    if (battleIdx < stage.battles.length - 1) {
+      setBattleIdx(battleIdx + 1)
+      useBattleStore.setState({ phase: 'idle', result: null, actionLog: [], gameState: null })
+    }
+  }
+
+  const isBattleActive = phase !== 'idle'
+
   return (
     <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h2 style={{ textAlign: 'center', color: 'var(--text-gold)', marginBottom: '20px' }}>
+      <h2 style={{ textAlign: 'center', color: 'var(--text-gold)', marginBottom: '12px' }}>
         {stage.name} - 第 {battleIdx + 1} 战
+        {currentBattle.isBoss && ' (BOSS)'}
       </h2>
 
-      <div style={{ marginBottom: '16px', padding: '12px', background: 'var(--bg-medium)', borderRadius: '4px' }}>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
-          敌方: {currentBattle.enemies.join(', ')}
-          {currentBattle.allies?.length > 0 && ` | 友军: ${currentBattle.allies.join(', ')}`}
-          {currentBattle.isBoss && ' | ⚔ BOSS 战'}
-        </p>
-      </div>
+      {!isBattleActive && (
+        <div style={{ marginBottom: '12px', padding: '12px', background: 'var(--bg-medium)', borderRadius: '4px' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+            敌方: {currentBattle.enemies.join(', ')}
+            {currentBattle.allies?.length > 0 && ` | 友军: ${currentBattle.allies.join(', ')}`}
+          </p>
+          {save.heroes?.length > 0 && (
+            <p style={{ color: 'var(--text-light)', fontSize: '13px', marginTop: '4px' }}>
+              出战英雄: {save.heroes[0].heroId} ({'★'.repeat(save.heroes[0].starLevel)})
+            </p>
+          )}
+        </div>
+      )}
 
-      {!battleState && (
+      {isBattleActive ? (
+        <BattleBoard />
+      ) : (
         <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <button className="primary" onClick={() => startBattle(currentBattle)}>
-            开始战斗
+          <button className="primary" onClick={handleStartBattle} disabled={starting} style={{ fontSize: '18px', padding: '12px 40px' }}>
+            {starting ? '战斗中...' : '开始战斗'}
           </button>
         </div>
       )}
 
-      {result && (
+      {phase === 'ended' && result && (
         <div style={{
-          textAlign: 'center', padding: '30px', marginTop: '20px',
-          background: 'var(--bg-medium)', borderRadius: '8px', border: '1px solid var(--border-wood)',
+          display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px',
+          position: 'fixed', bottom: '40px', left: 0, right: 0,
+          zIndex: 200,
         }}>
-          <h3 style={{ color: result.won ? 'var(--text-gold)' : 'var(--color-red)', fontSize: '24px', marginBottom: '12px' }}>
-            {result.won ? '胜利!' : '失败!'}
-          </h3>
-          <p style={{ color: 'var(--text-muted)' }}>回合数: {result.turnCount}</p>
-          <p style={{ color: 'var(--text-muted)' }}>奖励: {result.rewards?.gold} 金币, {result.rewards?.growthValue} 成长值</p>
-
-          <div style={{ marginTop: '20px', display: 'flex', gap: '12px', justifyContent: 'center' }}>
-            {result.won && battleIdx < stage.battles.length - 1 && (
-              <button className="primary" onClick={() => {
-                setBattleIdx(battleIdx + 1)
-                setBattleState(null)
-                setResult(null)
-              }}>
-                下一战
-              </button>
-            )}
-            <button onClick={() => navigate('/stages')}>返回关卡</button>
-          </div>
+          {result.won && battleIdx < stage.battles.length - 1 && (
+            <button className="primary" onClick={handleNext} style={{ fontSize: '16px', padding: '10px 30px' }}>
+              下一战
+            </button>
+          )}
+          <button onClick={() => navigate('/stages')} style={{ fontSize: '16px', padding: '10px 30px' }}>
+            返回关卡
+          </button>
         </div>
       )}
     </div>
