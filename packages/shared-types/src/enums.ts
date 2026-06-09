@@ -50,3 +50,4 @@ export type GameEventType =
   | 'heal' | 'die'
   | 'skill:trigger' | 'skill:resolve'
   | 'judge' | 'equipment:equip' | 'equipment:unequip'
+  | 'scheme:nullify'

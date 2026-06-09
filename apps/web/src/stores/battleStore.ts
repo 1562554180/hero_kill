@@ -66,6 +66,10 @@ function eventToLog(event: GameEvent, game: Game): string | null {
     case 'equipment:equip': return `${src} 装备了装备`
     case 'card:draw': return null // too noisy
     case 'card:discard': return null
+    case 'scheme:nullify': {
+      const name = (event.data as any)?.originalCardName
+      return `【${name}】被【无懈可击】抵消！`
+    }
     default: return null
   }
 }
@@ -75,6 +79,7 @@ const allEventTypes: GameEventType[] = [
   'phase:start', 'phase:end', 'card:play', 'card:draw', 'card:discard',
   'damage:deal', 'damage:receive', 'damage:prevent', 'heal', 'die',
   'skill:trigger', 'skill:resolve', 'judge', 'equipment:equip', 'equipment:unequip',
+  'scheme:nullify',
 ]
 
 export const useBattleStore = create<BattleState>((set, get) => ({
@@ -106,8 +111,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         set({ resolveJudge: null, judgeCard: null })
         return cardId
       },
-      responseActionHandler: async (game: Game, player: any, _type: 'kill', ctx: { sourceHeroId: string, schemeName: string, needCount: number }) => {
-        const prompt = `${ctx.schemeName}: 请打出【杀】响应 (${ctx.needCount}张) 或放弃`
+      responseActionHandler: async (game: Game, player: any, responseType: 'kill' | 'nullify', ctx: any) => {
+        const prompt = responseType === 'nullify'
+          ? `【${ctx.schemeName}】即将生效，是否使用【无懈可击】抵消？`
+          : `${ctx.schemeName}: 请打出【杀】响应 (${ctx.needCount}张) 或放弃`
         set({
           phase: 'awaitingResponse',
           playerHand: player.getHand(),

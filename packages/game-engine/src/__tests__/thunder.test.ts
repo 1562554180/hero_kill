@@ -171,7 +171,7 @@ describe('playerPlayScheme 手捧雷', () => {
     player.drawCards([thunder])
 
     // 通过 playerActionHandler 触发 (使用一个真正会结束出牌的 handler)
-    game.playerPlayScheme(player, 't1', 'xiao-qiao')  // 即使传了 targetId, 手捧雷也会强制给自己
+    await game.playerPlayScheme(player, 't1', 'xiao-qiao')  // 即使传了 targetId, 手捧雷也会强制给自己
 
     expect(player.getJudgeCards().find(c => c.name === '手捧雷')).toBeDefined()
     const enemy = game.getPlayerById('xiao-qiao')!
@@ -195,7 +195,7 @@ describe('playerPlayScheme 手捧雷', () => {
     const thunder: any = { id: 't1', suit: 'spade', number: 1, type: 'scheme', name: '手捧雷', delayed: true }
     player.drawCards([thunder])
 
-    game.playerPlayScheme(player, 't1')
+    await game.playerPlayScheme(player, 't1')
 
     // 玩家手牌退回
     expect(player.getHand().find(c => c.id === 't1')).toBeDefined()

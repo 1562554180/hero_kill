@@ -17,7 +17,7 @@ export interface GameConfig {
   /** 变法/判定交互：返回要替换的手牌ID，null表示不替换 */
   judgeActionHandler?: (game: Game, player: Player, judgeCard: Card) => Promise<string | null>
   /** 响应交互：例如决斗中打杀/南蛮入侵出杀，返回要打的牌ID, null表示不响应 */
-  responseActionHandler?: (game: Game, player: Player, responseType: 'kill', context: { sourceHeroId: string, schemeName: string, needCount: number }) => Promise<string | null>
+  responseActionHandler?: (game: Game, player: Player, responseType: 'kill' | 'nullify', context: { sourceHeroId: string, schemeName: string, needCount?: number, targetHeroId?: string }) => Promise<string | null>
 }
 
 export class Game {
@@ -609,6 +609,91 @@ export class Game {
     }
   }
 
+  // --- 无懈可击 (锦囊抵消) ---
+
+  async checkNullification(schemePlayer: Player, targetPlayer: Player | undefined, schemeCard: Card): Promise<boolean> {
+    const alivePlayers = this.getAlivePlayers()
+    const startIdx = targetPlayer
+      ? alivePlayers.indexOf(targetPlayer)
+      : (alivePlayers.indexOf(schemePlayer) + 1) % alivePlayers.length
+    if (startIdx < 0) return false
+    const ordered = [
+      ...alivePlayers.slice(startIdx),
+      ...alivePlayers.slice(0, startIdx),
+    ]
+
+    let nullified = false
+
+    for (const candidate of ordered) {
+      if (!candidate.isAlive()) continue
+      const wxCard = await this.promptNullifyResponse(candidate, schemePlayer, schemeCard)
+      if (!wxCard) continue
+
+      candidate.removeCard(wxCard.id)
+      this.cardDeck.discard([wxCard])
+      this.eventBus.emit({
+        type: 'card:play', sourceHeroId: candidate.getId(),
+        data: { cardId: wxCard.id, cardName: '无懈可击' },
+      })
+      nullified = !nullified
+    }
+
+    if (nullified) {
+      this.eventBus.emit({
+        type: 'scheme:nullify', sourceHeroId: schemePlayer.getId(),
+        data: { originalCardName: schemeCard.name, nullified: true },
+      })
+    }
+    return nullified
+  }
+
+  private async promptNullifyResponse(candidate: Player, schemePlayer: Player, schemeCard: Card): Promise<Card | null> {
+    const wxCard = candidate.getHand().find(c => c.name === '无懈可击')
+    if (!wxCard) return null
+
+    if (candidate.getRole() === 'player') {
+      if (!this.config.responseActionHandler) return null
+      const cardId = await this.config.responseActionHandler(
+        this, candidate, 'nullify',
+        { sourceHeroId: schemePlayer.getId(), schemeName: schemeCard.name, targetHeroId: undefined },
+      )
+      if (!cardId) return null
+      const card = candidate.getHand().find(c => c.id === cardId)
+      if (!card || card.name !== '无懈可击') return null
+      return card
+    }
+
+    // AI
+    return this.aiNullifyDecision(candidate, schemePlayer, schemeCard, wxCard)
+  }
+
+  private aiNullifyDecision(candidate: Player, schemePlayer: Player, schemeCard: Card, wxCard: Card): Card | null {
+    const candidateRole = candidate.getRole()
+    const schemePlayerRole = schemePlayer.getRole()
+    const isEnemy = (candidateRole === 'player' || candidateRole === 'ally') && schemePlayerRole === 'enemy'
+      || candidateRole === 'enemy' && (schemePlayerRole === 'player' || schemePlayerRole === 'ally')
+
+    let probability = 0
+    if (isEnemy) {
+      const harmful = ['决斗', '釜底抽薪', '探囊取物', '画地为牢', '手捧雷', '万箭齐发', '南蛮入侵']
+      probability = harmful.includes(schemeCard.name) ? 0.6 : 0.2
+    }
+    if (candidate.getHandSize() <= 2) probability *= 0.5
+
+    return Math.random() < probability ? wxCard : null
+  }
+
+  /** 手捧雷顺延：找到下一个无雷的存活玩家 */
+  findNextPlayerWithoutThunder(from: Player): Player | undefined {
+    const alive = this.getAlivePlayers()
+    const idx = alive.indexOf(from)
+    for (let i = 1; i <= alive.length; i++) {
+      const next = alive[(idx + i) % alive.length]
+      if (!next.getJudgeCards().some(c => c.name === '手捧雷')) return next
+    }
+    return undefined
+  }
+
   getEnemies(player: Player): Player[] {
     const role = player.getRole()
     if (role === 'player' || role === 'ally') {
@@ -664,15 +749,12 @@ export class Game {
     // 延时锦囊：放到目标判定区
     if ((card as any).delayed) {
       if (card.name === '手捧雷') {
-        // 手捧雷: 强制给自己标记, 已有雷则不能使用
         const hasThunder = player.getJudgeCards().some(c => c.name === '手捧雷')
         if (hasThunder) {
-          // 不能叠加, 退回手牌
           player.drawCards([card])
           this.emitSkillTrigger(player, '手捧雷', '已有雷标记-使用失败')
           return
         }
-        // 雷总数不能超过存活玩家数
         const aliveCount = this.players.filter(p => p.isAlive()).length
         const thunderCount = this.players.reduce((n, p) => n + p.getJudgeCards().filter(c => c.name === '手捧雷').length, 0)
         if (thunderCount >= aliveCount) {
@@ -680,29 +762,45 @@ export class Game {
           this.emitSkillTrigger(player, '手捧雷', '雷已达上限-使用失败')
           return
         }
+        const nullified = await this.checkNullification(player, player, card)
+        if (nullified) {
+          // 被无懈可击抵消: 顺延到下一个无雷玩家
+          const next = this.findNextPlayerWithoutThunder(player)
+          if (next) {
+            next.addJudgeCard(card)
+            this.eventBus.emit({
+              type: 'skill:trigger', sourceHeroId: next.getId(),
+              data: { skillName: '手捧雷', effect: `被抵消-顺延到${next.getName()}` },
+            })
+          }
+          return
+        }
         player.addJudgeCard(card)
         this.eventBus.emit({
-          type: 'skill:trigger',
-          sourceHeroId: player.getId(),
+          type: 'skill:trigger', sourceHeroId: player.getId(),
           data: { skillName: '手捧雷', effect: '标记雷-下回合开始判定' },
         })
         return
       }
+      // 画地为牢
       let target = targetId ? this.players.find(p => p.getId() === targetId) : undefined
-      if (!target || !target.isAlive()) {
-        return
-      }
+      if (!target || !target.isAlive()) return
+      const hdNullified = await this.checkNullification(player, target, card)
+      if (hdNullified) return  // 被抵消, 不放置
       target.addJudgeCard(card)
       this.eventBus.emit({
-        type: 'skill:trigger',
-        sourceHeroId: target.getId(),
+        type: 'skill:trigger', sourceHeroId: target.getId(),
         data: { skillName: card.name, effect: '放入判定区' },
       })
       return
     }
 
-    // 立即锦囊
-    if (card.name === '无中生有') {
+    // 立即锦囊: 先检查无懈可击
+    const schemeTarget = targetId ? this.players.find(p => p.getId() === targetId) : undefined
+    const schemeNullified = await this.checkNullification(player, schemeTarget, card)
+    if (schemeNullified) {
+      // 被抵消, 不执行效果
+    } else if (card.name === '无中生有') {
       const drawn = this.cardDeck.draw(2)
       player.drawCards(drawn)
       this.eventBus.emit({ type: 'card:draw', sourceHeroId: player.getId(), data: { count: 2, reason: '无中生有' } })

@@ -41,8 +41,9 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
 
   const canUseAsKillNow = canUseAsKill && canPlayKill
 
-  // 响应模式: 只能出杀(或傲剑红桃/装备)
-  const canRespond = isResponse && canUseAsKill && onRespondWithCard
+  // 响应模式: 出杀(决斗) 或 出无懈可击(抵消锦囊)
+  const isWuXie = card.name === '无懈可击'
+  const canRespond = isResponse && onRespondWithCard && (canUseAsKill || isWuXie)
 
   const canUse = !disabled && (
     isJudgeReplace ||
