@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Hero, HeroInstance } from '@hero-legend/shared-types'
+import type { Hero, HeroInstance, Treasure } from '@hero-legend/shared-types'
 
 const API = '/api'
 
@@ -8,8 +8,10 @@ export function HeroPage() {
   const navigate = useNavigate()
   const [allHeroes, setAllHeroes] = useState<Hero[]>([])
   const [myHeroes, setMyHeroes] = useState<HeroInstance[]>([])
+  const [inventory, setInventory] = useState<Treasure[]>([])
   const [userId, setUserId] = useState<string>('')
   const [selectedHero, setSelectedHero] = useState<string | null>(null)
+  const [selectedTreasure, setSelectedTreasure] = useState<string | null>(null)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -22,8 +24,16 @@ export function HeroPage() {
     ]).then(([heroData, saveData]) => {
       setAllHeroes(heroData.heroes ?? [])
       setMyHeroes(saveData?.heroes ?? [])
+      setInventory(saveData?.treasures ?? [])
     })
   }, [])
+
+  const refreshSave = async () => {
+    const res = await fetch(`${API}/save/${userId}`)
+    const data = await res.json()
+    setMyHeroes(data?.heroes ?? [])
+    setInventory(data?.treasures ?? [])
+  }
 
   const isOwned = (heroId: string) => myHeroes.some(h => h.heroId === heroId)
 
@@ -34,7 +44,7 @@ export function HeroPage() {
     const data = await res.json()
     if (data.success) {
       setMessage(`招募成功: ${allHeroes.find(h => h.id === heroId)?.name}`)
-      setMyHeroes(prev => [...prev, data.hero])
+      await refreshSave()
     } else {
       setMessage(data.error ?? '招募失败')
     }
@@ -45,9 +55,41 @@ export function HeroPage() {
     const data = await res.json()
     if (data.success) {
       setMessage('升星成功!')
-      setMyHeroes(prev => prev.map(h => h.heroId === heroId ? data.hero : h))
+      await refreshSave()
     } else {
       setMessage(data.error ?? '升星失败')
+    }
+  }
+
+  const equipTreasure = async (heroId: string, slotType: 'main' | 'sub', slotIndex: number) => {
+    if (!selectedTreasure) return
+    const res = await fetch(`${API}/hero/equip-treasure/${userId}/${heroId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slotType, slotIndex, treasureId: selectedTreasure }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      setMessage('镶嵌成功!')
+      setSelectedTreasure(null)
+      await refreshSave()
+    } else {
+      setMessage(data.error ?? '镶嵌失败')
+    }
+  }
+
+  const unequipTreasure = async (heroId: string, slotType: 'main' | 'sub', slotIndex: number) => {
+    const res = await fetch(`${API}/hero/unequip-treasure/${userId}/${heroId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slotType, slotIndex }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      setMessage('卸下成功!')
+      await refreshSave()
+    } else {
+      setMessage(data.error ?? '卸下失败')
     }
   }
 
@@ -58,7 +100,10 @@ export function HeroPage() {
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ color: 'var(--text-gold)' }}>英雄管理</h2>
-        <button onClick={() => navigate('/stages')}>返回关卡</button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={() => navigate('/city')}>主城</button>
+          <button onClick={() => navigate('/stages')}>关卡</button>
+        </div>
       </div>
 
       {message && (
@@ -68,7 +113,7 @@ export function HeroPage() {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-        {/* 左侧：英雄列表 */}
+        {/* Left: hero list */}
         <div>
           <h3 style={{ color: 'var(--text-gold)', marginBottom: '12px' }}>我的英雄 ({myHeroes.length})</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -76,7 +121,7 @@ export function HeroPage() {
               const cfg = allHeroes.find(c => c.id === h.heroId)
               if (!cfg) return null
               return (
-                <div key={h.heroId} onClick={() => setSelectedHero(h.heroId)} style={{
+                <div key={h.heroId} onClick={() => { setSelectedHero(h.heroId); setSelectedTreasure(null) }} style={{
                   background: selectedHero === h.heroId ? 'var(--bg-light)' : 'var(--bg-medium)',
                   border: `1px solid ${selectedHero === h.heroId ? 'var(--border-gold)' : 'var(--border-wood)'}`,
                   borderRadius: '6px', padding: '10px', cursor: 'pointer',
@@ -87,11 +132,6 @@ export function HeroPage() {
                   </div>
                   <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '4px' }}>
                     Lv.{h.level} | {cfg.faction} | HP {cfg.baseHp + h.starLevel - 1}
-                    {' | '}宝具: 主{h.treasures.main.filter(Boolean).length}/{h.treasures.main.length}
-                    {' + '}辅{h.treasures.sub.filter(Boolean).length}/{h.treasures.sub.length}
-                  </div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
-                    技能: {cfg.skills.map(s => s.name).join(', ')}
                   </div>
                 </div>
               )
@@ -120,7 +160,7 @@ export function HeroPage() {
           </div>
         </div>
 
-        {/* 右侧：英雄详情 */}
+        {/* Right: hero detail */}
         <div>
           {selectedConfig && selectedInstance ? (
             <div style={{
@@ -130,9 +170,6 @@ export function HeroPage() {
               <h3 style={{ color: 'var(--text-gold)', fontSize: '20px', marginBottom: '8px' }}>
                 {selectedConfig.name}
               </h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '12px' }}>
-                {selectedConfig.description}
-              </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
                 <div style={{ background: 'var(--bg-dark)', padding: '8px', borderRadius: '4px' }}>
@@ -162,27 +199,81 @@ export function HeroPage() {
                 </div>
               ))}
 
-              <h4 style={{ color: 'var(--text-gold)', margin: '16px 0 8px' }}>宝具槽</h4>
+              {/* Treasure slots */}
+              <h4 style={{ color: 'var(--text-gold)', margin: '16px 0 8px' }}>
+                宝具槽
+                {selectedTreasure && <span style={{ fontSize: '12px', color: '#ff6b6b', marginLeft: '8px' }}>已选择宝具，点击空槽位镶嵌</span>}
+              </h4>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {selectedInstance.treasures.main.map((t, i) => (
-                  <div key={`main-${i}`} style={{
-                    background: 'var(--bg-dark)', border: '1px dashed var(--border-wood)',
-                    borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
-                    color: t ? 'var(--text-light)' : 'var(--text-muted)',
-                  }}>
-                    主印{i + 1}: {t ? (t as any).name : '空'}
+                  <div key={`main-${i}`}
+                    onClick={() => t
+                      ? unequipTreasure(selectedInstance.heroId, 'main', i)
+                      : selectedTreasure
+                        ? equipTreasure(selectedInstance.heroId, 'main', i)
+                        : undefined
+                    }
+                    style={{
+                      background: 'var(--bg-dark)',
+                      border: `1px dashed ${selectedTreasure && !t ? '#ff6b6b' : 'var(--border-wood)'}`,
+                      borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
+                      color: t ? 'var(--text-light)' : 'var(--text-muted)',
+                      cursor: (t || (selectedTreasure && !t)) ? 'pointer' : 'default',
+                    }}
+                  >
+                    主印{i + 1}: {t ? `${(t as any).name} (点击卸下)` : '空'}
                   </div>
                 ))}
                 {selectedInstance.treasures.sub.map((t, i) => (
-                  <div key={`sub-${i}`} style={{
-                    background: 'var(--bg-dark)', border: '1px dashed #3a2a1a',
-                    borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
-                    color: t ? 'var(--text-light)' : 'var(--text-muted)',
-                  }}>
-                    辅印{i + 1}: {t ? (t as any).name : '空'}
+                  <div key={`sub-${i}`}
+                    onClick={() => t
+                      ? unequipTreasure(selectedInstance.heroId, 'sub', i)
+                      : selectedTreasure
+                        ? equipTreasure(selectedInstance.heroId, 'sub', i)
+                        : undefined
+                    }
+                    style={{
+                      background: 'var(--bg-dark)',
+                      border: `1px dashed ${selectedTreasure && !t ? '#ff6b6b' : '#3a2a1a'}`,
+                      borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
+                      color: t ? 'var(--text-light)' : 'var(--text-muted)',
+                      cursor: (t || (selectedTreasure && !t)) ? 'pointer' : 'default',
+                    }}
+                  >
+                    辅印{i + 1}: {t ? `${(t as any).name} (点击卸下)` : '空'}
                   </div>
                 ))}
               </div>
+
+              {/* Treasure inventory */}
+              {inventory.length > 0 && (
+                <>
+                  <h4 style={{ color: 'var(--text-gold)', margin: '16px 0 8px' }}>宝具背包 ({inventory.length})</h4>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {inventory.map(t => (
+                      <div key={t.id}
+                        onClick={() => setSelectedTreasure(selectedTreasure === t.id ? null : t.id)}
+                        style={{
+                          background: selectedTreasure === t.id ? '#3a2a1a' : 'var(--bg-dark)',
+                          border: `1px solid ${selectedTreasure === t.id ? '#ff6b6b' : '#3a2a1a'}`,
+                          borderRadius: '4px', padding: '6px 10px', fontSize: '12px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <div style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)' }}>
+                          [{t.type === 'main' ? '主' : '辅'}] {t.name}
+                        </div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                          {'★'.repeat(t.starLevel)} | 触发: {Math.round(t.triggerRate * 100)}%
+                        </div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                          {t.skill.description}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
 
               {selectedInstance.starLevel < 5 && (
                 <button style={{ marginTop: '16px', width: '100%' }}

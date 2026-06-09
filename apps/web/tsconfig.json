@@ -9,6 +9,8 @@
   },
   "include": ["src"],
   "references": [
-    { "path": "../../packages/shared-types" }
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/game-data" },
+    { "path": "../../packages/game-engine" }
   ]
 }

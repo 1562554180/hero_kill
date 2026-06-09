@@ -27,6 +27,7 @@ export function CityPage() {
   const userId = localStorage.getItem('hero-legend-userId') || ''
 
   useEffect(() => {
+    if (!userId) { navigate('/'); return }
     fetch(`${API}/save/${userId}`).then(r => r.json()).then(setSave)
   }, [userId])
 

@@ -90,6 +90,27 @@ export class HeroService {
     return { success: true }
   }
 
+  async unequipTreasure(userId: string, heroId: string, slotType: 'main' | 'sub', slotIndex: number) {
+    const save = await this.saveService.getSave(userId)
+    if (!save) return { error: '存档不存在' }
+
+    const heroInstance = save.heroes.find((h: any) => h.heroId === heroId)
+    if (!heroInstance) return { error: '未拥有该英雄' }
+
+    const slots = heroInstance.treasures[slotType]
+    if (slotIndex < 0 || slotIndex >= slots.length) return { error: '槽位不存在' }
+
+    const treasure = slots[slotIndex]
+    if (!treasure) return { error: '该槽位没有宝具' }
+
+    // Move treasure back to inventory
+    slots[slotIndex] = null
+    save.treasures.push(treasure)
+
+    await this.saveService.updateSave(userId, { heroes: save.heroes, treasures: save.treasures })
+    return { success: true }
+  }
+
   async smeltHeroes(userId: string, heroIds: string[]) {
     if (heroIds.length !== 3) return { error: '需要3个英雄石' }
 

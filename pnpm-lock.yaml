@@ -81,6 +81,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@hero-legend/game-data':
+        specifier: workspace:*
+        version: link:../../packages/game-data
+      '@hero-legend/game-engine':
+        specifier: workspace:*
+        version: link:../../packages/game-engine
       '@hero-legend/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types

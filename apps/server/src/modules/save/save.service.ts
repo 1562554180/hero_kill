@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { SaveDoc } from './save.schema'
+import { generateInitialTreasures } from '@hero-legend/game-data'
 
 @Injectable()
 export class SaveService {
@@ -24,7 +25,7 @@ export class SaveService {
         { type: 'commandPost', level: 1 },
       ],
       heroes: [],
-      treasures: [],
+      treasures: generateInitialTreasures(),
       materials: [{ type: 'gold', amount: 1000 }],
       stageProgress: [
         { stageId: 'xu-zhou', battlesCompleted: 0, stars: 0, unlocked: true },

@@ -35,6 +35,15 @@ export class HeroController {
     return this.heroService.equipTreasure(userId, heroId, body.slotType, body.slotIndex, body.treasureId)
   }
 
+  @Post('unequip-treasure/:userId/:heroId')
+  async unequipTreasure(
+    @Param('userId') userId: string,
+    @Param('heroId') heroId: string,
+    @Body() body: { slotType: 'main' | 'sub'; slotIndex: number },
+  ) {
+    return this.heroService.unequipTreasure(userId, heroId, body.slotType, body.slotIndex)
+  }
+
   @Post('smelt/:userId')
   async smeltHeroes(@Param('userId') userId: string, @Body() body: { heroIds: string[] }) {
     return this.heroService.smeltHeroes(userId, body.heroIds)

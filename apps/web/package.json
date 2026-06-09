@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@hero-legend/shared-types": "workspace:*",
+    "@hero-legend/game-data": "workspace:*",
+    "@hero-legend/game-engine": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zustand": "^5.0.0",

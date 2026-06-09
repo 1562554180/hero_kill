@@ -14,4 +14,14 @@ export class BattleController {
   }) {
     return this.battleService.startBattle(body)
   }
+
+  @Post('result')
+  async saveResult(@Body() body: {
+    userId: string
+    stageId: string
+    battleIdx: number
+    result: any
+  }) {
+    return this.battleService.saveResult(body)
+  }
 }
