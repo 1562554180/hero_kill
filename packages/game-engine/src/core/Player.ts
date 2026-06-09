@@ -139,7 +139,7 @@ export class Player {
       ...this.hero.instance.treasures.main,
       ...this.hero.instance.treasures.sub,
     ]
-    return allTreasures.some(t => t?.skill.id === skillId)
+    return allTreasures.some(t => t?.skill.id === skillId || t?.skill.id === `treasure-${skillId}`)
   }
 
   getSkillMaxUses(skillId: string): number | undefined {
