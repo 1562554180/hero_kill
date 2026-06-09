@@ -137,30 +137,41 @@ export class Game {
     to.drawCards([card])
   }
 
-  /** 判定：翻牌堆顶一张牌，检查变法替换，返回最终花色 */
+  /** 判定：翻牌堆顶一张牌，链式变法替换，返回最终花色 */
   async judge(judgingPlayer?: Player): Promise<{ suit: Suit; card: Card }> {
     const cards = this.cardDeck.draw(1)
     let card = cards[0]
     this.eventBus.emit({ type: 'judge', data: { suit: card.suit, number: card.number, cardName: card.name, phase: 'reveal' } })
 
-    // 变法：判定牌生效前，有变法的玩家可弃一张手牌替换
-    // 先检查判定方自己有没有变法
-    if (judgingPlayer && judgingPlayer.hasSkillOrTreasure('bian-fa') && judgingPlayer.useSkill('bian-fa') && judgingPlayer.getHandSize() > 0) {
-      let replaceCardId: string | null = null
+    // 变法链: 从判定方开始, 顺时针遍历所有存活玩家
+    // 每人可改一次, 多个变法玩家按顺序链式修改, 以最后一个为准
+    const alivePlayers = this.players.filter(p => p.isAlive())
+    const startIdx = judgingPlayer ? alivePlayers.indexOf(judgingPlayer) : 0
+    // 防御: 如果 judgingPlayer 不在 alivePlayers 中(理论上不会), 从头开始
+    const orderedPlayers = startIdx >= 0
+      ? [...alivePlayers.slice(startIdx), ...alivePlayers.slice(0, startIdx)]
+      : alivePlayers
 
-      if (judgingPlayer.getRole() === 'player' && this.config.judgeActionHandler) {
-        replaceCardId = await this.config.judgeActionHandler(this, judgingPlayer, card)
+    for (const player of orderedPlayers) {
+      if (!player.hasSkillOrTreasure('bian-fa')) continue
+      if (!player.useSkill('bian-fa')) continue
+      if (player.getHandSize() === 0) continue
+
+      let replaceCardId: string | null = null
+      if (player.getRole() === 'player' && this.config.judgeActionHandler) {
+        replaceCardId = await this.config.judgeActionHandler(this, player, card)
       } else {
         // AI: 50%概率替换（简化逻辑）
-        replaceCardId = Math.random() < 0.5 ? judgingPlayer.getHand()[0].id : null
+        replaceCardId = Math.random() < 0.5 ? player.getHand()[0].id : null
       }
 
       if (replaceCardId) {
-        const replacement = judgingPlayer.removeCard(replaceCardId)
+        const replacement = player.removeCard(replaceCardId)
         if (replacement) {
           this.cardDeck.discard([card])
-          this.emitSkillTrigger(judgingPlayer, '变法', `用${replacement.name}替换${card.name}`)
+          this.emitSkillTrigger(player, '变法', `用${replacement.name}替换${card.name}`)
           card = replacement
+          this.eventBus.emit({ type: 'judge', data: { suit: card.suit, number: card.number, cardName: card.name, phase: 'replace' } })
         }
       }
     }
