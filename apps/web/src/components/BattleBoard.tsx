@@ -27,7 +27,7 @@ export function BattleBoard() {
     ...(playerHero?.treasures?.sub ?? []),
   ].filter(Boolean)
   const hasSkillOrTreasure = (id: string) =>
-    allSkills.some(s => s.id === id) || allTreasures.some(t => t?.skill.id === id)
+    allSkills.some(s => s.id === id) || allTreasures.some(t => t?.skill.id === id || t?.skill.id === `treasure-${id}`)
 
   const hasAoJian = hasSkillOrTreasure('ao-jian')
   const hasHongZhuang = hasSkillOrTreasure('hong-zhuang')
