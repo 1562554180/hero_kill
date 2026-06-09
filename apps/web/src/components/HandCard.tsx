@@ -34,7 +34,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   const isHeal = card.name === '药'
   const isEquip = card.type === 'equipment'
   const isScheme = card.type === 'scheme'
-  const isSelfTargeted = card.name === '手捧雷'  // 手捧雷: self-only
+  const isSelfTargeted = card.name === '手捧雷' || card.name === '无中生有'
 
   const effectiveIsRed = isRedSuit(card.suit) || (hasHongZhuang && isBlackSuit(card.suit))
   const canUseAsKill = isKill || (aoJianActive && effectiveIsRed)  // 傲剑主动模式: 红色牌当杀, 包括药
