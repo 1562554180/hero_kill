@@ -97,7 +97,7 @@ describe('无懈可击', () => {
     const player = game.getPlayer()
     const enemy = game.getPlayerById('han-xin')!
     player.drawCards([
-      { id: 'hd1', suit: 'heart', number: 5, type: 'scheme', name: '画地为牢' } as any,
+      { id: 'hd1', suit: 'heart', number: 5, type: 'scheme', name: '画地为牢', delayed: true } as any,
     ])
     enemy.drawCards([
       { id: 'wx1', suit: 'diamond', number: 7, type: 'scheme', name: '无懈可击' },
@@ -118,7 +118,7 @@ describe('无懈可击', () => {
     const player = game.getPlayer()
     const enemy = game.getPlayerById('han-xin')!
     player.drawCards([
-      { id: 't1', suit: 'spade', number: 1, type: 'scheme', name: '手捧雷' } as any,
+      { id: 't1', suit: 'spade', number: 1, type: 'scheme', name: '手捧雷', delayed: true } as any,
     ])
     enemy.drawCards([
       { id: 'wx1', suit: 'diamond', number: 7, type: 'scheme', name: '无懈可击' },

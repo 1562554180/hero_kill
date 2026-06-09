@@ -8,9 +8,9 @@ export class CardValueEvaluator {
     }
     if (card.type === 'scheme') {
       const values: Record<string, number> = {
-        '无中生有': 5, '无懈可击': 4, '决斗': 3, '南蛮入侵': 3,
+        '无中生有': 5, '无懈可击': 4, '决斗': 3, '烽火狼烟': 3,
         '万箭齐发': 3, '五谷丰登': 2, '探囊取物': 2, '釜底抽薪': 2,
-        '借刀杀人': 2, '手捧雷': 3, '画地为牢': 3,
+        '借刀杀人': 2, '手捧雷': 3, '画地为牢': 3, '休养生息': 2,
       }
       return values[card.name as string] ?? 1
     }

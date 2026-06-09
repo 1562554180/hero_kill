@@ -38,7 +38,7 @@ export class BalancedAI implements AIStrategy {
     for (const sc of schemes.slice(0, 2)) {
       if (sc.name === '无中生有') {
         actions.push({ type: 'playCard', cardId: sc.id })
-      } else if (sc.name === '决斗' || sc.name === '南蛮入侵' || sc.name === '万箭齐发') {
+      } else if (sc.name === '决斗' || sc.name === '烽火狼烟' || sc.name === '万箭齐发') {
         const target = ThreatEvaluator.findMostThreatening(board.enemies, board)
         if (target) actions.push({ type: 'playCard', cardId: sc.id, targetId: target.getId() })
       }
@@ -60,7 +60,7 @@ export class AggressiveAI implements AIStrategy {
       if (target) actions.push({ type: 'playCard', cardId: kill.id, targetId: target.getId() })
     }
 
-    const attacks = hand.filter((c: Card) => ['决斗', '南蛮入侵', '万箭齐发'].includes(c.name as string))
+    const attacks = hand.filter((c: Card) => ['决斗', '烽火狼烟', '万箭齐发'].includes(c.name as string))
     for (const card of attacks) {
       const target = ThreatEvaluator.findMostThreatening(board.enemies, board)
       if (target) actions.push({ type: 'playCard', cardId: card.id, targetId: target.getId() })

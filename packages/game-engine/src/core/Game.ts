@@ -828,8 +828,36 @@ export class Game {
       if (target && target.isAlive() && target.getId() !== player.getId()) {
         await this.executeDuel(player, target)
       }
-    } else {
-      // 其他锦囊（万箭齐发/南蛮入侵/借刀杀人）— 简化：暂无完整实现
+    } else if (card.name === '休养生息') {
+      for (const p of this.getAlivePlayers()) {
+        if (p.getCurrentHp() < p.getMaxHp()) {
+          const healed = p.heal(1)
+          this.eventBus.emit({ type: 'heal', sourceHeroId: p.getId(), data: { amount: healed } })
+        }
+      }
+    } else if (card.name === '烽火狼烟') {
+      for (const target of this.getEnemies(player)) {
+        if (!target.isAlive()) continue
+        const killCard = this.findKillCard(target)
+        if (killCard) {
+          target.removeCard(killCard.id)
+          this.cardDeck.discard([killCard])
+          this.eventBus.emit({
+            type: 'damage:prevent', sourceHeroId: target.getId(),
+            targetHeroId: player.getId(),
+            data: { cardName: killCard.name },
+          })
+        } else {
+          let damage = 1
+          if (this.zuijiuActive) { damage += 1; this.zuijiuActive = false }
+          target.takeDamage(damage)
+          this.eventBus.emit({ type: 'damage:deal', sourceHeroId: player.getId(), targetHeroId: target.getId(), data: { damage } })
+          this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: player.getId() } })
+          if (!target.isAlive()) {
+            this.eventBus.emit({ type: 'die', sourceHeroId: target.getId(), data: { killedBy: player.getId() } })
+          }
+        }
+      }
     }
 
     // 强运: 使用最后一张手牌时摸一张
