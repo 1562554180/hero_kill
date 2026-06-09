@@ -9,7 +9,24 @@ export class SaveService {
   constructor(@InjectModel(SaveDoc.name) private saveModel: Model<SaveDoc>) {}
 
   async getSave(userId: string): Promise<SaveDoc | null> {
-    return this.saveModel.findOne({ userId }).exec()
+    const save = await this.saveModel.findOne({ userId }).exec()
+    if (!save) return null
+    // 补全旧文档缺失的字段
+    let patched = false
+    if (!save.materials || save.materials.length === 0) {
+      save.materials = [{ type: 'gold', amount: 1000 }] as any
+      patched = true
+    }
+    if (!save.buildings || save.buildings.length === 0) {
+      save.buildings = [
+        { type: 'mainCity', level: 1 }, { type: 'recruit', level: 1 },
+        { type: 'smelt', level: 1 }, { type: 'treasureWorkshop', level: 1 },
+        { type: 'training', level: 1 }, { type: 'commandPost', level: 1 },
+      ] as any
+      patched = true
+    }
+    if (patched) await save.save()
+    return save
   }
 
   async createSave(userId: string): Promise<SaveDoc> {

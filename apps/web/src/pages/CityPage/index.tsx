@@ -32,7 +32,7 @@ export function CityPage() {
   }, [userId])
 
   const upgradeBuilding = async (type: string) => {
-    const gold = save?.materials.find(m => m.type === 'gold')?.amount ?? 0
+    const gold = save?.materials?.find(m => m.type === 'gold')?.amount ?? 0
     const cost = 200 + (save?.buildings.find((b: any) => b.type === type)?.level ?? 1) * 100
     if (gold < cost) { setMessage('金币不足'); return }
 
@@ -48,14 +48,16 @@ export function CityPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ buildings, materials }),
     })
-    const data = await res.json()
-    setSave(data)
+    if (!res.ok) { setMessage('升级失败'); return }
+    // 重新拉取完整存档, 避免响应缺少字段
+    const fresh = await fetch(`${API}/save/${userId}`).then(r => r.json())
+    setSave(fresh)
     setMessage(`${buildingNames[type]} 升级成功!`)
   }
 
   if (!save) return <div style={{ padding: 40, textAlign: 'center' }}>加载中...</div>
 
-  const gold = save.materials.find(m => m.type === 'gold')?.amount ?? 0
+  const gold = save.materials?.find(m => m.type === 'gold')?.amount ?? 0
 
   return (
     <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
@@ -84,7 +86,7 @@ export function CityPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        {save.buildings.map((b: any) => {
+        {(save.buildings ?? []).map((b: any) => {
           const cost = 200 + b.level * 100
           return (
             <div key={b.type} style={{
