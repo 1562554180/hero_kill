@@ -20,8 +20,8 @@ export interface GameConfig {
   responseActionHandler?: (game: Game, player: Player, responseType: 'kill' | 'nullify' | 'dodge', context: { sourceHeroId: string, schemeName: string, needCount?: number; targetHeroId?: string }) => Promise<string | null>
   /** 拼点交互：选择1张手牌参与拼点，返回null=取消 */
   pinDianHandler?: (game: Game, player: Player, against: Player, reason: string) => Promise<string | null>
-  /** 侠胆: 拼点中玩家自己选1张手牌(目标已先选), null=取消 */
-  xiaDanPlayerCardHandler?: (game: Game, player: Player, against: Player, opponentCard: Card) => Promise<string | null>
+  /** 侠胆: 拼点中玩家自己选1张手牌(双方同时选, 不会看到对方的牌), null=取消 */
+  xiaDanPlayerCardHandler?: (game: Game, player: Player, against: Player) => Promise<string | null>
   /** 釜底抽薪：选目标 */
   fudiTargetHandler?: (game: Game, attacker: Player, candidates: Player[]) => Promise<string | null>
   /** 釜底抽薪：选要弃的目标牌（手牌/判定/装备之一） */
@@ -55,6 +55,8 @@ export class Game {
   private isOver = false
   private winner: 'player' | 'enemy' | null = null
   private killUsedThisTurn = false
+  private killsUsedThisTurn = 0        // 本回合已出杀次数
+  private killsMaxThisTurn = 1         // 本回合最大杀次数 (天狼/虎符→Infinity; 侠胆胜→2)
   private lastPlayedCardName: string | null = null
   private zuijiuActive = false  // 醉酒：本回合杀/决斗伤害+1
   private skipNextTurn = false   // 蓄谋：跳过下一回合
@@ -71,9 +73,10 @@ export class Game {
     const player = this.players.find(p => p.getRole() === 'player')
     if (!player) return false
     if (this.xiaDanLossThisTurn.has(player.getId())) return false
-    const winKills = this.xiaDanWinKillsLeft.get(player.getId())
-    if (winKills && winKills > 0) return true
-    return !this.killUsedThisTurn || player.hasSkillOrTreasure('tian-lang')
+    // 天狼/虎符: 杀无限制
+    if (player.hasSkillOrTreasure('tian-lang')) return true
+    // 侠胆胜出后: 杀次数被设为2(已用算入)
+    return this.killsUsedThisTurn < this.killsMaxThisTurn
   }
 
   // 傲剑主动模式: UI点击时调用
@@ -115,6 +118,16 @@ export class Game {
 
   emitSkillTrigger(player: Player, name: string, effect: string): void {
     this.eventBus.emit({ type: 'skill:trigger', sourceHeroId: player.getId(), data: { skillName: name, effect } })
+  }
+
+  /** 强运: 手牌为空时立即摸2张（无次数限制；牌堆彻底为空时不再触发） */
+  triggerQiangYun(player: Player): void {
+    if (!player.hasSkillOrTreasure('qiang-yun')) return
+    if (player.getHandSize() !== 0) return
+    const drawn = this.cardDeck.draw(2)
+    if (drawn.length === 0) return
+    player.drawCards(drawn)
+    this.emitSkillTrigger(player, '强运', `手牌为空-摸${drawn.length}张`)
   }
 
   private isEffectivelyRed(card: Card, player: Player): boolean {
@@ -372,6 +385,8 @@ export class Game {
 
     player.resetSkillUses()
     this.killUsedThisTurn = false
+    this.killsUsedThisTurn = 0
+    this.killsMaxThisTurn = 1
     this.lastPlayedCardName = null
     this.zuijiuActive = false
     this.aoJianActive.clear()  // 傲剑主动模式: 每个玩家回合开始时清空
@@ -487,13 +502,18 @@ export class Game {
     }
 
     // 出杀
-    const canKill = !this.killUsedThisTurn || player.hasSkillOrTreasure('tian-lang')
+    const canKill = player.hasSkillOrTreasure('tian-lang') || this.killsUsedThisTurn < this.killsMaxThisTurn
     if (canKill) {
       const killCard = this.findKillCard(player)
       if (killCard) {
         const targets = this.getEnemies(player)
         if (targets.length > 0) {
           await this.executeKill(player, targets[0], killCard)
+          if (!player.hasSkillOrTreasure('tian-lang')) {
+            this.killsUsedThisTurn++
+            this.killUsedThisTurn = true
+            player.setUsedKillThisTurn(true)
+          }
         }
       }
     }
@@ -516,16 +536,7 @@ export class Game {
   async executeKill(attacker: Player, defender: Player, killCard: Card): Promise<void> {
     attacker.removeCard(killCard.id)
     this.cardDeck.discard([killCard])
-
-    if (!attacker.hasSkillOrTreasure('tian-lang')) {
-      // 侠胆胜出期间不消耗常规杀次数, 也不递减 xiaDanWinKillsLeft
-      // (由 caller — playerPlayKill/playerPlayKillMulti/AI 出杀流程 — 负责递减一次)
-      const winKills = this.xiaDanWinKillsLeft.get(attacker.getId()) ?? 0
-      if (winKills <= 0) {
-        this.killUsedThisTurn = true
-        attacker.setUsedKillThisTurn(true)
-      }
-    }
+    // killsUsedThisTurn 由 caller 累加 (playerPlayKill / playerPlayKillMulti / AI 流程)
 
     const usedAsSkill = killCard.name !== '杀'
     let skillName = ''
@@ -684,12 +695,7 @@ export class Game {
       }
     }
 
-    // 强运: 使用最后一张手牌时摸一张
-    if (attacker.hasSkillOrTreasure('qiang-yun') && attacker.getHandSize() === 0) {
-      const drawn = this.cardDeck.draw(1)
-      attacker.drawCards(drawn)
-      this.emitSkillTrigger(attacker, '强运', '最后一张手牌摸一张')
-    }
+    this.triggerQiangYun(attacker)
   }
 
   /** 受伤后的被动技能触发 */
@@ -979,16 +985,15 @@ export class Game {
     if (!killCard || !this.canUseAsKill(killCard, player)) return
     // 侠胆: 输了拼点不能出杀
     if (this.xiaDanLossThisTurn.has(player.getId())) return
-    const winKills = this.xiaDanWinKillsLeft.get(player.getId()) ?? 0
-    if (winKills === 0 && this.killUsedThisTurn && !player.hasSkillOrTreasure('tian-lang')) return
+    // 杀次数已用尽
+    if (!player.hasSkillOrTreasure('tian-lang') && this.killsUsedThisTurn >= this.killsMaxThisTurn) return
     const target = this.players.find(p => p.getId() === targetId)
     if (!target || !target.isAlive()) return
     await this.executeKill(player, target, killCard)
-    // 侠胆胜出: 消耗一次 win-kill; 用尽时清理 map
-    if (winKills > 0) {
-      const remaining = winKills - 1
-      if (remaining <= 0) this.xiaDanWinKillsLeft.delete(player.getId())
-      else this.xiaDanWinKillsLeft.set(player.getId(), remaining)
+    if (!player.hasSkillOrTreasure('tian-lang')) {
+      this.killsUsedThisTurn++
+      this.killUsedThisTurn = true
+      player.setUsedKillThisTurn(true)
     }
   }
 
@@ -1013,10 +1018,12 @@ export class Game {
       const c = player.getHand().find(card => card.id === cardId) ?? killCard
       await this.executeKill(player, target, c)
     }
-    // 一次多杀只消耗 1 次 win-kill; 用尽时清理 map
-    const remaining = winKills - 1
-    if (remaining <= 0) this.xiaDanWinKillsLeft.delete(player.getId())
-    else this.xiaDanWinKillsLeft.set(player.getId(), remaining)
+    // 一次多杀只消耗 1 次杀次数
+    if (!player.hasSkillOrTreasure('tian-lang')) {
+      this.killsUsedThisTurn++
+      this.killUsedThisTurn = true
+      player.setUsedKillThisTurn(true)
+    }
   }
 
   async playerPlayScheme(player: Player, cardId: string, targetId?: string): Promise<void> {
@@ -1267,12 +1274,7 @@ export class Game {
       this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
     }
 
-    // 强运: 使用最后一张手牌时摸一张
-    if (player.hasSkillOrTreasure('qiang-yun') && player.getHandSize() === 0) {
-      const drawn = this.cardDeck.draw(1)
-      player.drawCards(drawn)
-      this.emitSkillTrigger(player, '强运', '最后一张手牌摸一张')
-    }
+    this.triggerQiangYun(player)
   }
 
   playerPlayHeal(player: Player, cardId: string): void {
@@ -1290,11 +1292,7 @@ export class Game {
     this.eventBus.emit({ type: 'heal', sourceHeroId: player.getId(), data: { amount: healAmount } })
     this.lastPlayedCardName = '药'
 
-    if (player.hasSkillOrTreasure('qiang-yun') && player.getHandSize() === 0) {
-      const drawn = this.cardDeck.draw(1)
-      player.drawCards(drawn)
-      this.emitSkillTrigger(player, '强运', '最后一张手牌摸一张')
-    }
+    this.triggerQiangYun(player)
   }
 
   playerEquipCard(player: Player, cardId: string): void {
@@ -1335,11 +1333,7 @@ export class Game {
     this.emitSkillTrigger(player, '奸雄', `将${card.name}当${this.lastPlayedCardName}使用`)
     this.lastPlayedCardName = card.name
 
-    if (player.hasSkillOrTreasure('qiang-yun') && player.getHandSize() === 0) {
-      const drawn = this.cardDeck.draw(1)
-      player.drawCards(drawn)
-      this.emitSkillTrigger(player, '强运', '最后一张手牌摸一张')
-    }
+    this.triggerQiangYun(player)
   }
 
   /** 醉酒: 标记本回合伤害+1 */
@@ -1562,9 +1556,8 @@ export class Game {
 
   /**
    * 侠胆: 与另一名角色拼点
-   * 新流程: 目标先选牌(若目标是玩家, 通过 pinDianHandler; AI 自动选最小),
-   *       然后玩家自己选牌(通过 xiaDanPlayerCardHandler),
-   *       比较: 玩家点数 >= 目标点数 即胜 (2张无距离杀, 每张最多2目标), 否则本回合不能出杀
+   * 流程: 双方同时选牌 (玩家通过 xiaDanPlayerCardHandler, 目标通过 pinDianHandler / AI 自动选最小),
+   *       双方都选完后系统同时揭示并比较: 玩家点数 >= 目标点数 即胜 (杀次数设为2), 否则本回合不能出杀
    */
   async playerXiaDan(player: Player, targetId: string): Promise<void> {
     if (!player.hasSkillOrTreasure('xia-dan')) return
@@ -1581,28 +1574,29 @@ export class Game {
       return
     }
 
-    // 1) 目标先选牌
-    let opponentCard: Card | undefined
-    if (this.config.pinDianHandler) {
-      const cid = await this.config.pinDianHandler(this, target, player, '侠胆')
-      if (cid) opponentCard = target.getHand().find(c => c.id === cid)
-    }
-    if (!opponentCard) {
+    // 双方同时选牌 (玩家: xiaDanPlayerCardHandler; 目标: pinDianHandler 或 AI 自动选最小)
+    const targetPickPromise = (async (): Promise<Card | null> => {
+      if (this.config.pinDianHandler) {
+        const cid = await this.config.pinDianHandler(this, target, player, '侠胆')
+        if (cid) return target.getHand().find(c => c.id === cid) ?? null
+      }
       // AI: 选最小的牌
-      opponentCard = [...target.getHand()].sort((a, b) => a.number - b.number)[0]
-    }
-    target.removeCard(opponentCard.id)
-    this.cardDeck.discard([opponentCard])
+      return [...target.getHand()].sort((a, b) => a.number - b.number)[0] ?? null
+    })()
+
+    const playerPickPromise = (async (): Promise<Card | null> => {
+      if (this.config.xiaDanPlayerCardHandler) {
+        const cid = await this.config.xiaDanPlayerCardHandler(this, player, target)
+        if (cid) return player.getHand().find(c => c.id === cid) ?? null
+      }
+      return null
+    })()
+
+    const [opponentCard, playerCard] = await Promise.all([targetPickPromise, playerPickPromise])
     this.xiaDanUsedThisTurn.add(player.getId())
 
-    // 2) 玩家自己选牌
-    let playerCard: Card | undefined
-    if (this.config.xiaDanPlayerCardHandler) {
-      const cid = await this.config.xiaDanPlayerCardHandler(this, player, target, opponentCard)
-      if (cid) playerCard = player.getHand().find(c => c.id === cid)
-    }
-    if (!playerCard) {
-      // 玩家取消, 不消耗也不出效果(技能仍记为已用过, 避免重复)
+    if (!opponentCard || !playerCard) {
+      // 任何一方取消, 双方手牌都保留
       this.eventBus.emit({
         type: 'skill:trigger',
         sourceHeroId: player.getId(),
@@ -1610,10 +1604,13 @@ export class Game {
       })
       return
     }
+
+    target.removeCard(opponentCard.id)
+    this.cardDeck.discard([opponentCard])
     player.removeCard(playerCard.id)
     this.cardDeck.discard([playerCard])
 
-    // 3) 比较点数, 应用效果
+    // 比较点数, 应用效果
     this.eventBus.emit({
       type: 'skill:trigger',
       sourceHeroId: player.getId(),
@@ -1621,9 +1618,11 @@ export class Game {
     })
 
     if (playerCard.number >= opponentCard.number) {
-      this.xiaDanWinKillsLeft.set(player.getId(), 2)
+      // 胜: 杀次数设为 2 (天狼则无限)
+      this.killsMaxThisTurn = player.hasSkillOrTreasure('tian-lang') ? Infinity : 2
+      this.xiaDanWinKillsLeft.set(player.getId(), this.killsMaxThisTurn === Infinity ? Number.MAX_SAFE_INTEGER : 2)
       this.xiaDanWinTargetsPerKill.set(player.getId(), 2)
-      this.emitSkillTrigger(player, '侠胆', '拼点胜-本回合2张无距离杀(每张最多2目标)')
+      this.emitSkillTrigger(player, '侠胆', '拼点胜-本回合杀次数=2(每张最多2目标)')
     } else {
       this.xiaDanLossThisTurn.add(player.getId())
       this.emitSkillTrigger(player, '侠胆', '拼点负-本回合不能出杀')

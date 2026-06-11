@@ -118,6 +118,8 @@ interface BattleState {
   // 侠胆: 已激活(待选目标), 无浮层, 按钮高亮
   xiaDanActive: boolean
   cancelXiaDan: () => void
+  // 侠胆: 本回合已使用过(成功后置true, 下回合重置)
+  xiaDanUsedThisTurn: boolean
 }
 
 const heroNames: Record<string, string> = {}
@@ -216,6 +218,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   xiaDanTargetName: null,
   resolveXiaDanCard: null,
   xiaDanActive: false,
+  xiaDanUsedThisTurn: false,
 
   startBattle: async (config: GameConfig) => {
     Object.keys(heroNames).forEach(k => delete heroNames[k])
@@ -263,6 +266,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       xiaDanOpponentCard: null,
       xiaDanTargetName: null,
       xiaDanActive: false,
+      xiaDanUsedThisTurn: false,
       judgeCard: null,
     })
 
@@ -276,12 +280,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         set({ resolveJudge: null, judgeCard: null })
         return cardId
       },
-      xiaDanPlayerCardHandler: async (game: Game, player: any, _against: Player, opponentCard: Card) => {
-        // 目标已先选牌, 玩家现在选自己的牌
+      xiaDanPlayerCardHandler: async (game: Game, player: any, _against: Player) => {
+        // 双方同时选牌, 玩家不会看到对方的牌
         set({
           phase: 'xiaDanPickCard',
           playerHand: player.getHand(),
-          xiaDanOpponentCard: opponentCard,
+          xiaDanOpponentCard: null,  // 不展示对方已选牌
         })
         const cardId = await new Promise<string | null>(resolve => {
           set({ resolveXiaDanCard: resolve })
@@ -499,6 +503,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           event.type === 'phase:end' || event.type === 'judge' ||
           event.type === 'scheme:nullify') {
         set({ gameState: game.getState() })
+      }
+      // 玩家回合开始: 重置 侠胆 已用标记
+      if (event.type === 'turn:start' && event.sourceHeroId === game.getPlayer()?.getId()) {
+        set({ xiaDanUsedThisTurn: false })
       }
       // 追踪装备状态
       if (event.type === 'equipment:equip' && event.sourceHeroId && event.data) {
@@ -898,13 +906,13 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         set({ treasureSkill: null, treasurePrompt: '', phase: 'playing', gameState: game!.getState(), playerHand: player.getHand() })
       }
     } else if (xiaDanActive) {
-      // 侠胆: 目标已选, 引擎自动取对手的牌; 之后通过 xiaDanPlayerCardHandler 等待玩家自己选
+      // 侠胆: 双方同时选牌, 玩家不会看到对方出了什么
       const target = game!.getPlayerById(targetId)
       const targetName = target?.getName() ?? targetId
       // 防御: 选中的目标无手牌则直接拒绝
       if (!target || target.getHandSize() === 0) return
-      set({ xiaDanTargetName: targetName, xiaDanActive: false })
-      // 不在这里重置 phase, 等引擎的 xiaDanPlayerCardHandler 切到 xiaDanPickCard
+      set({ xiaDanTargetName: targetName, xiaDanActive: false, xiaDanUsedThisTurn: true })
+      // 引擎内部双方同时选牌: target 通过 pinDianHandler, 玩家通过 xiaDanPlayerCardHandler
       game!.playerXiaDan(player, targetId).then(() => {
         // 引擎完成后清理
         const g = get()

@@ -115,10 +115,10 @@ describe('主印宝具: 实现验证', () => {
   })
 
   describe('侠胆 (xia-dan) 拼点', () => {
-    // 测试用: 玩家自动选手中第一张牌
+    // 测试用: 玩家(shang-yang 无天狼)自动选手中第一张牌
     function makeGameWithPlayerPick(player: any, pickCardId: string, opts?: { enemyHeroIds?: string[], allyHeroIds?: string[] }) {
       return new Game({
-        playerHeroId: 'yang-yan-zhao', playerInstance: makeInstanceWithTreasure([{ skill: { id: 'xia-dan' }, triggerRate: 1 }]),
+        playerHeroId: 'shang-yang', playerInstance: makeInstanceWithTreasure([{ skill: { id: 'xia-dan' }, triggerRate: 1 }]),
         allyHeroIds: opts?.allyHeroIds ?? [],
         enemyHeroIds: opts?.enemyHeroIds ?? ['han-xin'],
         playerActionHandler: async () => null,
@@ -130,15 +130,16 @@ describe('主印宝具: 实现验证', () => {
       })
     }
 
-    it('赢拼点 (13 vs 2): 玩家获得2张无距离杀权限', async () => {
+    it('赢拼点 (13 vs 2): 玩家本回合杀次数=2', async () => {
       const game = makeGameWithPlayerPick(null, 'p1')
       const player = game.getPlayer()
       const enemy = game.getPlayerById('han-xin')!
       player.drawCards([card('杀', 'p1', 'spade', 13), card('杀', 'p2', 'heart', 7)])
       enemy.drawCards([card('杀', 'e1', 'spade', 2)])
       await game.playerXiaDan(player, 'han-xin')
-      expect((game as any).xiaDanWinKillsLeft.get('yang-yan-zhao')).toBe(2)
-      expect((game as any).xiaDanWinTargetsPerKill.get('yang-yan-zhao')).toBe(2)
+      // 杀次数上限被设为 2
+      expect((game as any).killsMaxThisTurn).toBe(2)
+      expect((game as any).xiaDanWinTargetsPerKill.get('shang-yang')).toBe(2)
       expect(game.canPlayKill).toBe(true)
     })
 
@@ -149,8 +150,9 @@ describe('主印宝具: 实现验证', () => {
       player.drawCards([card('杀', 'p1', 'spade', 2)])
       enemy.drawCards([card('杀', 'e1', 'spade', 13)])
       await game.playerXiaDan(player, 'han-xin')
-      expect((game as any).xiaDanLossThisTurn.has('yang-yan-zhao')).toBe(true)
-      expect((game as any).xiaDanWinKillsLeft.has('yang-yan-zhao')).toBe(false)
+      expect((game as any).xiaDanLossThisTurn.has('shang-yang')).toBe(true)
+      // 杀次数仍为1(默认)
+      expect((game as any).killsMaxThisTurn).toBe(1)
     })
 
     it('平拼点 (7 vs 7): 玩家点数 >= 目标点数 仍算胜 (新规则)', async () => {
@@ -161,11 +163,12 @@ describe('主印宝具: 实现验证', () => {
       enemy.drawCards([card('杀', 'e1', 'heart', 7)])
       await game.playerXiaDan(player, 'han-xin')
       // 新规则: >= 即胜
-      expect((game as any).xiaDanWinKillsLeft.get('yang-yan-zhao')).toBe(2)
-      expect((game as any).xiaDanLossThisTurn.has('yang-yan-zhao')).toBe(false)
+      expect((game as any).killsMaxThisTurn).toBe(2)
+      expect((game as any).xiaDanLossThisTurn.has('shang-yang')).toBe(false)
     })
 
-    it('目标先选牌, 玩家后选牌 (顺序正确)', async () => {
+    it('双方同时选牌 (parallel pick)', async () => {
+      // 双方不会看到对方出了什么牌, 选牌是并行的
       const callOrder: string[] = []
       const game = new Game({
         playerHeroId: 'yang-yan-zhao',
@@ -186,13 +189,14 @@ describe('主印宝具: 实现验证', () => {
       player.drawCards([card('杀', 'p1', 'spade', 13)])
       enemy.drawCards([card('杀', 'e1', 'spade', 2)])
       await game.playerXiaDan(player, 'han-xin')
-      // 顺序: 目标先, 玩家后
-      expect(callOrder).toEqual(['target-pick', 'player-pick'])
+      // 双方都被调用过
+      expect(callOrder).toContain('target-pick')
+      expect(callOrder).toContain('player-pick')
     })
 
     it('玩家取消拼点 (handler返回null): 不消耗手牌, 技能已用', async () => {
       const game = new Game({
-        playerHeroId: 'yang-yan-zhao',
+        playerHeroId: 'shang-yang',
         playerInstance: makeInstanceWithTreasure([{ skill: { id: 'xia-dan' }, triggerRate: 1 }]),
         allyHeroIds: [], enemyHeroIds: ['han-xin'],
         playerActionHandler: async () => null,
@@ -208,9 +212,9 @@ describe('主印宝具: 实现验证', () => {
       // 玩家的p1没有被消耗
       expect(player.getHandSize()).toBe(handBefore)
       // 也没有胜出
-      expect((game as any).xiaDanWinKillsLeft.has('yang-yan-zhao')).toBe(false)
+      expect((game as any).xiaDanWinKillsLeft.has('shang-yang')).toBe(false)
       // 技能仍记为已用, 不能再次发动
-      expect((game as any).xiaDanUsedThisTurn.has('yang-yan-zhao')).toBe(true)
+      expect((game as any).xiaDanUsedThisTurn.has('shang-yang')).toBe(true)
     })
 
     it('目标无手牌时跳过 (不消耗己方手牌)', async () => {
@@ -228,7 +232,7 @@ describe('主印宝具: 实现验证', () => {
       expect(player.getHandSize()).toBe(handBefore)
     })
 
-    it('多杀: playerPlayKillMulti 一次对2目标, 只消耗1次win-kill', async () => {
+    it('多杀: playerPlayKillMulti 一次对2目标, 只消耗1次杀次数', async () => {
       const game = makeGameWithPlayerPick(null, 'p1', { enemyHeroIds: ['han-xin', 'xiang-yu'] })
       const player = game.getPlayer()
       const hanXin = game.getPlayerById('han-xin')!
@@ -236,17 +240,18 @@ describe('主印宝具: 实现验证', () => {
       player.drawCards([card('杀', 'p1', 'spade', 13), card('杀', 'p2', 'heart', 9)])
       hanXin.drawCards([card('杀', 'e1', 'spade', 2)])
       await game.playerXiaDan(player, 'han-xin')
-      expect((game as any).xiaDanWinKillsLeft.get('yang-yan-zhao')).toBe(2)
-      expect((game as any).xiaDanWinTargetsPerKill.get('yang-yan-zhao')).toBe(2)
+      expect((game as any).killsMaxThisTurn).toBe(2)
+      expect((game as any).xiaDanWinTargetsPerKill.get('shang-yang')).toBe(2)
       const hp1Before = hanXin.getCurrentHp()
       const hp2Before = xiangYu.getCurrentHp()
       await game.playerPlayKillMulti(player, 'p2', ['han-xin', 'xiang-yu'])
       expect(hanXin.getCurrentHp()).toBe(hp1Before - 1)
       expect(xiangYu.getCurrentHp()).toBe(hp2Before - 1)
-      expect((game as any).xiaDanWinKillsLeft.get('yang-yan-zhao')).toBe(1)
+      // 多杀只算1次
+      expect((game as any).killsUsedThisTurn).toBe(1)
     })
 
-    it('多杀: 第2次再出一张单杀消耗剩余的win-kill', async () => {
+    it('多杀: 第2次再出一张单杀消耗剩余的杀次数', async () => {
       const game = makeGameWithPlayerPick(null, 'p1', { enemyHeroIds: ['han-xin', 'xiang-yu'] })
       const player = game.getPlayer()
       const hanXin = game.getPlayerById('han-xin')!
@@ -256,9 +261,11 @@ describe('主印宝具: 实现验证', () => {
       xiangYu.drawCards([card('杀', 'e2', 'spade', 2)])
       await game.playerXiaDan(player, 'han-xin')
       await game.playerPlayKillMulti(player, 'p2', ['han-xin', 'xiang-yu'])
-      expect((game as any).xiaDanWinKillsLeft.get('yang-yan-zhao')).toBe(1)
+      expect((game as any).killsUsedThisTurn).toBe(1)
       await game.playerPlayKill(player, 'han-xin', 'p3')
-      expect((game as any).xiaDanWinKillsLeft.has('yang-yan-zhao')).toBe(false)
+      // 第2次单杀后已用满2次
+      expect((game as any).killsUsedThisTurn).toBe(2)
+      expect(game.canPlayKill).toBe(false)
     })
 
     it('多杀: 不在侠胆胜出状态时playerPlayKillMulti 不会执行', async () => {
@@ -274,7 +281,7 @@ describe('主印宝具: 实现验证', () => {
       expect(xiangYu.getCurrentHp()).toBe(hp2Before)
     })
 
-    it('拼点胜出后, 玩家出单杀消耗win-kill不消耗常规杀次数', async () => {
+    it('拼点胜出后, 玩家出单杀消耗杀次数', async () => {
       const game = makeGameWithPlayerPick(null, 'p1')
       const player = game.getPlayer()
       const hanXin = game.getPlayerById('han-xin')!
@@ -282,11 +289,12 @@ describe('主印宝具: 实现验证', () => {
       hanXin.drawCards([card('杀', 'e1', 'spade', 2)])
       await game.playerXiaDan(player, 'han-xin')
       await game.playerPlayKill(player, 'han-xin', 'p2')
-      expect((game as any).xiaDanWinKillsLeft.get('yang-yan-zhao')).toBe(1)
+      expect((game as any).killsUsedThisTurn).toBe(1)
+      // 杀次数上限是2, 已用1次, 还能再出1次
       expect(game.canPlayKill).toBe(true)
     })
 
-    it('天狼 / 虎符 仍可在侠胆胜出期间出更多杀 (与其他技能叠加)', async () => {
+    it('天狼 仍可无限出杀 (killsMaxThisTurn = Infinity)', async () => {
       // yang-yan-zhao 天生带天狼, 配合 xia-dan 主印: 无限杀 + 多目标
       const instance = makeInstanceWithTreasure([{ skill: { id: 'xia-dan', name: '侠胆', type: 'passive', description: '拼点胜出: 多杀' }, triggerRate: 1 } as any])
       const game = new Game({
@@ -300,8 +308,9 @@ describe('主印宝具: 实现验证', () => {
       player.drawCards([card('杀', 'p1', 'spade', 13), card('杀', 'p2', 'heart', 9), card('杀', 'p3', 'club', 8)])
       hanXin.drawCards([card('杀', 'e1', 'spade', 2)])
       await game.playerXiaDan(player, 'han-xin')
-      expect((game as any).xiaDanWinKillsLeft.get('yang-yan-zhao')).toBe(2)
-      // 天狼: 玩家可以出无限杀
+      // 天狼: 杀上限 = Infinity
+      expect((game as any).killsMaxThisTurn).toBe(Infinity)
+      // 玩家可以出无限杀
       expect(game.canPlayKill).toBe(true)
       // 侠胆胜出: 可以一次杀多个目标
       expect((game as any).xiaDanWinTargetsPerKill.get('yang-yan-zhao')).toBe(2)

@@ -21,6 +21,7 @@ export function BattleBoard() {
     treasureSkill, treasurePrompt, treasureCardIds, treasureTargetIds,
     useTreasureSkill, pickTreasureCard, pickTreasureTarget, confirmTreasureTargets, cancelTreasureSkill,
     xiaDanOpponentCard, xiaDanTargetName, pickXiaDanCard, cancelXiaDanCard, xiaDanActive, cancelXiaDan,
+    xiaDanUsedThisTurn,
   } = useBattleStore()
 
   if (!gameState) return null
@@ -367,15 +368,18 @@ export function BattleBoard() {
                 {hasXiaDan && (
                   <button
                     onClick={() => useTreasureSkill('xia-dan')}
+                    disabled={xiaDanUsedThisTurn}
                     style={{
                       ...treasureBtnStyle,
-                      background: xiaDanActive ? '#b8860b' : treasureBtnStyle.background,
-                      color: xiaDanActive ? '#fff' : treasureBtnStyle.color,
+                      background: xiaDanActive ? '#b8860b' : (xiaDanUsedThisTurn ? '#444' : treasureBtnStyle.background),
+                      color: xiaDanActive ? '#fff' : (xiaDanUsedThisTurn ? '#888' : treasureBtnStyle.color),
                       boxShadow: xiaDanActive ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
+                      cursor: xiaDanUsedThisTurn ? 'not-allowed' : 'pointer',
+                      opacity: xiaDanUsedThisTurn ? 0.5 : 1,
                     }}
-                    title="侠胆: 点击进入待选状态, 再点1名有手牌的角色拼点, 胜→2张无距离杀(每张最多2目标), 负→本回合不能出杀"
+                    title={xiaDanUsedThisTurn ? '侠胆: 本回合已使用' : '侠胆: 点击进入待选状态, 再点1名有手牌的角色拼点, 胜→杀次数=2(每张最多2目标), 负→本回合不能出杀'}
                   >
-                    🗡 侠胆{xiaDanActive ? ' ·待选' : ''}
+                    🗡 侠胆{xiaDanActive ? ' ·待选' : (xiaDanUsedThisTurn ? ' ·已用' : '')}
                   </button>
                 )}
                 <button className="primary" style={{ fontSize: '14px' }} onClick={endPlayPhase}>
@@ -414,8 +418,8 @@ export function BattleBoard() {
             </div>
           )}
 
-          {/* 侠胆拼点提示: 目标已选牌, 玩家选自己手牌 */}
-          {phase === 'xiaDanPickCard' && xiaDanOpponentCard && (
+          {/* 侠胆拼点提示: 双方同时选牌, 玩家选自己手牌 (不知道对方出什么) */}
+          {phase === 'xiaDanPickCard' && (
             <div style={{
               marginBottom: '8px', padding: '10px 14px',
               background: 'rgba(255,215,0,0.12)', borderRadius: '4px',
@@ -424,7 +428,7 @@ export function BattleBoard() {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <span>
-                🗡️ 侠胆 — {xiaDanTargetName ?? '目标'} 已出 <b>{xiaDanOpponentCard.name}{xiaDanOpponentCard.number}</b>, 请选择1张手牌拼点 (≥ 对方点数即胜)
+                🗡️ 侠胆 — 与<b>{xiaDanTargetName ?? '目标'}</b>拼点, 双方同时选牌, 请选择1张手牌 (≥ 对方点数即胜)
               </span>
               <button style={{ fontSize: '12px' }} onClick={cancelXiaDanCard}>取消</button>
             </div>
