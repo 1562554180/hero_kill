@@ -20,7 +20,7 @@ export function BattleBoard() {
     fudiTargetInfo, selectFudiTarget, cancelFudiTarget, selectFudiCard, cancelFudiCard,
     treasureSkill, treasurePrompt, treasureCardIds, treasureTargetIds,
     useTreasureSkill, pickTreasureCard, pickTreasureTarget, confirmTreasureTargets, cancelTreasureSkill,
-    xiaDanOpponentCard, xiaDanTargetName, pickXiaDanCard, cancelXiaDanCard,
+    xiaDanOpponentCard, xiaDanTargetName, pickXiaDanCard, cancelXiaDanCard, xiaDanActive, cancelXiaDan,
   } = useBattleStore()
 
   if (!gameState) return null
@@ -81,7 +81,7 @@ export function BattleBoard() {
               hero={h}
               isCurrentTurn={gameState.currentHeroId === h.hero.id && !isPlayerTurn}
               isSelectable={
-                (phase === 'selectTarget' || phase === 'selectMultiTargets' || phase === 'selectKillMultiTargets' || phase === 'selectJieDaoHolder' || phase === 'selectJieDaoTarget' || phase === 'selectTanNangTarget' || phase === 'selectFudiTarget' || phase === 'treasureSelectTarget' || phase === 'treasureSelectTargets') && h.currentHp > 0
+                (phase === 'selectTarget' || phase === 'selectMultiTargets' || phase === 'selectKillMultiTargets' || phase === 'selectJieDaoHolder' || phase === 'selectJieDaoTarget' || phase === 'selectTanNangTarget' || phase === 'selectFudiTarget' || phase === 'treasureSelectTarget' || phase === 'treasureSelectTargets') && h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)
               }
               onClick={() => {
                 if (phase === 'selectTarget') confirmTarget(h.hero.id)
@@ -225,7 +225,7 @@ export function BattleBoard() {
                 hero={h}
                 isCurrentTurn={gameState.currentHeroId === h.hero.id && !isPlayerTurn}
                 isSelectable={
-                  (phase === 'treasureSelectTarget' || phase === 'treasureSelectTargets') && h.currentHp > 0
+                  (phase === 'treasureSelectTarget' || phase === 'treasureSelectTargets') && h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)
                 }
                 onClick={() => {
                   if (phase === 'treasureSelectTarget') pickTreasureTarget(h.hero.id)
@@ -365,8 +365,17 @@ export function BattleBoard() {
                   </button>
                 )}
                 {hasXiaDan && (
-                  <button onClick={() => useTreasureSkill('xia-dan')} style={treasureBtnStyle} title="侠胆: 消耗1张手牌拼点, 胜→2张无距离杀(每张最多2目标), 负→本回合不能出杀">
-                    🗡 侠胆
+                  <button
+                    onClick={() => useTreasureSkill('xia-dan')}
+                    style={{
+                      ...treasureBtnStyle,
+                      background: xiaDanActive ? '#b8860b' : treasureBtnStyle.background,
+                      color: xiaDanActive ? '#fff' : treasureBtnStyle.color,
+                      boxShadow: xiaDanActive ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
+                    }}
+                    title="侠胆: 点击进入待选状态, 再点1名有手牌的角色拼点, 胜→2张无距离杀(每张最多2目标), 负→本回合不能出杀"
+                  >
+                    🗡 侠胆{xiaDanActive ? ' ·待选' : ''}
                   </button>
                 )}
                 <button className="primary" style={{ fontSize: '14px' }} onClick={endPlayPhase}>
@@ -388,6 +397,20 @@ export function BattleBoard() {
             }}>
               判定牌: {judgeCard.name} ({judgeCard.suit === 'heart' ? '♥' : judgeCard.suit === 'diamond' ? '♦' : judgeCard.suit === 'spade' ? '♠' : '♣'}{judgeCard.number === 1 ? 'A' : judgeCard.number > 10 ? ['J','Q','K'][judgeCard.number - 11] : judgeCard.number})
               {' — '}弃一张手牌可替换此判定牌
+            </div>
+          )}
+
+          {/* 侠胆激活: 内联提示(无浮层) — 玩家点有手牌的角色 */}
+          {xiaDanActive && (
+            <div style={{
+              marginBottom: '8px', padding: '6px 12px',
+              background: 'rgba(255,215,0,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(255,215,0,0.3)',
+              color: '#ffd54f', fontSize: '12px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <span>🗡️ 侠胆待选目标 — 点击1名<b>有手牌</b>的角色开始拼点</span>
+              <button style={{ fontSize: '12px' }} onClick={cancelXiaDan}>取消</button>
             </div>
           )}
 
@@ -460,8 +483,8 @@ export function BattleBoard() {
         </div>
       )}
 
-      {/* 宝具技能 浮层 — 侠胆自己选牌时不要遮挡手牌 */}
-      {treasureSkill && phase !== 'xiaDanPickCard' && (
+      {/* 宝具技能 浮层 — 侠胆自己选牌时不要遮挡手牌, 侠胆激活时也无需浮层 */}
+      {treasureSkill && phase !== 'xiaDanPickCard' && !xiaDanActive && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center',

@@ -115,6 +115,9 @@ interface BattleState {
   // 侠胆: 玩家选自己拼点的牌
   pickXiaDanCard: (cardId: string) => void
   cancelXiaDanCard: () => void
+  // 侠胆: 已激活(待选目标), 无浮层, 按钮高亮
+  xiaDanActive: boolean
+  cancelXiaDan: () => void
 }
 
 const heroNames: Record<string, string> = {}
@@ -212,6 +215,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   xiaDanOpponentCard: null,
   xiaDanTargetName: null,
   resolveXiaDanCard: null,
+  xiaDanActive: false,
 
   startBattle: async (config: GameConfig) => {
     Object.keys(heroNames).forEach(k => delete heroNames[k])
@@ -258,6 +262,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveXiaDanCard: null,
       xiaDanOpponentCard: null,
       xiaDanTargetName: null,
+      xiaDanActive: false,
       judgeCard: null,
     })
 
@@ -812,7 +817,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     const { game, playerHand } = get()
     const player = game?.getPlayer()
     if (!player) return
-    set({ treasureSkill: skill, treasureCardIds: [], treasureTargetIds: [] })
+    set({ treasureSkill: skill, treasureCardIds: [], treasureTargetIds: [], xiaDanActive: false })
     if (skill === 'liao-shang') {
       if (playerHand.length === 0) { set({ treasureSkill: null, treasurePrompt: '' }); return }
       set({ phase: 'treasureSelectCard', treasurePrompt: '【疗伤】选择1张手牌弃置' })
@@ -828,13 +833,20 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     } else if (skill === 'qi-yi') {
       set({ phase: 'treasureSelectTargets', treasurePrompt: '【起义】选择至多2名其他角色 (各获得1张手牌), 点确认结束' })
     } else if (skill === 'xia-dan') {
-      // 侠胆: 先标记状态, 让玩家选目标 (无初始手牌选择)
+      // 侠胆: 仅内部标记状态, 不弹浮层; 玩家自己点有手牌的角色
       if (playerHand.length === 0) { set({ treasureSkill: null, treasurePrompt: '无手牌' }); return }
-      const enemies = game!.players.filter(p => p.getRole() !== 'player' && p.getRole() !== 'ally' && p.isAlive())
-      if (enemies.length === 0) { set({ treasureSkill: null, treasurePrompt: '无对手' }); return }
+      const { xiaDanActive } = get()
+      if (xiaDanActive) {
+        // 再次点击 = 取消
+        set({ xiaDanActive: false, phase: 'playing', treasurePrompt: '' })
+        return
+      }
+      const candidates = game!.players.filter(p => p.getId() !== player.getId() && p.isAlive() && p.getHandSize() > 0)
+      if (candidates.length === 0) { set({ treasureSkill: null, treasurePrompt: '无可拼点目标' }); return }
       set({
+        xiaDanActive: true,
         phase: 'treasureSelectTarget',
-        treasurePrompt: '【侠胆】选择1名其他角色拼点',
+        treasurePrompt: '',
         treasureCardIds: [],
       })
     }
@@ -866,8 +878,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   pickTreasureTarget: (targetId) => {
-    const { treasureSkill, treasureCardIds, treasureTargetIds, game } = get()
-    if (!treasureSkill) return
+    const { treasureSkill, treasureCardIds, treasureTargetIds, game, xiaDanActive } = get()
+    if (!treasureSkill && !xiaDanActive) return
     const player = game!.getPlayer()!
 
     if (treasureSkill === 'liao-shang') {
@@ -885,11 +897,13 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         game!.playerJueJi(player, null, targetId)
         set({ treasureSkill: null, treasurePrompt: '', phase: 'playing', gameState: game!.getState(), playerHand: player.getHand() })
       }
-    } else if (treasureSkill === 'xia-dan') {
+    } else if (xiaDanActive) {
       // 侠胆: 目标已选, 引擎自动取对手的牌; 之后通过 xiaDanPlayerCardHandler 等待玩家自己选
       const target = game!.getPlayerById(targetId)
       const targetName = target?.getName() ?? targetId
-      set({ xiaDanTargetName: targetName })
+      // 防御: 选中的目标无手牌则直接拒绝
+      if (!target || target.getHandSize() === 0) return
+      set({ xiaDanTargetName: targetName, xiaDanActive: false })
       // 不在这里重置 phase, 等引擎的 xiaDanPlayerCardHandler 切到 xiaDanPickCard
       game!.playerXiaDan(player, targetId).then(() => {
         // 引擎完成后清理
@@ -917,7 +931,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     set({
       treasureSkill: null, treasurePrompt: '', phase: 'playing',
       treasureCardIds: [], treasureTargetIds: [],
-      xiaDanOpponentCard: null, xiaDanTargetName: null,
+      xiaDanOpponentCard: null, xiaDanTargetName: null, xiaDanActive: false,
     })
     // 若引擎还在 await 侠胆选牌, 也告知取消
     const { resolveXiaDanCard } = get()
@@ -937,5 +951,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     const { resolveXiaDanCard } = get()
     if (!resolveXiaDanCard) return
     resolveXiaDanCard(null)
+  },
+  cancelXiaDan: () => {
+    set({ xiaDanActive: false, phase: 'playing', treasurePrompt: '' })
   },
 }))
