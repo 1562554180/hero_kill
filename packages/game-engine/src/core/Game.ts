@@ -188,7 +188,7 @@ export class Game {
       this.emitSkillTrigger(attacker, '强化', '伤害+1')
       this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: defender.getId(), data: { damage: 1 } })
       if (!defender.isAlive()) {
-        this.eventBus.emit({ type: 'die', sourceHeroId: defender.getId(), data: { killedBy: attacker.getId() } })
+        this.eventBus.emit({ type: 'die', sourceHeroId: defender.getId(), data: { killedBy: attacker.getId(), extraDamage: true } })
       }
     }
     // 吸血: 30%几率回复1点体力
@@ -359,6 +359,8 @@ export class Game {
     const victimId = event.sourceHeroId
     const killerId = (event.data as any)?.killedBy
     if (!victimId || !killerId) return
+    // 跳过辅印/技能造成的额外伤害击杀(已在主伤害处发放过奖励)
+    if ((event.data as any)?.extraDamage) return
     const victim = this.getPlayerById(victimId)
     const killer = this.getPlayerById(killerId)
     if (!victim || !killer) return
@@ -697,7 +699,7 @@ export class Game {
       }
 
       if (!defender.isAlive()) {
-        this.eventBus.emit({ type: 'die', sourceHeroId: defender.getId(), data: { killedBy: attacker.getId() } })
+        this.eventBus.emit({ type: 'die', sourceHeroId: defender.getId(), data: { killedBy: attacker.getId(), extraDamage: true } })
       }
     } else {
       // 强掠: 杀被闪后判定，黑色抽对方一张
