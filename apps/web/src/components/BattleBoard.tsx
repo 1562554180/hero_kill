@@ -325,16 +325,18 @@ export function BattleBoard() {
                         useBattleStore.setState({ resolveAction: null })
                       }
                     }}
+                    disabled={!canPlayKill}
                     style={{
                       fontSize: '12px',
                       padding: '4px 10px',
-                      background: 'var(--bg-dark)',
-                      color: 'var(--text-light)',
+                      background: canPlayKill ? 'var(--bg-dark)' : '#444',
+                      color: canPlayKill ? 'var(--text-light)' : '#888',
                       border: '1px solid var(--border-wood)',
                       borderRadius: '4px',
-                      cursor: 'pointer',
+                      cursor: canPlayKill ? 'pointer' : 'not-allowed',
+                      opacity: canPlayKill ? 1 : 0.5,
                     }}
-                    title="芦叶枪: 选2张手牌当杀"
+                    title={canPlayKill ? '芦叶枪: 选2张手牌当杀' : '芦叶枪: 本回合杀次数已用尽'}
                   >
                     🎋 芦叶枪
                   </button>

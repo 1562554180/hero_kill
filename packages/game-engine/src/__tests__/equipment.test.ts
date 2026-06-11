@@ -294,4 +294,61 @@ describe('装备系统', () => {
     // 2张手牌当杀 → 命中1次
     expect(enemy.getCurrentHp()).toBe(beforeHp - 1)
   })
+
+  it('芦叶枪: 出完杀后不能再用芦叶枪出杀 (消耗杀次数)', async () => {
+    const game = new Game({
+      playerHeroId: 'shang-yang', playerInstance: baseInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+      dualCardHandler: async (_g, p) => p.getHand().filter(c => c.name === '闪').slice(0, 2).map(c => c.id),
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    player.drawCards([
+      makeEquipment('芦叶枪', 'weapon', 3, 'spade', 4),
+      { id: 'k1', suit: 'heart', number: 5, type: 'basic', name: '杀' } as any,
+      { id: 'a1', suit: 'spade', number: 5, type: 'basic', name: '闪' } as any,
+      { id: 'a2', suit: 'spade', number: 7, type: 'basic', name: '闪' } as any,
+      { id: 'a3', suit: 'spade', number: 8, type: 'basic', name: '闪' } as any,
+      { id: 'a4', suit: 'spade', number: 9, type: 'basic', name: '闪' } as any,
+    ])
+    game.playerEquipCard(player, eid('芦叶枪', 'spade', 4))
+
+    const beforeHp = enemy.getCurrentHp()
+    // 先出1张真杀
+    await game.playerPlayKill(player, enemy.getId(), 'k1')
+    expect(enemy.getCurrentHp()).toBe(beforeHp - 1)
+    // 再用芦叶枪: 本回合杀次数已用尽, 应被引擎拒绝
+    const hpBeforeLuyeqiang = enemy.getCurrentHp()
+    await game.playerUseLuYeQiang(player)
+    expect(enemy.getCurrentHp()).toBe(hpBeforeLuyeqiang)  // 没掉血
+  })
+
+  it('虎符装备时出杀不消耗杀次数 (无限出杀)', async () => {
+    const game = new Game({
+      playerHeroId: 'shang-yang', playerInstance: baseInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    player.drawCards([
+      makeEquipment('虎符', 'weapon', 1, 'spade', 1),
+      { id: 'k1', suit: 'heart', number: 5, type: 'basic', name: '杀' } as any,
+      { id: 'k2', suit: 'heart', number: 7, type: 'basic', name: '杀' } as any,
+      { id: 'k3', suit: 'heart', number: 9, type: 'basic', name: '杀' } as any,
+      { id: 'k4', suit: 'heart', number: 11, type: 'basic', name: '杀' } as any,
+    ])
+    game.playerEquipCard(player, eid('虎符', 'spade', 1))
+    expect(game.canPlayKill).toBe(true)
+
+    const beforeHp = enemy.getCurrentHp()
+    await game.playerPlayKill(player, enemy.getId(), 'k1')
+    await game.playerPlayKill(player, enemy.getId(), 'k2')
+    await game.playerPlayKill(player, enemy.getId(), 'k3')
+    await game.playerPlayKill(player, enemy.getId(), 'k4')
+    // 4张杀全命中 (虎符: 无次数限制)
+    expect(enemy.getCurrentHp()).toBe(beforeHp - 4)
+    expect(game.canPlayKill).toBe(true)  // 仍然可以出杀
+  })
 })

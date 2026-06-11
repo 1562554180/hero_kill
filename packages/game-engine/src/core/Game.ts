@@ -74,7 +74,7 @@ export class Game {
     if (!player) return false
     if (this.xiaDanLossThisTurn.has(player.getId())) return false
     // 天狼/虎符: 杀无限制
-    if (player.hasSkillOrTreasure('tian-lang')) return true
+    if (this.hasUnlimitedKill(player)) return true
     // 侠胆胜出后: 杀次数被设为2(已用算入)
     return this.killsUsedThisTurn < this.killsMaxThisTurn
   }
@@ -120,6 +120,11 @@ export class Game {
     this.eventBus.emit({ type: 'skill:trigger', sourceHeroId: player.getId(), data: { skillName: name, effect } })
   }
 
+  /** 是否无杀次数限制: 天狼技能 或 装备虎符武器 */
+  private hasUnlimitedKill(player: Player): boolean {
+    return player.hasSkillOrTreasure('tian-lang') || player.getWeaponName() === '虎符'
+  }
+
   /** 强运: 手牌为空时立即摸2张（无次数限制；牌堆彻底为空时不再触发） */
   triggerQiangYun(player: Player): void {
     if (!player.hasSkillOrTreasure('qiang-yun')) return
@@ -128,6 +133,13 @@ export class Game {
     if (drawn.length === 0) return
     player.drawCards(drawn)
     this.emitSkillTrigger(player, '强运', `手牌为空-摸${drawn.length}张`)
+  }
+
+  /** 包装 Player.removeCard: 移除手牌后立即检查强运 */
+  private removeHandCard(player: Player, cardId: string): Card | undefined {
+    const card = player.removeCard(cardId)
+    if (card) this.triggerQiangYun(player)
+    return card
   }
 
   private isEffectivelyRed(card: Card, player: Player): boolean {
@@ -243,7 +255,7 @@ export class Game {
       if (attacker.getHandSize() > 0) {
         const hand = attacker.getHand()
         const card = hand[Math.floor(Math.random() * hand.length)]
-        attacker.removeCard(card.id)
+        this.removeHandCard(attacker,card.id)
         this.cardDeck.discard([card])
         this.emitSkillTrigger(victim, '伤之削', `弃置【${(card as any).name}】`)
       }
@@ -270,7 +282,7 @@ export class Game {
     const hand = from.getHand()
     if (hand.length === 0) return
     const card = hand[Math.floor(Math.random() * hand.length)]
-    from.removeCard(card.id)
+    this.removeHandCard(from,card.id)
     to.drawCards([card])
   }
 
@@ -303,7 +315,7 @@ export class Game {
       }
 
       if (replaceCardId) {
-        const replacement = player.removeCard(replaceCardId)
+        const replacement = this.removeHandCard(player,replaceCardId)
         if (replacement) {
           this.cardDeck.discard([card])
           this.emitSkillTrigger(player, '变法', `用${replacement.name}替换${card.name}`)
@@ -472,7 +484,7 @@ export class Game {
     // 用药
     for (const card of hand) {
       if (card.name === '药' && player.getCurrentHp() < player.getMaxHp()) {
-        player.removeCard(card.id)
+        this.removeHandCard(player,card.id)
         let healAmount = 1
         if (this.rollSubTreasure(player, 'yi-xin')) {
           healAmount += 1
@@ -492,7 +504,7 @@ export class Game {
       if (uselessCards.length > 0) {
         const discardCount = Math.min(uselessCards.length, 2)
         for (let i = 0; i < discardCount; i++) {
-          const c = player.removeCard(uselessCards[i].id)
+          const c = this.removeHandCard(player,uselessCards[i].id)
           if (c) this.cardDeck.discard([c])
         }
         const newCards = this.cardDeck.draw(discardCount)
@@ -502,14 +514,14 @@ export class Game {
     }
 
     // 出杀
-    const canKill = player.hasSkillOrTreasure('tian-lang') || this.killsUsedThisTurn < this.killsMaxThisTurn
+    const canKill = this.hasUnlimitedKill(player) || this.killsUsedThisTurn < this.killsMaxThisTurn
     if (canKill) {
       const killCard = this.findKillCard(player)
       if (killCard) {
         const targets = this.getEnemies(player)
         if (targets.length > 0) {
           await this.executeKill(player, targets[0], killCard)
-          if (!player.hasSkillOrTreasure('tian-lang')) {
+          if (!this.hasUnlimitedKill(player)) {
             this.killsUsedThisTurn++
             this.killUsedThisTurn = true
             player.setUsedKillThisTurn(true)
@@ -521,7 +533,7 @@ export class Game {
     // 装备
     for (const card of player.getCardsByType('equipment')) {
       if (card.type === 'equipment') {
-        player.removeCard(card.id)
+        this.removeHandCard(player,card.id)
         const slot = (card as any).slot
         if (slot) {
           player.equip(card, slot)
@@ -534,7 +546,7 @@ export class Game {
   // --- Kill execution ---
 
   async executeKill(attacker: Player, defender: Player, killCard: Card): Promise<void> {
-    attacker.removeCard(killCard.id)
+    this.removeHandCard(attacker,killCard.id)
     this.cardDeck.discard([killCard])
     // killsUsedThisTurn 由 caller 累加 (playerPlayKill / playerPlayKillMulti / AI 流程)
 
@@ -620,7 +632,7 @@ export class Game {
         if (dodgeCount >= dodgeNeeded) break
         const dodgeCard = await this.promptResponseDodge(defender, attacker.getId(), '杀')
         if (dodgeCard) {
-          defender.removeCard(dodgeCard.id)
+          this.removeHandCard(defender,dodgeCard.id)
           this.cardDeck.discard([dodgeCard])
           dodgeCount++
           const dodgeSkill = dodgeCard.name !== '闪'
@@ -675,7 +687,7 @@ export class Game {
         const dHand = defender.getHand()
         if (dHand.length > 0) {
           const target = dHand[Math.floor(Math.random() * dHand.length)]
-          defender.removeCard(target.id)
+          this.removeHandCard(defender,target.id)
           this.cardDeck.discard([target])
           this.emitSkillTrigger(attacker, '刺客', '黑色-弃对方一张牌')
         }
@@ -694,8 +706,6 @@ export class Game {
         }
       }
     }
-
-    this.triggerQiangYun(attacker)
   }
 
   /** 受伤后的被动技能触发 */
@@ -727,7 +737,7 @@ export class Game {
       // 找杀或红色牌当杀
       const killCard = hand.find(c => c.name === '杀' || (isRedSuit(c.suit) && c.name !== '药'))
       if (killCard) {
-        victim.removeCard(killCard.id)
+        this.removeHandCard(victim,killCard.id)
         this.cardDeck.discard([killCard])
         const dmg = attacker.takeDamage(1)
         this.emitSkillTrigger(victim, '还击', '对来源出杀')
@@ -778,7 +788,7 @@ export class Game {
         return
       }
       // 出杀
-      current.removeCard(killCard.id)
+      this.removeHandCard(current,killCard.id)
       this.cardDeck.discard([killCard])
 
       // 标记傲剑/武穆
@@ -880,7 +890,7 @@ export class Game {
       const wxCard = await this.promptNullifyResponse(candidate, schemePlayer, schemeCard)
       if (!wxCard) continue
 
-      candidate.removeCard(wxCard.id)
+      this.removeHandCard(candidate,wxCard.id)
       this.cardDeck.discard([wxCard])
       this.eventBus.emit({
         type: 'card:play', sourceHeroId: candidate.getId(),
@@ -986,11 +996,11 @@ export class Game {
     // 侠胆: 输了拼点不能出杀
     if (this.xiaDanLossThisTurn.has(player.getId())) return
     // 杀次数已用尽
-    if (!player.hasSkillOrTreasure('tian-lang') && this.killsUsedThisTurn >= this.killsMaxThisTurn) return
+    if (!this.hasUnlimitedKill(player) && this.killsUsedThisTurn >= this.killsMaxThisTurn) return
     const target = this.players.find(p => p.getId() === targetId)
     if (!target || !target.isAlive()) return
     await this.executeKill(player, target, killCard)
-    if (!player.hasSkillOrTreasure('tian-lang')) {
+    if (!this.hasUnlimitedKill(player)) {
       this.killsUsedThisTurn++
       this.killUsedThisTurn = true
       player.setUsedKillThisTurn(true)
@@ -1019,7 +1029,7 @@ export class Game {
       await this.executeKill(player, target, c)
     }
     // 一次多杀只消耗 1 次杀次数
-    if (!player.hasSkillOrTreasure('tian-lang')) {
+    if (!this.hasUnlimitedKill(player)) {
       this.killsUsedThisTurn++
       this.killUsedThisTurn = true
       player.setUsedKillThisTurn(true)
@@ -1038,7 +1048,7 @@ export class Game {
       usedAsSkill = '魅惑'
     }
 
-    player.removeCard(card.id)
+    this.removeHandCard(player,card.id)
     this.cardDeck.discard([card])
     this.eventBus.emit({
       type: 'card:play',
@@ -1211,7 +1221,7 @@ export class Game {
         if (this.checkDieHun(target, '烽火狼烟')) continue
         const killCard = await this.promptResponseKill(target, player.getId(), '烽火狼烟', 1)
         if (killCard) {
-          target.removeCard(killCard.id)
+          this.removeHandCard(target,killCard.id)
           this.cardDeck.discard([killCard])
           this.eventBus.emit({
             type: 'damage:prevent', sourceHeroId: target.getId(),
@@ -1239,7 +1249,7 @@ export class Game {
         if (this.checkDieHun(target, '万箭齐发')) continue
         const dodgeCard = await this.promptResponseDodge(target, player.getId(), '万箭齐发')
         if (dodgeCard) {
-          target.removeCard(dodgeCard.id)
+          this.removeHandCard(target,dodgeCard.id)
           this.cardDeck.discard([dodgeCard])
           this.eventBus.emit({
             type: 'damage:prevent', sourceHeroId: target.getId(),
@@ -1273,15 +1283,13 @@ export class Game {
       player.drawCards(drawn)
       this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
     }
-
-    this.triggerQiangYun(player)
   }
 
   playerPlayHeal(player: Player, cardId: string): void {
     const card = player.getHand().find(c => c.id === cardId)
     if (!card || card.name !== '药') return
     if (player.getCurrentHp() >= player.getMaxHp()) return
-    player.removeCard(card.id)
+    this.removeHandCard(player,card.id)
     let healAmount = 1
     if (this.rollSubTreasure(player, 'yi-xin')) {
       healAmount += 1
@@ -1291,8 +1299,6 @@ export class Game {
     this.cardDeck.discard([card])
     this.eventBus.emit({ type: 'heal', sourceHeroId: player.getId(), data: { amount: healAmount } })
     this.lastPlayedCardName = '药'
-
-    this.triggerQiangYun(player)
   }
 
   playerEquipCard(player: Player, cardId: string): void {
@@ -1300,7 +1306,7 @@ export class Game {
     if (!card || card.type !== 'equipment') return
     const slot = (card as any).slot
     if (!slot) return
-    player.removeCard(card.id)
+    this.removeHandCard(player,card.id)
     player.equip(card, slot)
     this.cardDeck.discard([card])
     this.eventBus.emit({ type: 'equipment:equip', sourceHeroId: player.getId(), data: { cardId: card.id, slot } })
@@ -1312,7 +1318,7 @@ export class Game {
     if (!player.hasSkillOrTreasure('yu-ren')) return
     if (!player.useSkill('yu-ren')) return
     for (const cid of cardIds) {
-      const c = player.removeCard(cid)
+      const c = this.removeHandCard(player,cid)
       if (c) this.cardDeck.discard([c])
     }
     const drawn = this.cardDeck.draw(cardIds.length)
@@ -1328,12 +1334,10 @@ export class Game {
     if (!this.lastPlayedCardName) return
     const card = player.getHand().find(c => c.id === cardId)
     if (!card) return
-    player.removeCard(card.id)
+    this.removeHandCard(player,card.id)
     this.cardDeck.discard([card])
     this.emitSkillTrigger(player, '奸雄', `将${card.name}当${this.lastPlayedCardName}使用`)
     this.lastPlayedCardName = card.name
-
-    this.triggerQiangYun(player)
   }
 
   /** 醉酒: 标记本回合伤害+1 */
@@ -1351,7 +1355,7 @@ export class Game {
     const target = this.getPlayerById(targetId)
     if (!target) return
     for (const cid of cardIds) {
-      const card = player.removeCard(cid)
+      const card = this.removeHandCard(player,cid)
       if (card) target.drawCards([card])
     }
     if (cardIds.length >= 2 && player.getCurrentHp() < player.getMaxHp()) {
@@ -1368,7 +1372,7 @@ export class Game {
     const target = this.getPlayerById(targetId)
     if (!target || target.getCurrentHp() >= target.getMaxHp()) return
     for (const cid of cardIds) {
-      const c = player.removeCard(cid)
+      const c = this.removeHandCard(player,cid)
       if (c) this.cardDeck.discard([c])
     }
     target.heal(1)
@@ -1387,7 +1391,7 @@ export class Game {
       color === 'red' ? isRedSuit(c.suit) : isBlackSuit(c.suit)
     )
     if (toDiscard) {
-      target.removeCard(toDiscard.id)
+      this.removeHandCard(target,toDiscard.id)
       this.cardDeck.discard([toDiscard])
       this.emitSkillTrigger(player, '攻心', `弃${target.getName()}一张${color === 'red' ? '红色' : '黑色'}牌`)
     }
@@ -1401,7 +1405,7 @@ export class Game {
     if (!card) return
     const target = this.getPlayerById(targetId)
     if (!target || !target.isAlive() || target.getCurrentHp() >= target.getMaxHp()) return
-    player.removeCard(card.id)
+    this.removeHandCard(player,card.id)
     this.cardDeck.discard([card])
     target.heal(1)
     this.eventBus.emit({ type: 'heal', sourceHeroId: target.getId(), data: { amount: 1 } })
@@ -1418,7 +1422,7 @@ export class Game {
     const cards = cardIds.map(id => player.getHand().find(c => c.id === id)).filter((c): c is Card => !!c)
     if (cards.length !== 2) return
     for (const c of cards) {
-      player.removeCard(c.id)
+      this.removeHandCard(player,c.id)
       this.cardDeck.discard([c])
     }
     target.heal(1)
@@ -1432,7 +1436,7 @@ export class Game {
     if (!player.useSkill('feng-huo')) return
     const card = player.getHand().find(c => c.id === cardId)
     if (!card || card.type !== 'equipment') return
-    player.removeCard(card.id)
+    this.removeHandCard(player,card.id)
     this.cardDeck.discard([card])
     this.emitSkillTrigger(player, '烽火', '弃装备-视为烽火狼烟')
     this.eventBus.emit({
@@ -1451,7 +1455,7 @@ export class Game {
       if (this.checkDieHun(target, '烽火狼烟')) continue
       const killCard = this.findKillCard(target)
       if (killCard) {
-        target.removeCard(killCard.id)
+        this.removeHandCard(target,killCard.id)
         this.cardDeck.discard([killCard])
         this.eventBus.emit({
           type: 'damage:prevent', sourceHeroId: target.getId(),
@@ -1485,7 +1489,7 @@ export class Game {
       const hand = target.getHand()
       if (hand.length === 0) continue
       const stolen = hand[Math.floor(Math.random() * hand.length)]
-      target.removeCard(stolen.id)
+      this.removeHandCard(target,stolen.id)
       player.drawCards([stolen])
       this.emitSkillTrigger(player, '起义', `从${target.getName()}获取一张牌`)
     }
@@ -1501,7 +1505,7 @@ export class Game {
     if (weaponCardId) {
       const card = player.getHand().find(c => c.id === weaponCardId)
       if (!card) return
-      player.removeCard(card.id)
+      this.removeHandCard(player,card.id)
       this.cardDeck.discard([card])
     } else {
       const dmg = player.takeDamage(1)
@@ -1605,9 +1609,9 @@ export class Game {
       return
     }
 
-    target.removeCard(opponentCard.id)
+    this.removeHandCard(target,opponentCard.id)
     this.cardDeck.discard([opponentCard])
-    player.removeCard(playerCard.id)
+    this.removeHandCard(player,playerCard.id)
     this.cardDeck.discard([playerCard])
 
     // 比较点数, 应用效果
@@ -1619,7 +1623,7 @@ export class Game {
 
     if (playerCard.number >= opponentCard.number) {
       // 胜: 杀次数设为 2 (天狼则无限)
-      this.killsMaxThisTurn = player.hasSkillOrTreasure('tian-lang') ? Infinity : 2
+      this.killsMaxThisTurn = this.hasUnlimitedKill(player) ? Infinity : 2
       this.xiaDanWinKillsLeft.set(player.getId(), this.killsMaxThisTurn === Infinity ? Number.MAX_SAFE_INTEGER : 2)
       this.xiaDanWinTargetsPerKill.set(player.getId(), 2)
       this.emitSkillTrigger(player, '侠胆', '拼点胜-本回合杀次数=2(每张最多2目标)')
@@ -1655,7 +1659,7 @@ export class Game {
    * 牌到手牌后, 玩家可以正常使用
    */
   private takeCardFromTarget(player: Player, target: Player, cardId: string, reason: string): void {
-    let card: Card | undefined = target.removeCard(cardId)
+    let card: Card | undefined = this.removeHandCard(target,cardId)
     if (!card) {
       // 装备
       for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
@@ -1682,7 +1686,7 @@ export class Game {
 
   /** 让目标弃1张牌 (釜底抽薪) */
   private discardCardFromTarget(target: Player, cardId: string, reason: string): void {
-    let card: Card | undefined = target.removeCard(cardId)
+    let card: Card | undefined = this.removeHandCard(target,cardId)
     if (!card) {
       for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
         const eq = target.getEquippedCard(slot)
@@ -1837,20 +1841,30 @@ export class Game {
     }
   }
 
-  /** 芦叶枪: 选2张手牌当杀 */
+  /** 芦叶枪: 选2张手牌当杀 (消耗本回合1次杀次数) */
   async playerUseLuYeQiang(player: Player): Promise<void> {
     if (!this.config.dualCardHandler) return
+    // 侠胆: 输了拼点不能出杀
+    if (this.xiaDanLossThisTurn.has(player.getId())) return
+    // 杀次数已用尽 (虎符/天狼 仍可无限)
+    if (!this.hasUnlimitedKill(player) && this.killsUsedThisTurn >= this.killsMaxThisTurn) return
     const cardIds = await this.config.dualCardHandler(this, player)
     if (cardIds.length !== 2) return
     const cards = cardIds.map(id => player.getHand().find(c => c.id === id)).filter((c): c is Card => !!c)
     if (cards.length !== 2) return
     for (const c of cards) {
-      player.removeCard(c.id)
+      this.removeHandCard(player,c.id)
       this.cardDeck.discard([c])
     }
     const enemies = this.getEnemies(player)
     if (enemies.length > 0) {
       await this.executeKill(player, enemies[0], cards[0])
+    }
+    // 计入本回合杀次数
+    if (!this.hasUnlimitedKill(player)) {
+      this.killsUsedThisTurn++
+      this.killUsedThisTurn = true
+      player.setUsedKillThisTurn(true)
     }
   }
 
