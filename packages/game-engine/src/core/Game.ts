@@ -891,8 +891,8 @@ export class Game {
     for (let i = 0; i < ordered.length; i++) {
       const candidate = ordered[i]
       if (!candidate.isAlive()) continue
-      // 锦囊使用者自己不抵消自己的锦囊 (但链式响应中可以救自己)
-      if (i === 0 && candidate === schemePlayer) continue
+      // 锦囊使用者自己不抵消自己的锦囊
+      if (candidate === schemePlayer) continue
       const wxCard = await this.promptNullifyResponse(candidate, schemePlayer, schemeCard)
       if (!wxCard) continue
 
