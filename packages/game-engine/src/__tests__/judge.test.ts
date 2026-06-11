@@ -35,7 +35,7 @@ describe('JudgePhase with forced results', () => {
     const phase = new JudgePhase()
     await phase.execute({ player, cardDeck: game.cardDeck, eventBus: game.eventBus, game })
 
-    expect((game as any).skipCurrentTurn).toBe(false)
+    expect((game as any).skipCurrentTurnPlayerId).toBeNull()
   })
 
   it('画地为牢: ♦=生效 (skipCurrentTurn=true)', async () => {
@@ -56,7 +56,7 @@ describe('JudgePhase with forced results', () => {
     const phase = new JudgePhase()
     await phase.execute({ player, cardDeck: game.cardDeck, eventBus: game.eventBus, game })
 
-    expect((game as any).skipCurrentTurn).toBe(true)
+    expect((game as any).skipCurrentTurnPlayerId).toBe(player.getId())
   })
 
   it('画地为牢: ♠=生效', async () => {
@@ -77,7 +77,7 @@ describe('JudgePhase with forced results', () => {
     const phase = new JudgePhase()
     await phase.execute({ player, cardDeck: game.cardDeck, eventBus: game.eventBus, game })
 
-    expect((game as any).skipCurrentTurn).toBe(true)
+    expect((game as any).skipCurrentTurnPlayerId).toBe(player.getId())
   })
 
   it('手捧雷: ♠5=生效 3血', async () => {

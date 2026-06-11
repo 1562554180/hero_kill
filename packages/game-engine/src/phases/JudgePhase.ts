@@ -52,7 +52,7 @@ export class JudgePhase extends Phase {
         if (resultSuit === 'heart') {
           game.emitSkillTrigger(player, '画地为牢', '红桃-失效')
         } else {
-          ;(game as any).skipCurrentTurn = true
+          ;(game as any).skipCurrentTurnPlayerId = player.getId()
           game.emitSkillTrigger(player, '画地为牢', '生效-跳过当前回合')
         }
       }
@@ -97,9 +97,15 @@ export class JudgePhase extends Phase {
         : undefined
       const judgeNullified = await game.checkJudgeNullify(player, '手捧雷', fromPlayer)
       if (judgeNullified) {
-        game.cardDeck.discard([thunder])
-        eventBus.emit({ type: 'card:discard', sourceHeroId: player.getId(), data: { cards: [thunder.id] } })
-        game.emitSkillTrigger(player, '手捧雷', '判定被无懈可击-失效')
+        // 免于判定，传递给下一个无雷玩家
+        const nextPlayer = this.findNextPlayerWithoutThunder(game, player)
+        if (nextPlayer) {
+          nextPlayer.addJudgeCard(thunder)
+          game.emitSkillTrigger(player, '手捧雷', `被无懈可击-顺延给${nextPlayer.getName()}`)
+        } else {
+          player.addJudgeCard(thunder)
+          game.emitSkillTrigger(player, '手捧雷', '被无懈可击-无目标,雷保留')
+        }
         continue
       }
 

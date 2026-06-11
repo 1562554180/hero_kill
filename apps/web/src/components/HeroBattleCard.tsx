@@ -1,4 +1,5 @@
 import type { BattleHero, EquipmentSlot, Card } from '@hero-legend/shared-types'
+
 import { useBattleStore } from '../stores/battleStore'
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, onClick }: Props) {
+  const game = useBattleStore(s => s.game)
   const { hero: config, currentHp, maxHp, role, instance } = hero
   const hpPercent = (currentHp / maxHp) * 100
   const hpColor = hpPercent > 60 ? '#4caf50' : hpPercent > 30 ? '#ff9800' : '#f44336'
@@ -121,6 +123,29 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, onClick }: P
         {hero.equipment.attackMount && <span title="进攻马">🐴</span>}
         {hero.equipment.defenseMount && <span title="防御马">🐎</span>}
       </div>
+      {/* 判定区标记: 画地为牢/手捧雷 */}
+      {hero.judgeCards.length > 0 && game && (
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '3px' }}>
+          {hero.judgeCards.map(cid => {
+            const p = game.getPlayerById(hero.hero.id)
+            const card = p?.getJudgeCards()?.find((c: Card) => c.id === cid)
+            const name = card?.name ?? '???'
+            const isThunder = name === '手捧雷'
+            const color = isThunder ? '#e57373' : '#ce93d8'
+            const icon = isThunder ? '💣' : '🔒'
+            return (
+              <span key={cid} style={{
+                fontSize: '10px', color,
+                background: `${color}22`,
+                padding: '1px 5px', borderRadius: '3px',
+                border: `1px solid ${color}55`,
+              }}>
+                {icon} {name}
+              </span>
+            )
+          })}
+        </div>
+      )}
       {/* 装备名称标签 */}
       {(hero.equipment.weapon || hero.equipment.armor || hero.equipment.attackMount || hero.equipment.defenseMount) && (
         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>

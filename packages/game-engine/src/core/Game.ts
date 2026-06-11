@@ -59,8 +59,8 @@ export class Game {
   private killsMaxThisTurn = 1         // 本回合最大杀次数 (天狼/虎符→Infinity; 侠胆胜→2)
   private lastPlayedCardName: string | null = null
   private zuijiuActive = false  // 醉酒：本回合杀/决斗伤害+1
-  private skipNextTurn = false   // 蓄谋：跳过下一回合
-  private skipCurrentTurn = false // 画地为牢：跳过当前回合
+  private skipNextTurnPlayerId: string | null = null  // 蓄谋：跳过指定玩家的下一回合
+  private skipCurrentTurnPlayerId: string | null = null  // 画地为牢：跳过指定玩家的当前回合
   private aoJianActive = new Set<string>()  // 傲剑主动模式: 玩家id集合, 回合结束清空
   // 侠胆: 本回合赢了拼点 → 可出2张无距离限制的杀(每张最多2目标); 输了 → 本回合不能出杀
   private xiaDanWinKillsLeft = new Map<string, number>()    // playerId → 剩余杀次数
@@ -386,8 +386,8 @@ export class Game {
     }
 
     // 蓄谋：跳过回合
-    if (this.skipNextTurn && (player.getRole() === 'player' || player.getRole() === 'ally')) {
-      this.skipNextTurn = false
+    if (this.skipNextTurnPlayerId === player.getId()) {
+      this.skipNextTurnPlayerId = null
       this.emitSkillTrigger(player, '蓄谋', '跳过本回合')
       this.eventBus.emit({ type: 'turn:start', sourceHeroId: player.getId(), data: { turn: this.turnNumber } })
       this.eventBus.emit({ type: 'turn:end', sourceHeroId: player.getId(), data: { turn: this.turnNumber } })
@@ -413,8 +413,8 @@ export class Game {
     this.eventBus.emit({ type: 'turn:start', sourceHeroId: player.getId(), data: { turn: this.turnNumber } })
 
     // 画地为牢：跳过当前回合
-    if (this.skipCurrentTurn) {
-      this.skipCurrentTurn = false
+    if (this.skipCurrentTurnPlayerId === player.getId()) {
+      this.skipCurrentTurnPlayerId = null
       this.eventBus.emit({ type: 'turn:end', sourceHeroId: player.getId(), data: { turn: this.turnNumber } })
       this.advanceToNextAlive()
       return
@@ -469,11 +469,11 @@ export class Game {
   }
 
   private onTurnEnd(player: Player): void {
-    // 蓄谋: 回合结束摸三张，跳过下回合
+    // 蓄谋: 回合结束摸三张，跳过自己的下回合
     if (player.hasSkillOrTreasure('xu-mou') && player.useSkill('xu-mou')) {
       const cards = this.cardDeck.draw(3)
       player.drawCards(cards)
-      this.skipNextTurn = true
+      this.skipNextTurnPlayerId = player.getId()
       this.emitSkillTrigger(player, '蓄谋', '摸3张，跳过下回合')
     }
   }
@@ -1081,19 +1081,6 @@ export class Game {
           this.emitSkillTrigger(player, '手捧雷', '雷已达上限-使用失败')
           return
         }
-        const nullified = await this.checkNullification(player, player, card)
-        if (nullified) {
-          // 被无懈可击抵消: 顺延到下一个无雷玩家
-          const next = this.findNextPlayerWithoutThunder(player)
-          if (next) {
-            next.addJudgeCard(card)
-            this.eventBus.emit({
-              type: 'skill:trigger', sourceHeroId: next.getId(),
-              data: { skillName: '手捧雷', effect: `被抵消-顺延到${next.getName()}` },
-            })
-          }
-          return
-        }
         player.addJudgeCard(card)
         this.eventBus.emit({
           type: 'skill:trigger', sourceHeroId: player.getId(),
@@ -1104,8 +1091,6 @@ export class Game {
       // 画地为牢
       let target = targetId ? this.players.find(p => p.getId() === targetId) : undefined
       if (!target || !target.isAlive()) return
-      const hdNullified = await this.checkNullification(player, target, card)
-      if (hdNullified) return  // 被抵消, 不放置
       target.addJudgeCard(card)
       this.eventBus.emit({
         type: 'skill:trigger', sourceHeroId: target.getId(),
