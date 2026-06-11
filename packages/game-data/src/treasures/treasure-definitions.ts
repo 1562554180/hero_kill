@@ -68,11 +68,10 @@ export const treasureDefinitions: TreasureDefinition[] = [
   { id: 'treasure-shang-zhi-xue', name: '伤之削', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，有30%几率弃置伤害来源一张手牌。', baseTriggerRate: 0.30, starLevel: 2, category: '防御' },
 
   // ===== 辅印 — 锦囊类 =====
-  { id: 'treasure-tan-shou', name: '贪手', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【探囊取物】获得手牌后，有30%几率额外获得一张。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
-  { id: 'treasure-sheng-you', name: '生有', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，有30%几率额外摸两张牌。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
+  { id: 'treasure-tan-shou', name: '贪手', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '摸牌阶段开始时，有30%几率额外摸一张牌。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
+  { id: 'treasure-sheng-you', name: '生有', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，有30%几率额外摸一张牌。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
   { id: 'treasure-lang-yan', name: '狼烟', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【烽火狼烟】时，有30%几率使其伤害+1。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
   { id: 'treasure-wan-jian', name: '万箭', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【万箭齐发】时，有30%几率使其伤害+1。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
-  { id: 'treasure-chou-xin', name: '抽薪', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【釜底抽薪】时，有30%几率额外弃置目标一张手牌。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
   { id: 'treasure-wu-xie', name: '无懈', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无懈可击】时，有30%几率摸一张牌。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
 ]
 

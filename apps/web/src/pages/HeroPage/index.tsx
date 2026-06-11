@@ -13,6 +13,8 @@ export function HeroPage() {
   const [selectedHero, setSelectedHero] = useState<string | null>(null)
   const [selectedTreasure, setSelectedTreasure] = useState<string | null>(null)
   const [message, setMessage] = useState('')
+  // 镶嵌凹槽选中状态：点击槽位时展开可镶嵌列表
+  const [activeSlot, setActiveSlot] = useState<{ slotType: 'main' | 'sub'; slotIndex: number } | null>(null)
 
   useEffect(() => {
     const uid = localStorage.getItem('hero-legend-userId') || ''
@@ -61,12 +63,11 @@ export function HeroPage() {
     }
   }
 
-  const equipTreasure = async (heroId: string, slotType: 'main' | 'sub', slotIndex: number) => {
-    if (!selectedTreasure) return
+  const equipTreasure = async (heroId: string, slotType: 'main' | 'sub', slotIndex: number, treasureId: string) => {
     const res = await fetch(`${API}/hero/equip-treasure/${userId}/${heroId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slotType, slotIndex, treasureId: selectedTreasure }),
+      body: JSON.stringify({ slotType, slotIndex, treasureId }),
     })
     const data = await res.json()
     if (data.success) {
@@ -202,78 +203,86 @@ export function HeroPage() {
               {/* Treasure slots */}
               <h4 style={{ color: 'var(--text-gold)', margin: '16px 0 8px' }}>
                 宝具槽
-                {selectedTreasure && <span style={{ fontSize: '12px', color: '#ff6b6b', marginLeft: '8px' }}>已选择宝具，点击空槽位镶嵌</span>}
+                {activeSlot && <span style={{ fontSize: '12px', color: '#ff6b6b', marginLeft: '8px' }}>双击宝具镶嵌</span>}
               </h4>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {selectedInstance.treasures.main.map((t, i) => (
-                  <div key={`main-${i}`}
-                    onClick={() => t
-                      ? unequipTreasure(selectedInstance.heroId, 'main', i)
-                      : selectedTreasure
-                        ? equipTreasure(selectedInstance.heroId, 'main', i)
-                        : undefined
-                    }
-                    style={{
-                      background: 'var(--bg-dark)',
-                      border: `1px dashed ${selectedTreasure && !t ? '#ff6b6b' : 'var(--border-wood)'}`,
-                      borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
-                      color: t ? 'var(--text-light)' : 'var(--text-muted)',
-                      cursor: (t || (selectedTreasure && !t)) ? 'pointer' : 'default',
-                    }}
-                  >
-                    主印{i + 1}: {t ? `${(t as any).name} (点击卸下)` : '空'}
-                  </div>
-                ))}
-                {selectedInstance.treasures.sub.map((t, i) => (
-                  <div key={`sub-${i}`}
-                    onClick={() => t
-                      ? unequipTreasure(selectedInstance.heroId, 'sub', i)
-                      : selectedTreasure
-                        ? equipTreasure(selectedInstance.heroId, 'sub', i)
-                        : undefined
-                    }
-                    style={{
-                      background: 'var(--bg-dark)',
-                      border: `1px dashed ${selectedTreasure && !t ? '#ff6b6b' : '#3a2a1a'}`,
-                      borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
-                      color: t ? 'var(--text-light)' : 'var(--text-muted)',
-                      cursor: (t || (selectedTreasure && !t)) ? 'pointer' : 'default',
-                    }}
-                  >
-                    辅印{i + 1}: {t ? `${(t as any).name} (点击卸下)` : '空'}
-                  </div>
-                ))}
+                {selectedInstance.treasures.main.map((t, i) => {
+                  const isActive = activeSlot?.slotType === 'main' && activeSlot?.slotIndex === i
+                  return (
+                    <div key={`main-${i}`}
+                      onClick={() => setActiveSlot(isActive ? null : { slotType: 'main', slotIndex: i })}
+                      onDoubleClick={() => { if (t) unequipTreasure(selectedInstance.heroId, 'main', i) }}
+                      style={{
+                        background: isActive ? '#3a2a1a' : 'var(--bg-dark)',
+                        border: `1px ${isActive ? 'solid #ff6b6b' : t ? 'solid var(--border-wood)' : 'dashed var(--border-wood)'}`,
+                        borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
+                        color: t ? 'var(--text-light)' : 'var(--text-muted)',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                      }}
+                    >
+                      主印{i + 1}: {t ? `${(t as any).name} (双击卸下)` : '空'}
+                    </div>
+                  )
+                })}
+                {selectedInstance.treasures.sub.map((t, i) => {
+                  const isActive = activeSlot?.slotType === 'sub' && activeSlot?.slotIndex === i
+                  return (
+                    <div key={`sub-${i}`}
+                      onClick={() => setActiveSlot(isActive ? null : { slotType: 'sub', slotIndex: i })}
+                      onDoubleClick={() => { if (t) unequipTreasure(selectedInstance.heroId, 'sub', i) }}
+                      style={{
+                        background: isActive ? '#3a2a1a' : 'var(--bg-dark)',
+                        border: `1px ${isActive ? 'solid #ff6b6b' : t ? 'solid #3a2a1a' : 'dashed #3a2a1a'}`,
+                        borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
+                        color: t ? 'var(--text-light)' : 'var(--text-muted)',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                      }}
+                    >
+                      辅印{i + 1}: {t ? `${(t as any).name} (双击卸下)` : '空'}
+                    </div>
+                  )
+                })}
               </div>
 
-              {/* Treasure inventory */}
-              {inventory.length > 0 && (
-                <>
-                  <h4 style={{ color: 'var(--text-gold)', margin: '16px 0 8px' }}>宝具背包 ({inventory.length})</h4>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {inventory.map(t => (
-                      <div key={t.id}
-                        onClick={() => setSelectedTreasure(selectedTreasure === t.id ? null : t.id)}
-                        style={{
-                          background: selectedTreasure === t.id ? '#3a2a1a' : 'var(--bg-dark)',
-                          border: `1px solid ${selectedTreasure === t.id ? '#ff6b6b' : '#3a2a1a'}`,
-                          borderRadius: '4px', padding: '6px 10px', fontSize: '12px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <div style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)' }}>
-                          [{t.type === 'main' ? '主' : '辅'}] {t.name}
+              {/* 可镶嵌列表：点击槽位后展示匹配类型的宝具 */}
+              {activeSlot && (() => {
+                const candidates = inventory.filter(t => t.type === activeSlot.slotType)
+                return candidates.length > 0 ? (
+                  <div style={{ marginTop: '8px', background: 'var(--bg-dark)', borderRadius: '4px', padding: '10px' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>
+                      可镶嵌的{activeSlot.slotType === 'main' ? '主印' : '辅印'}：
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {candidates.map(t => (
+                        <div key={t.id}
+                          onDoubleClick={() => equipTreasure(selectedInstance.heroId, activeSlot.slotType, activeSlot.slotIndex, t.id)}
+                          style={{
+                            background: 'var(--bg-medium)', border: '1px solid var(--border-wood)',
+                            borderRadius: '4px', padding: '6px 10px', fontSize: '12px',
+                            cursor: 'pointer', userSelect: 'none',
+                          }}
+                        >
+                          <div style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)' }}>
+                            {t.name}
+                          </div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                            {'★'.repeat(t.starLevel)} | 触发: {Math.round(t.triggerRate * 100)}%
+                          </div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                            {t.skill.description}
+                          </div>
                         </div>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                          {'★'.repeat(t.starLevel)} | 触发: {Math.round(t.triggerRate * 100)}%
-                        </div>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                          {t.skill.description}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </>
-              )}
+                ) : (
+                  <div style={{ marginTop: '8px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                    背包中没有可镶嵌的{activeSlot.slotType === 'main' ? '主印' : '辅印'}
+                  </div>
+                )
+              })()}
 
               {selectedInstance.starLevel < 5 && (
                 <button style={{ marginTop: '16px', width: '100%' }}

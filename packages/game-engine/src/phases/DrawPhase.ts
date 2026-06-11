@@ -7,6 +7,13 @@ export class DrawPhase extends Phase {
   async execute(context: any): Promise<any> {
     const { player, cardDeck, eventBus, game } = context
 
+    // 起义: 放弃本回合摸牌 (playerQiYi 已设置此标志)
+    if ((game as any).skipDrawThisTurn) {
+      ;(game as any).skipDrawThisTurn = false
+      game.emitSkillTrigger(player, '起义', '放弃摸牌')
+      return { completed: true, actions: [] }
+    }
+
     // 醉酒: 可选择少摸一张，本回合杀/决斗伤害+1
     let drawCount = 2
     if (player.hasSkillOrTreasure('bing-xian')) {

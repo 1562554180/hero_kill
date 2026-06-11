@@ -10,6 +10,7 @@ interface Props {
   hasHongZhuang: boolean
   isResponse?: boolean  // 响应模式 (决斗/南蛮入侵): 只能出杀
   isJudgeReplace?: boolean
+  treasureSelectMode?: boolean  // 宝具选牌模式: 禁用常规出牌, 由外层div处理点击
   onPlayKill: (cardId: string) => void
   onPlayHeal: (cardId: string) => void
   onEquip: (cardId: string) => void
@@ -29,30 +30,31 @@ const typeColor: Record<string, string> = {
   basic: 'var(--text-light)', scheme: '#64b5f6', equipment: '#81c784'
 }
 
-export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard }: Props) {
+export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, treasureSelectMode, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard }: Props) {
   const isKill = card.name === '杀'
   const isHeal = card.name === '药'
   const isEquip = card.type === 'equipment'
   const isScheme = card.type === 'scheme'
-  const isSelfTargeted = card.name === '手捧雷' || card.name === '无中生有' || card.name === '休养生息'
+  const isSelfTargeted = card.name === '手捧雷' || card.name === '无中生有' || card.name === '休养生息' || card.name === '万箭齐发' || card.name === '烽火狼烟' || card.name === '五谷丰登'
 
   const effectiveIsRed = isRedSuit(card.suit) || (hasHongZhuang && isBlackSuit(card.suit))
   const canUseAsKill = isKill || (aoJianActive && effectiveIsRed)  // 傲剑主动模式: 红色牌当杀, 包括药
 
   const canUseAsKillNow = canUseAsKill && canPlayKill
 
-  // 响应模式: 出杀(决斗) 或 出无懈可击(抵消锦囊)
+  // 响应模式: 出杀(决斗) / 出无懈可击(抵消锦囊) / 出闪(防杀)
   const isWuXie = card.name === '无懈可击'
-  const canRespond = isResponse && onRespondWithCard && (canUseAsKill || isWuXie)
+  const isDodge = card.name === '闪'
+  const canRespond = isResponse && onRespondWithCard && (canUseAsKill || isWuXie || isDodge)
 
-  const canUse = !disabled && (
+  const canUse = !disabled && !treasureSelectMode && (
     isJudgeReplace ||
     canRespond ||
     canUseAsKillNow ||
     (isHeal && !isFullHp) ||
     isEquip ||
     (isSelfTargeted && !!onPlaySchemeSelf) ||
-    (isScheme && !isSelfTargeted && !!onPlayScheme)
+    (isScheme && !isSelfTargeted && card.name !== '无懈可击' && !!onPlayScheme)
   )
 
   const handleClick = () => {
@@ -77,11 +79,11 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
       onClick={handleClick}
       style={{
         background: 'var(--bg-dark)',
-        border: `1px solid ${isJudgeReplace && !disabled ? '#64b5f6' : canUse ? '#8b6914' : '#333'}`,
+        border: `1px solid ${isJudgeReplace && !disabled ? '#64b5f6' : (canUse || treasureSelectMode) ? '#8b6914' : '#333'}`,
         borderRadius: '6px',
         padding: '8px 12px',
-        cursor: canUse ? 'pointer' : 'default',
-        opacity: canUse ? 1 : 0.5,
+        cursor: (canUse || treasureSelectMode) ? 'pointer' : 'default',
+        opacity: (canUse || treasureSelectMode) ? 1 : 0.5,
         minWidth: '60px',
         textAlign: 'center',
         transition: 'all 0.15s',

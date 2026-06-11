@@ -1,4 +1,5 @@
-import type { BattleHero } from '@hero-legend/shared-types'
+import type { BattleHero, EquipmentSlot, Card } from '@hero-legend/shared-types'
+import { useBattleStore } from '../stores/battleStore'
 
 interface Props {
   hero: BattleHero
@@ -118,7 +119,17 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, onClick }: P
         {hero.equipment.weapon && <span title="武器">⚔</span>}
         {hero.equipment.armor && <span title="防具">🛡</span>}
         {hero.equipment.attackMount && <span title="进攻马">🐴</span>}
+        {hero.equipment.defenseMount && <span title="防御马">🐎</span>}
       </div>
+      {/* 装备名称标签 */}
+      {(hero.equipment.weapon || hero.equipment.armor || hero.equipment.attackMount || hero.equipment.defenseMount) && (
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
+          {hero.equipment.weapon && <EquipTag heroId={hero.hero.id} slot="weapon" fallbackId={hero.equipment.weapon} />}
+          {hero.equipment.armor && <EquipTag heroId={hero.hero.id} slot="armor" fallbackId={hero.equipment.armor} />}
+          {hero.equipment.attackMount && <EquipTag heroId={hero.hero.id} slot="attackMount" fallbackId={hero.equipment.attackMount} />}
+          {hero.equipment.defenseMount && <EquipTag heroId={hero.hero.id} slot="defenseMount" fallbackId={hero.equipment.defenseMount} />}
+        </div>
+      )}
 
       {currentHp <= 0 && (
         <div style={{
@@ -127,5 +138,23 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, onClick }: P
         }}>阵亡</div>
       )}
     </div>
+  )
+}
+
+function EquipTag({ heroId, slot, fallbackId }: { heroId: string; slot: EquipmentSlot; fallbackId: string }) {
+  const card = useBattleStore(s => s.equippedCards[heroId]?.[slot])
+  // 回退: 用equipment map中的id直接展示（不知道名字则显示⚙）
+  const label = card?.name ?? '⚙装备'
+  const desc = (card as any)?.description ?? ''
+  const color = slot === 'weapon' ? '#ff8a65' : slot === 'armor' ? '#90caf9' : '#a5d6a7'
+  return (
+    <span title={desc} style={{
+      fontSize: '10px', color,
+      background: `${color}22`,
+      padding: '1px 5px', borderRadius: '3px',
+      border: `1px solid ${color}55`,
+    }}>
+      {label}
+    </span>
   )
 }

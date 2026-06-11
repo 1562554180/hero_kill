@@ -7,6 +7,7 @@ export class Player {
   readonly hero: BattleHero
   private handCards: Card[] = []
   private judgeAreaCards: Card[] = []  // 判定区的实际卡牌对象
+  private equippedCards: Map<EquipmentSlot, Card> = new Map()
   private usedKillThisTurn = false
 
   constructor(hero: Hero, instance: HeroInstance, role: Role) {
@@ -34,8 +35,10 @@ export class Player {
   getHandSize(): number { return this.handCards.length }
 
   getHandLimit(): number {
-    // 控局: 手牌上限等于体力值时不用弃牌 (已在DiscardPhase处理)
-    return this.hero.currentHp
+    let limit = this.hero.currentHp
+    // 乾坤袋: 手牌上限+1
+    if (this.getArmorName() === '乾坤袋') limit += 1
+    return limit
   }
 
   isAlive(): boolean { return this.hero.currentHp > 0 }
@@ -76,18 +79,33 @@ export class Player {
   equip(card: Card, slot: EquipmentSlot): string | null {
     const old = this.hero.equipment[slot]
     this.hero.equipment[slot] = card.id
+    this.equippedCards.set(slot, card)
     return old
   }
 
-  unequip(slot: EquipmentSlot): string | null {
-    const old = this.hero.equipment[slot]
+  unequip(slot: EquipmentSlot): Card | null {
+    const old = this.equippedCards.get(slot) ?? null
     this.hero.equipment[slot] = null
+    this.equippedCards.delete(slot)
     return old
+  }
+
+  getEquippedCard(slot: EquipmentSlot): Card | undefined {
+    return this.equippedCards.get(slot)
+  }
+
+  getWeaponName(): string | undefined {
+    return this.equippedCards.get('weapon')?.name
+  }
+
+  getArmorName(): string | undefined {
+    return this.equippedCards.get('armor')?.name
   }
 
   getAttackRange(): number {
     let range = 1
-    if (this.hero.equipment.weapon) range = 2
+    const weapon = this.equippedCards.get('weapon')
+    if (weapon) range = (weapon as any).range ?? 1
     if (this.hero.equipment.attackMount) range += 1
     // 骑射/单骑: 默认视为装备进攻马
     if (this.hasSkillOrTreasure('qi-she') || this.hasSkillOrTreasure('dan-qi')) range += 1

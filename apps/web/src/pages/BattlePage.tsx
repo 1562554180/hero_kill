@@ -79,7 +79,47 @@ export function BattlePage() {
   const handleNext = () => {
     if (battleIdx < stage.battles.length - 1) {
       setBattleIdx(battleIdx + 1)
-      useBattleStore.setState({ phase: 'idle', result: null, actionLog: [], gameState: null })
+      // 完整重置所有状态, 防止上一场战斗残留导致新战斗回合卡住
+      useBattleStore.setState({
+        game: null,
+        gameState: null,
+        phase: 'idle',
+        playerHand: [],
+        actionLog: [],
+        result: null,
+        pendingCardId: null,
+        pendingCardType: null,
+        aoJianActive: false,
+        responsePrompt: null,
+        equippedCards: {},
+        multiTargetCandidates: [],
+        selectedTargets: [],
+        selectedDualCards: [],
+        longLinDisarmContext: null,
+        jieDaoHolders: [],
+        jieDaoCandidates: [],
+        tanNangTargetInfo: null,
+        wuguCandidates: null,
+        fudiTargetInfo: null,
+        treasureSkill: null,
+        treasurePrompt: '',
+        treasureCardIds: [],
+        treasureTargetIds: [],
+        resolveAction: null,
+        resolveResponse: null,
+        resolveJudge: null,
+        resolveLongLin: null,
+        resolveMultiTarget: null,
+        resolveDualCard: null,
+        resolveJieDaoHolder: null,
+        resolveJieDaoTarget: null,
+        resolveTanNangTarget: null,
+        resolveTanNangPick: null,
+        resolveWuguPick: null,
+        resolveFudiTarget: null,
+        resolveFudiPick: null,
+        judgeCard: null,
+      })
     }
   }
 

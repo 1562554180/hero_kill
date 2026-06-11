@@ -26,6 +26,18 @@ export class JudgePhase extends Phase {
     for (const delayedCard of toProcess) {
       if (!player.isAlive()) break
 
+      // 判定开始: 允许任何玩家响应无懈可击抵消本次判定效果
+      const fromPlayer = (delayedCard as any).fromPlayerId
+        ? game.getPlayerById((delayedCard as any).fromPlayerId)
+        : undefined
+      const judgeNullified = await game.checkJudgeNullify(player, delayedCard.name, fromPlayer)
+      if (judgeNullified) {
+        game.cardDeck.discard([delayedCard])
+        eventBus.emit({ type: 'card:discard', sourceHeroId: player.getId(), data: { cards: [delayedCard.id] } })
+        game.emitSkillTrigger(player, delayedCard.name, '判定被无懈可击-失效')
+        continue
+      }
+
       const j = await game.judge(player)
       const resultSuit = j.suit
       const resultNumber = j.card.number
@@ -76,6 +88,18 @@ export class JudgePhase extends Phase {
         // 玩家已死, 直接丢弃
         game.cardDeck.discard([thunder])
         eventBus.emit({ type: 'card:discard', sourceHeroId: player.getId(), data: { cards: [thunder.id] } })
+        continue
+      }
+
+      // 判定开始: 允许任何玩家响应无懈可击抵消本次手捧雷判定
+      const fromPlayer = (thunder as any).fromPlayerId
+        ? game.getPlayerById((thunder as any).fromPlayerId)
+        : undefined
+      const judgeNullified = await game.checkJudgeNullify(player, '手捧雷', fromPlayer)
+      if (judgeNullified) {
+        game.cardDeck.discard([thunder])
+        eventBus.emit({ type: 'card:discard', sourceHeroId: player.getId(), data: { cards: [thunder.id] } })
+        game.emitSkillTrigger(player, '手捧雷', '判定被无懈可击-失效')
         continue
       }
 

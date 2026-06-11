@@ -15,9 +15,9 @@ export type SchemeCardName =
 
 // 装备牌名称
 export type EquipmentCardName =
-  | '虎头枪' | '盘龙棍' | '狼牙棒' | '芦叶枪' | '龙鳞刀' | '霸王弓'
+  | '虎符' | '盘龙棍' | '鱼肠剑' | '博浪锤' | '霸王弓' | '芦叶枪' | '龙鳞刀' | '狼牙棒'
   | '进攻马' | '防御马'
-  | '玉如意' | '护心镜'
+  | '玉如意' | '乾坤袋'
 
 // 装备类型
 export type EquipmentSlot = 'weapon' | 'attackMount' | 'defenseMount' | 'armor'
@@ -45,9 +45,9 @@ export type GameEventType =
   | 'game:start' | 'game:end'
   | 'turn:start' | 'turn:end'
   | 'phase:start' | 'phase:end'
-  | 'card:play' | 'card:draw' | 'card:discard'
+  | 'card:play' | 'card:draw' | 'card:discard' | 'card:gain'
   | 'damage:deal' | 'damage:receive' | 'damage:prevent'
   | 'heal' | 'die'
   | 'skill:trigger' | 'skill:resolve'
   | 'judge' | 'equipment:equip' | 'equipment:unequip'
-  | 'scheme:nullify'
+  | 'scheme:nullify' | 'wugu:reveal'

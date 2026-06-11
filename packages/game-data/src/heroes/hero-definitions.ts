@@ -78,7 +78,7 @@ export const heroes: Hero[] = [
     id: 'zhu-yuan-zhang', name: '朱元璋', faction: '君', starLevel: 3, baseHp: 4,
     description: '明太祖，从乞丐到皇帝',
     skills: [
-      { id: 'qiang-yun', name: '强运', type: 'passive', description: '在你出牌阶段，当你使用了最后一张手牌时，你摸一张牌', triggerEvent: 'card:play' },
+      { id: 'qiang-yun', name: '强运', type: 'passive', description: '当你手牌为空时，你摸两张牌（无次数限制）', triggerEvent: 'card:play' },
     ],
   },
   {
