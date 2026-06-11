@@ -81,7 +81,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         background: 'var(--bg-dark)',
         border: `1px solid ${isJudgeReplace && !disabled ? '#64b5f6' : (canUse || treasureSelectMode) ? '#8b6914' : '#333'}`,
         borderRadius: '6px',
-        padding: '8px 12px',
+        padding: '22px 8px 8px',
         cursor: (canUse || treasureSelectMode) ? 'pointer' : 'default',
         opacity: (canUse || treasureSelectMode) ? 1 : 0.5,
         minWidth: '60px',
@@ -91,11 +91,14 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         position: 'relative',
       }}
     >
-      <div style={{ color: suitColor[card.suit], fontSize: '11px' }}>
+      <div style={{ position: 'absolute', top: '4px', left: '6px', color: typeColor[card.type], fontSize: '10px', fontWeight: 'bold', writingMode: 'vertical-rl', lineHeight: 1.1 }}>
+        {card.name}
+      </div>
+      <div style={{ position: 'absolute', top: '4px', right: '6px', color: suitColor[card.suit], fontSize: '11px' }}>
         {suitSymbol[card.suit]}{card.number > 13 ? '' : card.number === 1 ? 'A' : card.number > 10 ? ['J','Q','K'][card.number - 11] : card.number}
       </div>
-      <div style={{ color: typeColor[card.type], fontSize: '15px', fontWeight: 'bold', margin: '2px 0' }}>
-        {card.name}
+      <div style={{ color: typeColor[card.type], fontSize: '20px', fontWeight: 'bold', margin: '2px 0 6px', lineHeight: 1.1 }}>
+        {card.name.slice(0, 1)}
       </div>
       <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
         {card.type === 'basic' ? '基本' : card.type === 'scheme' ? '锦囊' : '装备'}

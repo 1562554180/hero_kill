@@ -453,6 +453,9 @@ export class Game {
     }
     this.eventBus.emit({ type: 'phase:end', sourceHeroId: player.getId(), data: { phase: 'play' } })
 
+    // 玩家在出牌阶段击杀最后一个敌人 → 立即结束本回合
+    if (this.isOver) return
+
     // 弃牌阶段
     this.eventBus.emit({ type: 'phase:start', sourceHeroId: player.getId(), data: { phase: 'discard' } })
     await new DiscardPhase().execute(ctx)
@@ -885,8 +888,11 @@ export class Game {
 
     let nullified = false
 
-    for (const candidate of ordered) {
+    for (let i = 0; i < ordered.length; i++) {
+      const candidate = ordered[i]
       if (!candidate.isAlive()) continue
+      // 锦囊使用者自己不抵消自己的锦囊 (但链式响应中可以救自己)
+      if (i === 0 && candidate === schemePlayer) continue
       const wxCard = await this.promptNullifyResponse(candidate, schemePlayer, schemeCard)
       if (!wxCard) continue
 
