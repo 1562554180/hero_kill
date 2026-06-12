@@ -25,8 +25,9 @@ interface BattleState {
   killMultiRemaining: number  // 本次侠胆还剩几次出杀
   // 芦叶枪选2张手牌
   selectedDualCards: string[]
-  // 龙鳞刀询问
-  longLinDisarmContext: { attackerName: string; defenderName: string } | null
+  // 龙鳞刀: 选对方牌弃掉
+  longLinTargetInfo: { id: string; name: string; hand: Card[]; judge: Card[]; equipment: Card[] } | null
+  longLinSelectedCards: string[]
   // 借刀杀人: 选武器持有者
   jieDaoHolders: { id: string; name: string }[]
   // 借刀杀人: 选攻击目标
@@ -49,7 +50,7 @@ interface BattleState {
   resolveAction: ((action: string | null) => void) | null
   resolveResponse: ((cardId: string | null) => void) | null
   resolveJudge: ((cardId: string | null) => void) | null
-  resolveLongLin: ((disarm: boolean) => void) | null
+  resolveLongLin: ((cardIds: string[] | null) => void) | null
   resolveMultiTarget: ((targetIds: string[]) => void) | null
   resolveDualCard: ((cardIds: string[]) => void) | null
   resolveJieDaoHolder: ((holderId: string | null) => void) | null
@@ -87,7 +88,9 @@ interface BattleState {
   confirmDualCards: () => void
   cancelDualCards: () => void
   // 龙鳞刀
-  resolveLongLinAction: (disarm: boolean) => void
+  toggleLongLinCard: (cardId: string) => void
+  confirmLongLinPick: () => void
+  cancelLongLinPick: () => void
   // 借刀杀人
   selectJieDaoHolder: (holderId: string) => void
   cancelJieDaoHolder: () => void
@@ -197,7 +200,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   killMultiMax: 0,
   killMultiRemaining: 0,
   selectedDualCards: [],
-  longLinDisarmContext: null,
+  longLinTargetInfo: null,
+  longLinSelectedCards: [],
   jieDaoHolders: [],
   jieDaoCandidates: [],
   tanNangTargetInfo: null,
@@ -239,7 +243,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       multiTargetCandidates: [],
       selectedTargets: [],
       selectedDualCards: [],
-      longLinDisarmContext: null,
+      longLinTargetInfo: null,
+      longLinSelectedCards: [],
       jieDaoHolders: [],
       jieDaoCandidates: [],
       tanNangTargetInfo: null,
@@ -313,13 +318,17 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         set({ resolveResponse: null, responsePrompt: null, phase: 'waiting', gameState: game.getState() })
         return cardId
       },
-      disarmPromptHandler: async (game: Game, attacker: Player, defender: Player) => {
+      longLinPickHandler: async (game: Game, attacker: Player, defender: Player, options: { hand: Card[]; judge: Card[]; equipment: Card[] }) => {
         set({
           phase: 'longLinDisarm',
-          longLinDisarmContext: { attackerName: attacker.getName(), defenderName: defender.getName() },
+          longLinTargetInfo: {
+            id: defender.getId(), name: defender.getName(),
+            hand: [...options.hand], judge: [...options.judge], equipment: [...options.equipment],
+          },
+          longLinSelectedCards: [],
           playerHand: attacker.getHand(),
         })
-        return new Promise<boolean>(resolve => {
+        return new Promise<string[] | null>(resolve => {
           set({ resolveLongLin: resolve })
         })
       },
@@ -575,6 +584,16 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   playScheme: (cardId: string) => {
+    // 探囊取物/釜底抽薪: 不传targetId, 让引擎通过handler选目标
+    // handler会根据距离等规则过滤合法目标, 而selectTarget阶段不会做距离校验
+    const card = get().playerHand.find(c => c.id === cardId)
+    if (card && (card.name === '探囊取物' || card.name === '釜底抽薪')) {
+      const { resolveAction } = get()
+      if (!resolveAction) return
+      resolveAction(`scheme:${cardId}:`)
+      set({ resolveAction: null })
+      return
+    }
     set({ phase: 'selectTarget', pendingCardId: cardId, pendingCardType: 'scheme' })
   },
 
@@ -627,7 +646,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
   toggleAoJian: () => {
     const { game, aoJianActive, phase } = get()
-    if (phase !== 'playing') return
+    if (phase !== 'playing' && phase !== 'awaitingResponse') return
     const player = game?.getPlayer()
     if (!player || !player.hasSkillOrTreasure('ao-jian')) return
     if (aoJianActive) {
@@ -721,11 +740,25 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   // 龙鳞刀
-  resolveLongLinAction: (disarm: boolean) => {
+  toggleLongLinCard: (cardId: string) => {
+    const { longLinSelectedCards } = get()
+    if (longLinSelectedCards.includes(cardId)) {
+      useBattleStore.setState({ longLinSelectedCards: longLinSelectedCards.filter(id => id !== cardId) })
+    } else if (longLinSelectedCards.length < 2) {
+      useBattleStore.setState({ longLinSelectedCards: [...longLinSelectedCards, cardId] })
+    }
+  },
+  confirmLongLinPick: () => {
+    const { resolveLongLin, longLinSelectedCards } = get()
+    if (!resolveLongLin || longLinSelectedCards.length === 0) return
+    resolveLongLin(longLinSelectedCards)
+    set({ resolveLongLin: null, longLinTargetInfo: null, longLinSelectedCards: [], phase: 'playing' })
+  },
+  cancelLongLinPick: () => {
     const { resolveLongLin } = get()
     if (!resolveLongLin) return
-    resolveLongLin(disarm)
-    set({ resolveLongLin: null, longLinDisarmContext: null, phase: 'playing' })
+    resolveLongLin(null)
+    set({ resolveLongLin: null, longLinTargetInfo: null, longLinSelectedCards: [], phase: 'playing' })
   },
 
   // 借刀杀人

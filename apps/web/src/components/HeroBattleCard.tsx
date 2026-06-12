@@ -1,5 +1,5 @@
 import type { BattleHero, EquipmentSlot, Card } from '@hero-legend/shared-types'
-
+import { isRedSuit, isBlackSuit } from '@hero-legend/shared-types'
 import { useBattleStore } from '../stores/battleStore'
 
 interface Props {
@@ -7,9 +7,13 @@ interface Props {
   isCurrentTurn: boolean
   isSelectable: boolean
   onClick?: () => void
+  aoJianActive?: boolean
+  canPlayKill?: boolean
+  onEquipAsKill?: (cardId: string) => void
+  hasHongZhuang?: boolean
 }
 
-export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, onClick }: Props) {
+export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang }: Props) {
   const game = useBattleStore(s => s.game)
   const { hero: config, currentHp, maxHp, role, instance } = hero
   const hpPercent = (currentHp / maxHp) * 100
@@ -149,10 +153,10 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, onClick }: P
       {/* 装备名称标签 */}
       {(hero.equipment.weapon || hero.equipment.armor || hero.equipment.attackMount || hero.equipment.defenseMount) && (
         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
-          {hero.equipment.weapon && <EquipTag heroId={hero.hero.id} slot="weapon" fallbackId={hero.equipment.weapon} />}
-          {hero.equipment.armor && <EquipTag heroId={hero.hero.id} slot="armor" fallbackId={hero.equipment.armor} />}
-          {hero.equipment.attackMount && <EquipTag heroId={hero.hero.id} slot="attackMount" fallbackId={hero.equipment.attackMount} />}
-          {hero.equipment.defenseMount && <EquipTag heroId={hero.hero.id} slot="defenseMount" fallbackId={hero.equipment.defenseMount} />}
+          {hero.equipment.weapon && <EquipTag heroId={hero.hero.id} slot="weapon" fallbackId={hero.equipment.weapon} aoJianActive={aoJianActive} canPlayKill={canPlayKill} onUseAsKill={() => onEquipAsKill?.(hero.equipment.weapon!)} />}
+          {hero.equipment.armor && <EquipTag heroId={hero.hero.id} slot="armor" fallbackId={hero.equipment.armor} aoJianActive={aoJianActive} canPlayKill={canPlayKill} onUseAsKill={() => onEquipAsKill?.(hero.equipment.armor!)} />}
+          {hero.equipment.attackMount && <EquipTag heroId={hero.hero.id} slot="attackMount" fallbackId={hero.equipment.attackMount} aoJianActive={aoJianActive} canPlayKill={canPlayKill} onUseAsKill={() => onEquipAsKill?.(hero.equipment.attackMount!)} />}
+          {hero.equipment.defenseMount && <EquipTag heroId={hero.hero.id} slot="defenseMount" fallbackId={hero.equipment.defenseMount} aoJianActive={aoJianActive} canPlayKill={canPlayKill} onUseAsKill={() => onEquipAsKill?.(hero.equipment.defenseMount!)} />}
         </div>
       )}
 
@@ -166,19 +170,31 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, onClick }: P
   )
 }
 
-function EquipTag({ heroId, slot, fallbackId }: { heroId: string; slot: EquipmentSlot; fallbackId: string }) {
+function EquipTag({ heroId, slot, fallbackId, aoJianActive, canPlayKill, onUseAsKill }: {
+  heroId: string; slot: EquipmentSlot; fallbackId: string
+  aoJianActive?: boolean; canPlayKill?: boolean; onUseAsKill?: () => void
+}) {
   const card = useBattleStore(s => s.equippedCards[heroId]?.[slot])
-  // 回退: 用equipment map中的id直接展示（不知道名字则显示⚙）
   const label = card?.name ?? '⚙装备'
   const desc = (card as any)?.description ?? ''
-  const color = slot === 'weapon' ? '#ff8a65' : slot === 'armor' ? '#90caf9' : '#a5d6a7'
+  const isRed = card && isRedSuit(card.suit)
+  const canActivate = aoJianActive && isRed && canPlayKill
+  const defaultColor = slot === 'weapon' ? '#ff8a65' : slot === 'armor' ? '#90caf9' : '#a5d6a7'
+  const color = canActivate ? '#e57373' : defaultColor
   return (
-    <span title={desc} style={{
-      fontSize: '10px', color,
-      background: `${color}22`,
-      padding: '1px 5px', borderRadius: '3px',
-      border: `1px solid ${color}55`,
-    }}>
+    <span
+      title={canActivate ? `点击 ${card!.name} 当杀使用` : desc}
+      onClick={canActivate ? onUseAsKill : undefined}
+      style={{
+        fontSize: '10px', color,
+        background: `${color}22`,
+        padding: '1px 5px', borderRadius: '3px',
+        border: `1px solid ${canActivate ? '#e57373' : `${defaultColor}55`}`,
+        boxShadow: canActivate ? '0 0 4px rgba(229,115,115,0.6)' : 'none',
+        cursor: canActivate ? 'pointer' : 'default',
+        fontWeight: canActivate ? 'bold' : 'normal',
+      }}
+    >
       {label}
     </span>
   )

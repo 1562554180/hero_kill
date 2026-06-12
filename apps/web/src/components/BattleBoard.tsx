@@ -7,13 +7,13 @@ import { BattleLog } from './BattleLog'
 export function BattleBoard() {
   const [resultOverlayDismissed, setResultOverlayDismissed] = useState(false)
   const {
-    gameState, phase, playerHand, actionLog, result,
+    gameState, phase, playerHand, actionLog, result, equippedCards,
     playKill, playScheme, playSchemeSelf, confirmTarget, playHeal, equipCard, endPlayPhase, cancelSelection, game,
     judgeReplace, judgeCard, aoJianActive, responsePrompt, toggleAoJian, respondWithCard,
     multiTargetCandidates, selectedTargets, toggleTarget, confirmMultiTarget, cancelMultiTarget,
     killMultiMax, killMultiRemaining, toggleKillMultiTarget, confirmKillMultiTarget, cancelKillMultiTarget,
     selectedDualCards, toggleDualCard, confirmDualCards, cancelDualCards,
-    longLinDisarmContext, resolveLongLinAction,
+    longLinTargetInfo, longLinSelectedCards, toggleLongLinCard, confirmLongLinPick, cancelLongLinPick,
     jieDaoHolders, jieDaoCandidates, selectJieDaoHolder, cancelJieDaoHolder, selectJieDaoTarget, cancelJieDaoTarget,
     tanNangTargetInfo, selectTanNangTarget, cancelTanNangTarget, selectTanNangCard, cancelTanNangCard,
     wuguCandidates, selectWuguCard, cancelWuguPick,
@@ -82,7 +82,18 @@ export function BattleBoard() {
               hero={h}
               isCurrentTurn={gameState.currentHeroId === h.hero.id && !isPlayerTurn}
               isSelectable={
-                (phase === 'selectTarget' || phase === 'selectMultiTargets' || phase === 'selectKillMultiTargets' || phase === 'selectJieDaoHolder' || phase === 'selectJieDaoTarget' || phase === 'selectTanNangTarget' || phase === 'selectFudiTarget' || phase === 'treasureSelectTarget' || phase === 'treasureSelectTargets') && h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)
+                (h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)) &&
+                (
+                  (phase === 'selectTarget') ||
+                  (phase === 'selectMultiTargets') ||
+                  (phase === 'selectKillMultiTargets') ||
+                  (phase === 'selectJieDaoHolder' && jieDaoHolders.some(jh => jh.id === h.hero.id)) ||
+                  (phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === h.hero.id)) ||
+                  (phase === 'selectTanNangTarget') ||
+                  (phase === 'selectFudiTarget') ||
+                  (phase === 'treasureSelectTarget') ||
+                  (phase === 'treasureSelectTargets')
+                )
               }
               onClick={() => {
                 if (phase === 'selectTarget') confirmTarget(h.hero.id)
@@ -226,10 +237,13 @@ export function BattleBoard() {
                 hero={h}
                 isCurrentTurn={gameState.currentHeroId === h.hero.id && !isPlayerTurn}
                 isSelectable={
-                  (phase === 'treasureSelectTarget' || phase === 'treasureSelectTargets') && h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)
+                  (h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)) &&
+                  ((phase === 'treasureSelectTarget') || (phase === 'treasureSelectTargets') ||
+                   (phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === h.hero.id)))
                 }
                 onClick={() => {
                   if (phase === 'treasureSelectTarget') pickTreasureTarget(h.hero.id)
+                  else if (phase === 'selectJieDaoTarget') selectJieDaoTarget(h.hero.id)
                   else if (phase === 'treasureSelectTargets') {
                     const t = treasureTargetIds
                     if (t.includes(h.hero.id)) {
@@ -257,7 +271,17 @@ export function BattleBoard() {
             <HeroBattleCard
               hero={player}
               isCurrentTurn={isPlayerTurn}
-              isSelectable={false}
+              isSelectable={phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === player.hero.id)}
+              onClick={() => {
+                if (phase === 'selectJieDaoTarget') selectJieDaoTarget(player.hero.id)
+              }}
+              aoJianActive={aoJianActive}
+              canPlayKill={canPlayKill && (isPlayerTurn || phase === 'awaitingResponse')}
+              hasHongZhuang={hasHongZhuang}
+              onEquipAsKill={(cardId: string) => {
+                if (phase === 'playing') playKill(cardId)
+                else if (phase === 'awaitingResponse') respondWithCard(cardId)
+              }}
             />
             {phase === 'selectTarget' ? (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -274,10 +298,28 @@ export function BattleBoard() {
                 <button style={{ fontSize: '12px' }} onClick={() => judgeReplace(null)}>跳过</button>
               </div>
             ) : phase === 'awaitingResponse' ? (
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ color: '#ff9800', fontSize: '14px', fontWeight: 'bold' }}>
                   {responsePrompt || '请响应'}
                 </span>
+                {hasAoJian && (
+                  <button
+                    onClick={toggleAoJian}
+                    style={{
+                      fontSize: '12px',
+                      padding: '4px 10px',
+                      background: aoJianActive ? '#e57373' : 'var(--bg-dark)',
+                      color: aoJianActive ? '#fff' : 'var(--text-light)',
+                      border: aoJianActive ? '1px solid #e57373' : '1px solid var(--border-wood)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: aoJianActive ? 'bold' : 'normal',
+                    }}
+                    title="傲剑: 红色牌当杀(包括药)"
+                  >
+                    {aoJianActive ? '⚔ 傲剑·激活' : '⚔ 傲剑'}
+                  </button>
+                )}
                 <button style={{ fontSize: '12px' }} onClick={() => respondWithCard(null)}>放弃</button>
               </div>
             ) : phase === 'selectDualCards' ? (
@@ -533,7 +575,7 @@ export function BattleBoard() {
       )}
 
       {/* Long Lin Dao 询问浮层 */}
-      {phase === 'longLinDisarm' && longLinDisarmContext && (
+      {phase === 'longLinDisarm' && longLinTargetInfo && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -541,34 +583,86 @@ export function BattleBoard() {
         }}>
           <div style={{
             background: 'var(--bg-medium)', border: '2px solid #ff8a65',
-            borderRadius: '12px', padding: '30px', textAlign: 'center', minWidth: '340px',
+            borderRadius: '12px', padding: '24px', minWidth: '420px', maxWidth: '720px', maxHeight: '80vh', overflow: 'auto',
           }}>
-            <h2 style={{ color: '#ff8a65', fontSize: '22px', marginBottom: '12px' }}>
-              🗡️ 龙鳞刀
+            <h2 style={{ color: '#ff8a65', fontSize: '22px', marginBottom: '12px', textAlign: 'center' }}>
+              龙鳞刀 — 选{longLinTargetInfo.name}至多2张牌弃掉
             </h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '14px' }}>
-              杀命中【{longLinDisarmContext.defenderName}】, 选择如何造成伤害:
-            </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+
+            {longLinTargetInfo.hand.length > 0 && (
+              <>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>手牌 (位置)</div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                  {longLinTargetInfo.hand.map((card, idx) => {
+                    const sel = longLinSelectedCards.includes(card.id)
+                    return (
+                      <div key={card.id} onClick={() => toggleLongLinCard(card.id)} style={{
+                        cursor: 'pointer', background: sel ? 'rgba(255,138,101,0.2)' : 'var(--bg-dark)',
+                        border: `1px solid ${sel ? '#ff8a65' : '#8b6914'}`,
+                        borderRadius: '6px', padding: '8px 12px', minWidth: '60px', textAlign: 'center', userSelect: 'none',
+                      }}>
+                        <div style={{ color: 'var(--text-light)', fontSize: '15px', fontWeight: 'bold' }}>位置 {idx + 1}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+
+            {longLinTargetInfo.judge.length > 0 && (
+              <>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>判定区</div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                  {longLinTargetInfo.judge.map(card => {
+                    const sel = longLinSelectedCards.includes(card.id)
+                    return (
+                      <div key={card.id} onClick={() => toggleLongLinCard(card.id)} style={{
+                        cursor: 'pointer', border: sel ? '2px solid #ff8a65' : 'none',
+                        borderRadius: '6px',
+                      }}>
+                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+
+            {longLinTargetInfo.equipment.length > 0 && (
+              <>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>装备区</div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                  {longLinTargetInfo.equipment.map(card => {
+                    const sel = longLinSelectedCards.includes(card.id)
+                    return (
+                      <div key={card.id} onClick={() => toggleLongLinCard(card.id)} style={{
+                        cursor: 'pointer', border: sel ? '2px solid #ff8a65' : 'none',
+                        borderRadius: '6px',
+                      }}>
+                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '12px' }}>
               <button
-                onClick={() => resolveLongLinAction(false)}
-                style={{
-                  padding: '10px 20px', background: '#e57373', color: '#fff',
-                  border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px',
-                  fontWeight: 'bold',
-                }}
+                onClick={cancelLongLinPick}
+                style={{ padding: '10px 20px', background: '#e57373', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
               >
-                正常掉血1点
+                正常掉血
               </button>
               <button
-                onClick={() => resolveLongLinAction(true)}
+                onClick={confirmLongLinPick}
+                disabled={longLinSelectedCards.length === 0}
                 style={{
-                  padding: '10px 20px', background: '#64b5f6', color: '#fff',
-                  border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px',
-                  fontWeight: 'bold',
+                  padding: '10px 20px', background: longLinSelectedCards.length > 0 ? '#64b5f6' : '#555',
+                  color: '#fff', border: 'none', borderRadius: '6px', cursor: longLinSelectedCards.length > 0 ? 'pointer' : 'not-allowed', fontSize: '14px', fontWeight: 'bold',
                 }}
               >
-                改为弃对方2张牌
+                弃{longLinSelectedCards.length > 0 ? `${longLinSelectedCards.length}张牌` : '牌'}
               </button>
             </div>
           </div>

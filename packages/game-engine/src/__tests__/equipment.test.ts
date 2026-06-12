@@ -174,7 +174,11 @@ describe('装备系统', () => {
       playerHeroId: 'shang-yang', playerInstance: baseInstance,
       allyHeroIds: [], enemyHeroIds: ['han-xin'],
       playerActionHandler: async () => null,
-      disarmPromptHandler: async () => true,  // 玩家选择弃牌
+      longLinPickHandler: async (_g, _a, _d, opts) => {
+        // 选2张手牌
+        const ids = opts.hand.slice(0, 2).map(c => c.id)
+        return ids
+      },
     })
     const player = game.getPlayer()
     const enemy = game.getPlayerById('han-xin')!
@@ -202,7 +206,7 @@ describe('装备系统', () => {
       playerHeroId: 'shang-yang', playerInstance: baseInstance,
       allyHeroIds: [], enemyHeroIds: ['han-xin'],
       playerActionHandler: async () => null,
-      disarmPromptHandler: async () => false,  // 玩家选择掉血
+      longLinPickHandler: async () => null,  // 玩家选择掉血
     })
     const player = game.getPlayer()
     const enemy = game.getPlayerById('han-xin')!
@@ -220,6 +224,31 @@ describe('装备系统', () => {
     // 选择掉血 → 弃牌不变, 掉1血
     expect(enemy.getHandSize()).toBe(beforeHand)
     expect(enemy.getCurrentHp()).toBe(beforeHp - 1)
+  })
+
+  it('龙鳞刀: 对方只有1张牌也可选择弃1张', async () => {
+    const game = new Game({
+      playerHeroId: 'shang-yang', playerInstance: baseInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+      longLinPickHandler: async (_g, _a, _d, opts) => {
+        return [opts.hand[0].id]
+      },
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    player.drawCards([
+      makeEquipment('龙鳞刀', 'weapon', 2, 'heart', 1),
+      { id: 'k1', suit: 'heart', number: 5, type: 'basic', name: '杀' } as any,
+    ])
+    enemy.drawCards([
+      { id: 'e1', suit: 'spade', number: 1, type: 'basic', name: '杀' } as any,
+    ])
+    game.playerEquipCard(player, eid('龙鳞刀', 'heart', 1))
+    const beforeHp = enemy.getCurrentHp()
+    await game.playerPlayKill(player, enemy.getId(), 'k1')
+    expect(enemy.getHandSize()).toBe(0)
+    expect(enemy.getCurrentHp()).toBe(beforeHp)  // 没掉血
   })
 
   it('狼牙棒: 最后一张手牌出杀最多3目标', async () => {
