@@ -53,7 +53,7 @@ export class JudgePhase extends Phase {
           game.emitSkillTrigger(player, '画地为牢', '红桃-失效')
         } else {
           ;(game as any).skipCurrentTurnPlayerId = player.getId()
-          game.emitSkillTrigger(player, '画地为牢', '生效-跳过当前回合')
+          game.emitSkillTrigger(player, '画地为牢', '生效-跳过出牌阶段')
         }
       }
 
