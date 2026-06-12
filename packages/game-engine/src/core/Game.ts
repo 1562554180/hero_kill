@@ -42,8 +42,8 @@ export interface GameConfig {
   dualCardHandler?: (game: Game, attacker: Player) => Promise<string[]>
   /** 龙鳞刀：选对方2张牌弃掉 (返回2个cardId, 或null表示正常掉血) */
   longLinPickHandler?: (game: Game, attacker: Player, defender: Player, options: { hand: Card[]; judge: Card[]; equipment: Card[] }) => Promise<string[] | null>
-  /** 博浪锤：防御方从手牌选2张弃掉 (返回2个cardId; 返回少于2或null视为放弃, 触发掉血) */
-  boLangChuiHandler?: (game: Game, defender: Player, hand: Card[]) => Promise<string[] | null>
+  /** 博浪锤：攻击方从手牌选2张弃掉强制命中 (返回2个cardId; null=放弃不触发) */
+  boLangChuiHandler?: (game: Game, attacker: Player, hand: Card[]) => Promise<string[] | null>
   /** 玉如意: 防御方是否使用 (true=触发判定; false=跳过) */
   yuRuYiHandler?: (game: Game, defender: Player) => Promise<boolean>
 }
@@ -804,28 +804,32 @@ export class Game {
           this.emitSkillTrigger(attacker, '强掠', '抽对方一张牌')
         }
       }
-      // 博浪锤: 杀被闪避后, 防御方需弃2张手牌; 弃不足2张则强制掉1血
+      // 博浪锤: 杀被闪避后, 攻击方可弃2张手牌强制命中 (掉1血)
       if (attacker.getWeaponName() === '博浪锤' && defender.isAlive()) {
-        const hand = defender.getHand()
-        let toDiscard: string[] = []
-        if (hand.length >= 2 && this.config.boLangChuiHandler) {
-          toDiscard = (await this.config.boLangChuiHandler(this, defender, hand)) ?? []
-        } else if (hand.length >= 2) {
-          toDiscard = hand.slice(0, 2).map(c => c.id)
-        }
-        if (toDiscard.length >= 2) {
-          for (const cid of toDiscard.slice(0, 2)) this.discardCardFromTarget(defender, cid, '博浪锤')
-          this.emitSkillTrigger(attacker, '博浪锤', `${defender.getName()}弃2牌免伤`)
-        } else {
-          // 弃牌不足2张 → 弃所有手牌 + 掉1血
-          for (const c of hand) this.discardCardFromTarget(defender, c.id, '博浪锤')
-          const dmg = defender.takeDamage(1)
-          this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: defender.getId(), data: { damage: 1 } })
-          this.eventBus.emit({ type: 'damage:receive', sourceHeroId: defender.getId(), data: { damage: 1, from: attacker.getId() } })
-          this.emitSkillTrigger(attacker, '博浪锤', `${defender.getName()}无牌可弃-掉1血`)
-          await this.onDamageReceived(defender, attacker, killCard)
-          if (!defender.isAlive()) {
-            this.eventBus.emit({ type: 'die', sourceHeroId: defender.getId(), data: { killedBy: attacker.getId() } })
+        const attackerHand = attacker.getHand()
+        if (attackerHand.length >= 2) {
+          let toDiscard: string[] | null = null
+          if (attacker.getRole() === 'player' && this.config.boLangChuiHandler) {
+            toDiscard = await this.config.boLangChuiHandler(this, attacker, attackerHand)
+          } else if (attacker.getRole() !== 'player') {
+            // AI: 弃最没用的2张 (非杀非闪优先, 简化取前2张)
+            toDiscard = attackerHand.slice(0, 2).map(c => c.id)
+          }
+          if (toDiscard && toDiscard.length >= 2) {
+            for (const cid of toDiscard.slice(0, 2)) {
+              const card = this.removeHandCard(attacker, cid)
+              if (card) this.cardDeck.discard([card])
+            }
+            const dmg = defender.takeDamage(1)
+            this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: defender.getId(), data: { damage: 1 } })
+            this.eventBus.emit({ type: 'damage:receive', sourceHeroId: defender.getId(), data: { damage: 1, from: attacker.getId() } })
+            this.emitSkillTrigger(attacker, '博浪锤', `弃2牌强制命中${defender.getName()}`)
+            await this.onDamageReceived(defender, attacker, killCard)
+            await this.onKillDamageDealt(attacker, defender)
+            await this.onKillDamageReceived(defender, attacker)
+            if (!defender.isAlive()) {
+              this.eventBus.emit({ type: 'die', sourceHeroId: defender.getId(), data: { killedBy: attacker.getId() } })
+            }
           }
         }
       }

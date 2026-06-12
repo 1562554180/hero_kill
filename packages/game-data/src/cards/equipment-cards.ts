@@ -11,7 +11,7 @@ export const equipmentCards: EquipmentCard[] = [
   eq('spade', 13, '虎符', 'weapon', 1, '出杀无次数限制'),
   eq('spade', 2, '盘龙棍', 'weapon', 3, '杀被闪避后可继续出杀'),
   eq('spade', 6, '鱼肠剑', 'weapon', 2, '无视防具'),
-  eq('club', 3, '博浪锤', 'weapon', 2, '杀被闪避后弃2牌强制掉血'),
+  eq('club', 3, '博浪锤', 'weapon', 2, '杀被闪避后可弃2张手牌强制命中'),
   eq('club', 1, '霸王弓', 'weapon', 5, '杀命中后拆对方一匹马'),
   eq('spade', 4, '芦叶枪', 'weapon', 3, '主动技: 出2张手牌当杀'),
   eq('heart', 1, '龙鳞刀', 'weapon', 2, '杀命中后可选拆对方2张牌代替掉血'),
