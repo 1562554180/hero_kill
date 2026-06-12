@@ -6,6 +6,7 @@ interface Props {
   hero: BattleHero
   isCurrentTurn: boolean
   isSelectable: boolean
+  dimmed?: boolean
   onClick?: () => void
   aoJianActive?: boolean
   canPlayKill?: boolean
@@ -13,7 +14,7 @@ interface Props {
   hasHongZhuang?: boolean
 }
 
-export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang }: Props) {
+export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang }: Props) {
   const game = useBattleStore(s => s.game)
   const { hero: config, currentHp, maxHp, role, instance } = hero
   const hpPercent = (currentHp / maxHp) * 100
@@ -38,9 +39,9 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, onClick, aoJ
         borderRadius: '8px',
         padding: '8px 12px',
         minWidth: '140px',
-        opacity: currentHp > 0 ? 1 : 0.4,
+        opacity: currentHp > 0 ? (dimmed ? 0.4 : 1) : 0.4,
         cursor: isSelectable ? 'pointer' : 'default',
-        transition: 'border-color 0.2s, box-shadow 0.2s',
+        transition: 'border-color 0.2s, box-shadow 0.2s, opacity 0.2s',
         position: 'relative',
         boxShadow: isSelectable
           ? '0 0 10px rgba(255,68,68,0.5), inset 0 0 6px rgba(255,68,68,0.2)'

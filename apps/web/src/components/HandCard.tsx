@@ -10,6 +10,7 @@ interface Props {
   hasHongZhuang: boolean
   isResponse?: boolean  // 响应模式 (决斗/南蛮入侵): 只能出杀
   isJudgeReplace?: boolean
+  isPending?: boolean  // 玩家刚点选等待选目标 (出杀/出锦囊时进入selectTarget)
   treasureSelectMode?: boolean  // 宝具选牌模式: 禁用常规出牌, 由外层div处理点击
   onPlayKill: (cardId: string) => void
   onPlayHeal: (cardId: string) => void
@@ -30,7 +31,7 @@ const typeColor: Record<string, string> = {
   basic: 'var(--text-light)', scheme: '#64b5f6', equipment: '#81c784'
 }
 
-export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, treasureSelectMode, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard }: Props) {
+export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, treasureSelectMode, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard }: Props) {
   const isKill = card.name === '杀'
   const isHeal = card.name === '药'
   const isEquip = card.type === 'equipment'
@@ -89,6 +90,9 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         transition: 'all 0.15s',
         userSelect: 'none',
         position: 'relative',
+        transform: isPending ? 'translateY(-12px)' : 'translateY(0)',
+        boxShadow: isPending ? '0 4px 8px rgba(0,0,0,0.5)' : 'none',
+        zIndex: isPending ? 1 : 0,
       }}
     >
       <div style={{ position: 'absolute', top: '4px', left: '6px', color: typeColor[card.type], fontSize: '10px', fontWeight: 'bold', writingMode: 'vertical-rl', lineHeight: 1.1 }}>

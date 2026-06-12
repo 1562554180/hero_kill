@@ -32,6 +32,8 @@ interface BattleState {
   jieDaoHolders: { id: string; name: string }[]
   // 借刀杀人: 选攻击目标
   jieDaoCandidates: { id: string; name: string; currentHp: number; maxHp: number }[]
+  // 探囊取物: 合法目标列表 (用于UI高亮/置暗)
+  tanNangCandidates: { id: string; name: string }[]
   // 探囊取物: 选目标后展示其手牌/判定/装备
   tanNangTargetInfo: { id: string; name: string; hand: Card[]; judge: Card[]; equipment: Card[] } | null
   // 五谷丰登: 翻开的候选牌池
@@ -62,6 +64,8 @@ interface BattleState {
   resolveFudiPick: ((cardId: string | null) => void) | null
   resolveXiaDanCard: ((cardId: string | null) => void) | null
   judgeCard: Card | null
+  // 最近一次判定结果 (含来源名/牌名, 供中央显示; 显示2.5秒后自动清空)
+  lastJudgeResult: { judgeHeroName: string; judgeCardName: string; resultCard: { suit: string; number: number; name: string } } | null
 
   startBattle: (config: GameConfig) => Promise<BattleResult>
   playKill: (cardId: string) => void
@@ -163,6 +167,21 @@ function eventToLog(event: GameEvent, game: Game): string | null {
       const name = (event.data as any)?.originalCardName
       return `【${name}】被【无懈可击】抵消！`
     }
+    case 'judge': {
+      const data = event.data as any
+      const phase = data?.phase
+      const heroName = src
+      if (phase === 'result') {
+        return `⚖ 判定结果: ${data?.cardName ?? ''} (${data?.suit ?? ''} ${data?.number ?? ''})`
+      }
+      if (phase === 'resolve' && data?.judgeCardName) {
+        return `⚖ ${heroName} 判定【${data.judgeCardName}】: ${data?.cardName ?? ''} (${data?.suit ?? ''} ${data?.number ?? ''})`
+      }
+      if (phase === 'replace') {
+        return `⚖ 变法: 判定改为 ${data?.cardName ?? ''}`
+      }
+      return null
+    }
     default: return null
   }
 }
@@ -193,6 +212,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveMultiTarget: null,
   resolveDualCard: null,
   judgeCard: null,
+  lastJudgeResult: null,
   equippedCards: {},
   multiTargetCandidates: [],
   selectedTargets: [],
@@ -204,6 +224,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   longLinSelectedCards: [],
   jieDaoHolders: [],
   jieDaoCandidates: [],
+  tanNangCandidates: [],
   tanNangTargetInfo: null,
   wuguCandidates: null,
   fudiTargetInfo: null,
@@ -247,6 +268,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       longLinSelectedCards: [],
       jieDaoHolders: [],
       jieDaoCandidates: [],
+      tanNangCandidates: [],
       tanNangTargetInfo: null,
       wuguCandidates: null,
       fudiTargetInfo: null,
@@ -273,6 +295,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       xiaDanActive: false,
       xiaDanUsedThisTurn: false,
       judgeCard: null,
+      lastJudgeResult: null,
     })
 
     const wrappedConfig: GameConfig = {
@@ -393,12 +416,13 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         set({
           phase: 'selectTanNangTarget',
           tanNangTargetInfo: null,
+          tanNangCandidates: candidates.map(p => ({ id: p.getId(), name: p.getName() })),
           game,
         })
         const targetId = await new Promise<string | null>(resolve => {
           set({ resolveTanNangTarget: resolve })
         })
-        set({ resolveTanNangTarget: null, phase: 'playing' })
+        set({ resolveTanNangTarget: null, phase: 'playing', tanNangCandidates: [] })
         return targetId
       },
       tanNangPickHandler: async (game: Game, attacker: Player, target: Player, options: { hand: Card[]; judge: Card[]; equipment: Card[] }) => {
@@ -476,6 +500,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
             const [, cardId, idsRaw] = action.split(':')
             const targetIds = (idsRaw ?? '').split(',').filter(Boolean)
             if (targetIds.length > 0) await game.playerPlayKillMulti(player, cardId, targetIds)
+          } else if (action.startsWith('jieDao:')) {
+            // 借刀: jieDao:cardId:holderId (UI预选holder)
+            const parts = action.split(':')
+            const cardId = parts[1]
+            const holderId = parts[2] || undefined
+            await game.playerPlayJieDao(player, cardId, holderId)
           } else if (action.startsWith('scheme:')) {
             const parts = action.split(':')
             const cardId = parts[1]
@@ -502,6 +532,29 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       const msg = eventToLog(event, game)
       if (msg) {
         set(s => ({ actionLog: [...s.actionLog, msg] }))
+      }
+      // 判定最终结果 (中央高亮显示 2.5 秒)
+      if (event.type === 'judge') {
+        const data = event.data as any
+        const phase = data?.phase
+        if (phase === 'result' || phase === 'resolve') {
+          const heroName = event.sourceHeroId ? getHeroName(event.sourceHeroId, game) : ''
+          const judgeCardName = data?.judgeCardName ?? ''
+          set({
+            lastJudgeResult: {
+              judgeHeroName: heroName,
+              judgeCardName,
+              resultCard: { suit: data?.suit, number: data?.number, name: data?.cardName ?? '' },
+            },
+          })
+          setTimeout(() => {
+            const cur = get().lastJudgeResult
+            // 防止被新的判定覆盖时, 误清空新结果
+            if (cur && cur.resultCard.name === (data?.cardName ?? '') && cur.resultCard.suit === data?.suit) {
+              set({ lastJudgeResult: null })
+            }
+          }, 2500)
+        }
       }
       // 关键事件触发时同步 gameState, 避免 UI 显示陈旧的 HP/状态
       if (event.type === 'damage:deal' || event.type === 'damage:receive' ||
@@ -584,16 +637,30 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   playScheme: (cardId: string) => {
-    // 探囊取物/釜底抽薪: 不传targetId, 让引擎通过handler选目标
-    // handler会根据距离等规则过滤合法目标, 而selectTarget阶段不会做距离校验
+    // 所有锦囊统一走 selectTarget 选目标, 跟杀一样的流程
+    // 探囊/釜底/借刀也通过 UI 选目标, 取消时牌保留
     const card = get().playerHand.find(c => c.id === cardId)
-    if (card && (card.name === '探囊取物' || card.name === '釜底抽薪')) {
-      const { resolveAction } = get()
-      if (!resolveAction) return
-      resolveAction(`scheme:${cardId}:`)
-      set({ resolveAction: null })
+    if (!card) return
+
+    if (card.name === '借刀杀人') {
+      // 借刀: 选持武器的玩家 (1阶段); 引擎收到holder后再开2阶段选攻击目标
+      const { game } = get()
+      if (!game) return
+      const player = game.getPlayer()
+      if (!player) return
+      const holders = game.players.filter(p =>
+        p.isAlive() && p.getId() !== player.getId() && p.getEquippedCard('weapon'),
+      ).map(p => ({ id: p.getId(), name: p.getName() }))
+      set({
+        phase: 'selectJieDaoHolder',
+        pendingCardId: cardId,
+        pendingCardType: 'scheme',
+        jieDaoHolders: holders,
+      })
       return
     }
+
+    // 探囊/釜底/其他锦囊: 统一 selectTarget 阶段
     set({ phase: 'selectTarget', pendingCardId: cardId, pendingCardType: 'scheme' })
   },
 
@@ -763,16 +830,28 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
   // 借刀杀人
   selectJieDaoHolder: (holderId: string) => {
+    // 2阶段: 引擎回调 (用户已选holder, 进入选攻击目标)
     const { resolveJieDaoHolder } = get()
-    if (!resolveJieDaoHolder) return
-    resolveJieDaoHolder(holderId)
-    set({ resolveJieDaoHolder: null, jieDaoHolders: [] })
+    if (resolveJieDaoHolder) {
+      resolveJieDaoHolder(holderId)
+      set({ resolveJieDaoHolder: null, jieDaoHolders: [] })
+      return
+    }
+    // 1阶段: UI预选holder, 启动引擎
+    const { pendingCardId, resolveAction } = get()
+    if (!pendingCardId || !resolveAction) return
+    resolveAction(`jieDao:${pendingCardId}:${holderId}`)
+    set({ resolveAction: null, pendingCardId: null, pendingCardType: null, jieDaoHolders: [] })
   },
   cancelJieDaoHolder: () => {
     const { resolveJieDaoHolder } = get()
-    if (!resolveJieDaoHolder) return
-    resolveJieDaoHolder(null)
-    set({ resolveJieDaoHolder: null, jieDaoHolders: [] })
+    if (resolveJieDaoHolder) {
+      resolveJieDaoHolder(null)
+      set({ resolveJieDaoHolder: null, jieDaoHolders: [] })
+      return
+    }
+    // 1阶段取消: 重置phase, 牌保留
+    set({ phase: 'playing', pendingCardId: null, pendingCardType: null, jieDaoHolders: [] })
   },
   selectJieDaoTarget: (targetId: string) => {
     const { resolveJieDaoTarget } = get()

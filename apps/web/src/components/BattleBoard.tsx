@@ -7,7 +7,7 @@ import { BattleLog } from './BattleLog'
 export function BattleBoard() {
   const [resultOverlayDismissed, setResultOverlayDismissed] = useState(false)
   const {
-    gameState, phase, playerHand, actionLog, result, equippedCards,
+    gameState, phase, playerHand, actionLog, result, equippedCards, pendingCardId, pendingCardType,
     playKill, playScheme, playSchemeSelf, confirmTarget, playHeal, equipCard, endPlayPhase, cancelSelection, game,
     judgeReplace, judgeCard, aoJianActive, responsePrompt, toggleAoJian, respondWithCard,
     multiTargetCandidates, selectedTargets, toggleTarget, confirmMultiTarget, cancelMultiTarget,
@@ -15,13 +15,14 @@ export function BattleBoard() {
     selectedDualCards, toggleDualCard, confirmDualCards, cancelDualCards,
     longLinTargetInfo, longLinSelectedCards, toggleLongLinCard, confirmLongLinPick, cancelLongLinPick,
     jieDaoHolders, jieDaoCandidates, selectJieDaoHolder, cancelJieDaoHolder, selectJieDaoTarget, cancelJieDaoTarget,
-    tanNangTargetInfo, selectTanNangTarget, cancelTanNangTarget, selectTanNangCard, cancelTanNangCard,
+    tanNangCandidates, tanNangTargetInfo, selectTanNangTarget, cancelTanNangTarget, selectTanNangCard, cancelTanNangCard,
     wuguCandidates, selectWuguCard, cancelWuguPick,
     fudiTargetInfo, selectFudiTarget, cancelFudiTarget, selectFudiCard, cancelFudiCard,
     treasureSkill, treasurePrompt, treasureCardIds, treasureTargetIds,
     useTreasureSkill, pickTreasureCard, pickTreasureTarget, confirmTreasureTargets, cancelTreasureSkill,
     xiaDanOpponentCard, xiaDanTargetName, pickXiaDanCard, cancelXiaDanCard, xiaDanActive, cancelXiaDan,
     xiaDanUsedThisTurn,
+    lastJudgeResult,
   } = useBattleStore()
 
   if (!gameState) return null
@@ -39,6 +40,37 @@ export function BattleBoard() {
   const enemies = gameState.heroes.filter(h => h.role === 'enemy')
   const allies = gameState.heroes.filter(h => h.role === 'ally')
   const player = gameState.heroes.find(h => h.role === 'player')
+
+  // 选目标阶段: 判断某英雄是否合法目标 (用于高亮可杀/可探囊的目标, 其他玩家变暗)
+  const pendingSchemeName = (() => {
+    if (phase !== 'selectTarget' || pendingCardType !== 'scheme' || !pendingCardId) return null
+    return playerHand.find(c => c.id === pendingCardId)?.name ?? null
+  })()
+  const pendingSchemeCard = (() => {
+    if (phase !== 'selectTarget' || pendingCardType !== 'scheme' || !pendingCardId) return null
+    return playerHand.find(c => c.id === pendingCardId) ?? null
+  })()
+  const isValidTarget = (heroId: string): boolean => {
+    if (!game) return true
+    const attacker = game.getPlayer()
+    const target = game.getPlayerById(heroId)
+    if (!attacker || !target) return true
+    if (phase === 'selectTarget' && pendingCardType === 'kill') {
+      return game.isInAttackRange(attacker, target)
+    }
+    if (phase === 'selectTarget' && pendingCardType === 'scheme' && pendingSchemeName === '探囊取物') {
+      return game.canTanNang(attacker, target)
+    }
+    if (phase === 'selectTarget' && pendingCardType === 'scheme' && pendingSchemeCard) {
+      // 洞察: 黑桃锦囊 (排除延时锦囊) 对拥有此技能的目标无效
+      return game.canBeSchemeTarget(target, pendingSchemeCard)
+    }
+    return true
+  }
+  // 选目标阶段是否应启用 dim 效果 (出杀/锦囊)
+  const dimInvalidTargets = phase === 'selectTarget' && game && player && (
+    pendingCardType === 'kill' || (pendingCardType === 'scheme' && pendingSchemeName === '探囊取物')
+  )
 
   const isPlayerTurn = phase === 'playing' || phase === 'selectTarget' || phase === 'selectDualCards'
   const canPlayKill = game?.canPlayKill ?? false
@@ -84,16 +116,17 @@ export function BattleBoard() {
               isSelectable={
                 (h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)) &&
                 (
-                  (phase === 'selectTarget') ||
+                  (phase === 'selectTarget' && isValidTarget(h.hero.id)) ||
                   (phase === 'selectMultiTargets') ||
                   (phase === 'selectKillMultiTargets') ||
                   (phase === 'selectJieDaoHolder' && jieDaoHolders.some(jh => jh.id === h.hero.id)) ||
                   (phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === h.hero.id)) ||
-                  (phase === 'selectTanNangTarget') ||
-                  (phase === 'selectFudiTarget') ||
                   (phase === 'treasureSelectTarget') ||
                   (phase === 'treasureSelectTargets')
                 )
+              }
+              dimmed={
+                !!dimInvalidTargets && !isValidTarget(h.hero.id)
               }
               onClick={() => {
                 if (phase === 'selectTarget') confirmTarget(h.hero.id)
@@ -175,50 +208,24 @@ export function BattleBoard() {
         )}
         {phase === 'selectJieDaoHolder' && (
           <div style={{
-            marginTop: '6px', padding: '8px 12px',
+            marginTop: '6px', padding: '6px 12px',
             background: 'rgba(255,140,0,0.15)', borderRadius: '4px',
             border: '1px solid rgba(255,140,0,0.3)',
-            color: '#ffa726', fontSize: '13px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            color: '#ffa726', fontSize: '13px', textAlign: 'center',
           }}>
-            <span>借刀杀人 — 点击有武器的玩家借刀 (高亮的卡牌)</span>
-            <button style={{ fontSize: '12px' }} onClick={cancelJieDaoHolder}>取消</button>
+            借刀杀人 — 点击有武器的玩家
+            <button style={{ fontSize: '12px', marginLeft: '12px' }} onClick={cancelJieDaoHolder}>取消</button>
           </div>
         )}
         {phase === 'selectJieDaoTarget' && (
           <div style={{
-            marginTop: '6px', padding: '8px 12px',
+            marginTop: '6px', padding: '6px 12px',
             background: 'rgba(255,68,68,0.15)', borderRadius: '4px',
             border: '1px solid rgba(255,68,68,0.3)',
-            color: '#ff6b6b', fontSize: '13px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            color: '#ff6b6b', fontSize: '13px', textAlign: 'center',
           }}>
-            <span>借刀杀人 — 选择被借刀玩家的攻击目标</span>
-            <button style={{ fontSize: '12px' }} onClick={cancelJieDaoTarget}>取消</button>
-          </div>
-        )}
-        {phase === 'selectTanNangTarget' && (
-          <div style={{
-            marginTop: '6px', padding: '8px 12px',
-            background: 'rgba(100,181,246,0.15)', borderRadius: '4px',
-            border: '1px solid rgba(100,181,246,0.3)',
-            color: '#64b5f6', fontSize: '13px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <span>探囊取物 — 点击范围内目标</span>
-            <button style={{ fontSize: '12px' }} onClick={cancelTanNangTarget}>取消</button>
-          </div>
-        )}
-        {phase === 'selectFudiTarget' && (
-          <div style={{
-            marginTop: '6px', padding: '8px 12px',
-            background: 'rgba(229,115,115,0.15)', borderRadius: '4px',
-            border: '1px solid rgba(229,115,115,0.3)',
-            color: '#e57373', fontSize: '13px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <span>釜底抽薪 — 点击目标 (无距离限制)</span>
-            <button style={{ fontSize: '12px' }} onClick={cancelFudiTarget}>取消</button>
+            借刀杀人 — 选择被借刀玩家的攻击目标
+            <button style={{ fontSize: '12px', marginLeft: '12px' }} onClick={cancelJieDaoTarget}>取消</button>
           </div>
         )}
       </div>
@@ -267,7 +274,7 @@ export function BattleBoard() {
           borderRadius: '8px',
           padding: '12px',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <HeroBattleCard
               hero={player}
               isCurrentTurn={isPlayerTurn}
@@ -515,6 +522,7 @@ export function BattleBoard() {
                     hasHongZhuang={hasHongZhuang}
                     isResponse={phase === 'awaitingResponse'}
                     isJudgeReplace={phase === 'judgeReplace'}
+                    isPending={(phase === 'selectTarget' || phase === 'selectJieDaoHolder' || phase === 'selectTanNangTarget' || phase === 'selectFudiTarget' || phase === 'selectJieDaoTarget' || phase === 'selectDualCards') && pendingCardId === card.id}
                     treasureSelectMode={phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'xiaDanPickCard'}
                     onPlayKill={playKill}
                     onPlayHeal={playHeal}
@@ -884,6 +892,48 @@ export function BattleBoard() {
           </div>
         </div>
       )}
+
+      {/* 判定结果中央高亮显示 (2.5秒后自动消失) */}
+      {lastJudgeResult && (
+        <div style={{
+          position: 'fixed', left: '50%', top: '40%', transform: 'translate(-50%, -50%)',
+          zIndex: 1000, pointerEvents: 'none',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
+          animation: 'judgePopup 0.3s ease-out',
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(218,165,32,0.95), rgba(184,134,11,0.95))',
+            color: '#1a1a1a', padding: '6px 18px', borderRadius: '20px',
+            fontSize: '14px', fontWeight: 'bold',
+            border: '2px solid #ffd700', boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+          }}>
+            {lastJudgeResult.judgeHeroName && `【${lastJudgeResult.judgeHeroName}】 `}
+            {lastJudgeResult.judgeCardName ? `判定【${lastJudgeResult.judgeCardName}】` : '判定结果'}
+          </div>
+          <div style={{
+            background: 'var(--bg-dark)', color: 'var(--text-light)',
+            padding: '14px 22px', borderRadius: '10px',
+            border: '3px solid #ffd700', boxShadow: '0 0 24px rgba(255,215,0,0.5), 0 4px 16px rgba(0,0,0,0.6)',
+            fontSize: '20px', fontWeight: 'bold',
+            display: 'flex', alignItems: 'center', gap: '12px',
+            minWidth: '160px', justifyContent: 'center',
+          }}>
+            <span style={{ color: lastJudgeResult.resultCard.suit === 'spade' || lastJudgeResult.resultCard.suit === 'club' ? '#fff' : '#e57373', fontSize: '28px' }}>
+              {({ spade: '♠', heart: '♥', diamond: '♦', club: '♣' } as any)[lastJudgeResult.resultCard.suit] ?? ''}
+            </span>
+            <span>{lastJudgeResult.resultCard.name}</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '16px' }}>
+              {lastJudgeResult.resultCard.number > 13 ? '' : lastJudgeResult.resultCard.number === 1 ? 'A' : lastJudgeResult.resultCard.number > 10 ? ['J','Q','K'][lastJudgeResult.resultCard.number - 11] : lastJudgeResult.resultCard.number}
+            </span>
+          </div>
+        </div>
+      )}
+      <style>{`
+        @keyframes judgePopup {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+      `}</style>
     </div>
   )
 }
