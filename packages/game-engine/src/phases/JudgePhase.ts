@@ -38,15 +38,9 @@ export class JudgePhase extends Phase {
         continue
       }
 
-      const j = await game.judge(player)
+      const j = await game.judge(player, delayedCard.name)
       const resultSuit = j.suit
       const resultNumber = j.card.number
-
-      eventBus.emit({
-        type: 'judge',
-        sourceHeroId: player.getId(),
-        data: { judgeCardId: delayedCard.id, judgeCardName: delayedCard.name, resultCard: j.card.id, resultSuit, resultNumber, suit: resultSuit, number: resultNumber, cardName: j.card.name, phase: 'resolve' },
-      })
 
       if (delayedCard.name === '画地为牢') {
         if (resultSuit === 'heart') {
@@ -110,15 +104,9 @@ export class JudgePhase extends Phase {
       }
 
       // 变法可在此处替换判定结果(对当前玩家生效)
-      const j = await game.judge(player)
+      const j = await game.judge(player, '手捧雷')
       const resultSuit = j.suit
       const resultNumber = j.card.number
-
-      eventBus.emit({
-        type: 'judge',
-        sourceHeroId: player.getId(),
-        data: { judgeCardId: thunder.id, judgeCardName: '手捧雷', resultCard: j.card.id, resultSuit, resultNumber, suit: resultSuit, number: resultNumber, cardName: j.card.name, phase: 'resolve' },
-      })
 
       if (resultSuit === 'spade' && resultNumber >= 2 && resultNumber <= 9) {
         // 生效: 3血, 标记消失

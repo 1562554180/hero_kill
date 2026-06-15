@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { Game, type GameConfig, type Player } from '@hero-legend/game-engine'
 import type { GameState, BattleResult, Card, GameEvent, GameEventType, HeroInstance, EquipmentSlot } from '@hero-legend/shared-types'
 
-export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'xiaDanPickCard'
+export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount'
 
 interface BattleState {
   game: Game | null
@@ -25,6 +25,9 @@ interface BattleState {
   killMultiRemaining: number  // 本次侠胆还剩几次出杀
   // 芦叶枪选2张手牌
   selectedDualCards: string[]
+  // 芦叶枪选杀的目标
+  luYeQiangCandidates: { id: string; name: string; currentHp: number; maxHp: number }[]
+  luYeQiangKillCardId: string | null  // 第一张作为杀的牌ID
   // 龙鳞刀: 选对方牌弃掉
   longLinTargetInfo: { id: string; name: string; hand: Card[]; judge: Card[]; equipment: Card[] } | null
   longLinSelectedCards: string[]
@@ -41,7 +44,7 @@ interface BattleState {
   // 釜底抽薪: 选目标后展示其手牌/判定/装备
   fudiTargetInfo: { id: string; name: string; hand: Card[]; judge: Card[]; equipment: Card[] } | null
   // 主印技能流程
-  treasureSkill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan' | null
+  treasureSkill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan' | 'yu-ren' | null
   treasurePrompt: string
   treasureCardIds: string[]         // 累计已选的卡牌 (用于治愈/绝击)
   treasureTargetIds: string[]       // 累计已选的目标 (用于起义)
@@ -55,6 +58,7 @@ interface BattleState {
   resolveLongLin: ((cardIds: string[] | null) => void) | null
   resolveMultiTarget: ((targetIds: string[]) => void) | null
   resolveDualCard: ((cardIds: string[]) => void) | null
+  resolveLuYeQiangTarget: ((targetId: string | null) => void) | null
   resolveJieDaoHolder: ((holderId: string | null) => void) | null
   resolveJieDaoTarget: ((targetId: string | null) => void) | null
   resolveTanNangTarget: ((targetId: string | null) => void) | null
@@ -66,6 +70,13 @@ interface BattleState {
   faJiaTargetInfo: { id: string; name: string; hand: Card[]; judge: Card[]; equipment: Card[] } | null
   resolveFaJiaPick: ((cardId: string | null) => void) | null
   resolveXiaDanCard: ((cardId: string | null) => void) | null
+  // 弃牌阶段: 选择要弃的牌
+  selectedDiscardCards: string[]
+  discardCount: number
+  resolveDiscard: ((cardIds: string[]) => void) | null
+  // 霸王弓: 选择拆哪匹马
+  baWangOptions: { attackMount: Card | null; defenseMount: Card | null } | null
+  resolveBaWangMount: ((mountSlot: 'attackMount' | 'defenseMount' | null) => void) | null
   judgeCard: Card | null
   // 最近一次判定结果 (含来源名/牌名, 供中央显示; 显示2.5秒后自动清空)
   lastJudgeResult: { judgeHeroName: string; judgeCardName: string; resultCard: { suit: string; number: number; name: string } } | null
@@ -94,6 +105,8 @@ interface BattleState {
   toggleDualCard: (cardId: string) => void
   confirmDualCards: () => void
   cancelDualCards: () => void
+  selectLuYeQiangTarget: (targetId: string) => void
+  cancelLuYeQiangTarget: () => void
   // 龙鳞刀
   toggleLongLinCard: (cardId: string) => void
   confirmLongLinPick: () => void
@@ -120,8 +133,8 @@ interface BattleState {
   selectFaJiaCard: (cardId: string | null) => void
   cancelFaJiaCard: () => void
   // 宝具技能
-  useTreasureSkill: (skill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan') => void
-  pickTreasureCard: (cardId: string) => void
+  useTreasureSkill: (skill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan' | 'yu-ren') => void
+  pickTreasureCard: (cardId: string) => Promise<void> | void
   pickTreasureTarget: (targetId: string) => void
   confirmTreasureTargets: () => void
   cancelTreasureSkill: () => void
@@ -133,6 +146,18 @@ interface BattleState {
   cancelXiaDan: () => void
   // 侠胆: 本回合已使用过(成功后置true, 下回合重置)
   xiaDanUsedThisTurn: boolean
+  // 驭人: 累计已选的弃牌
+  yuRenCardIds: string[]
+  // 驭人: 本回合已使用过(成功后置true, 下回合重置)
+  yuRenUsedThisTurn: boolean
+  // 弃牌阶段: 选择要弃的手牌
+  toggleDiscardCard: (cardId: string) => void
+  confirmDiscardCards: () => void
+  cancelDiscardCards: () => void
+  // 霸王弓: 选择拆哪匹马
+  selectBaWangMount: (mountSlot: 'attackMount' | 'defenseMount') => void
+  // 驭人: 确认弃牌
+  confirmYuRenCards: () => void
 }
 
 const heroNames: Record<string, string> = {}
@@ -169,6 +194,12 @@ function eventToLog(event: GameEvent, game: Game): string | null {
     case 'equipment:equip': return `${src} 装备了装备`
     case 'card:draw': return null // too noisy
     case 'card:discard': return null
+    case 'card:gain': {
+      const cardName = (event.data as any)?.cardName
+      const from = (event.data as any)?.from
+      if (from === 'wugu') return `${src} 拿走了【${cardName}】`
+      return `${src} 获得了【${cardName}】`
+    }
     case 'scheme:nullify': {
       const name = (event.data as any)?.originalCardName
       return `【${name}】被【无懈可击】抵消！`
@@ -176,28 +207,32 @@ function eventToLog(event: GameEvent, game: Game): string | null {
     case 'judge': {
       const data = event.data as any
       const phase = data?.phase
-      const heroName = src
+      if (phase === 'result' && data?.judgeCardName) {
+        return `⚖ ${src} 判定【${data.judgeCardName}】: ${data?.cardName ?? ''} (${data?.suit ?? ''} ${data?.number ?? ''})`
+      }
       if (phase === 'result') {
         return `⚖ 判定结果: ${data?.cardName ?? ''} (${data?.suit ?? ''} ${data?.number ?? ''})`
-      }
-      if (phase === 'resolve' && data?.judgeCardName) {
-        return `⚖ ${heroName} 判定【${data.judgeCardName}】: ${data?.cardName ?? ''} (${data?.suit ?? ''} ${data?.number ?? ''})`
       }
       if (phase === 'replace') {
         return `⚖ 变法: 判定改为 ${data?.cardName ?? ''}`
       }
       return null
     }
+    case 'wugu:pickStart': {
+      const playerName = (event.data as any)?.playerName
+      return `🌾 ${playerName ?? src} 选择要拿的牌...`
+    }
+    case 'wugu:reveal': return null
     default: return null
   }
 }
 
 const allEventTypes: GameEventType[] = [
   'game:start', 'game:end', 'turn:start', 'turn:end',
-  'phase:start', 'phase:end', 'card:play', 'card:draw', 'card:discard',
+  'phase:start', 'phase:end', 'card:play', 'card:draw', 'card:discard', 'card:gain',
   'damage:deal', 'damage:receive', 'damage:prevent', 'heal', 'die',
   'skill:trigger', 'skill:resolve', 'judge', 'equipment:equip', 'equipment:unequip',
-  'scheme:nullify',
+  'scheme:nullify', 'wugu:reveal', 'wugu:pickStart',
 ]
 
 export const useBattleStore = create<BattleState>((set, get) => ({
@@ -217,6 +252,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveLongLin: null,
   resolveMultiTarget: null,
   resolveDualCard: null,
+  resolveLuYeQiangTarget: null,
   judgeCard: null,
   lastJudgeResult: null,
   equippedCards: {},
@@ -226,6 +262,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   killMultiMax: 0,
   killMultiRemaining: 0,
   selectedDualCards: [],
+  luYeQiangCandidates: [],
+  luYeQiangKillCardId: null,
   longLinTargetInfo: null,
   longLinSelectedCards: [],
   jieDaoHolders: [],
@@ -250,8 +288,15 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   xiaDanOpponentCard: null,
   xiaDanTargetName: null,
   resolveXiaDanCard: null,
+  selectedDiscardCards: [],
+  discardCount: 0,
+  resolveDiscard: null,
+  baWangOptions: null,
+  resolveBaWangMount: null,
   xiaDanActive: false,
   xiaDanUsedThisTurn: false,
+  yuRenCardIds: [],
+  yuRenUsedThisTurn: false,
 
   startBattle: async (config: GameConfig) => {
     Object.keys(heroNames).forEach(k => delete heroNames[k])
@@ -302,6 +347,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       xiaDanTargetName: null,
       xiaDanActive: false,
       xiaDanUsedThisTurn: false,
+      yuRenCardIds: [],
+      yuRenUsedThisTurn: false,
       judgeCard: null,
       lastJudgeResult: null,
     })
@@ -384,7 +431,23 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           set({ resolveDualCard: resolve })
         })
       },
+      luYeQiangTargetHandler: async (game: Game, attacker: Player, candidates: Player[]) => {
+        set({
+          phase: 'selectLuYeQiangTarget',
+          luYeQiangCandidates: candidates.map(p => ({ id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() })),
+          luYeQiangKillCardId: null,
+        })
+        return new Promise<string | null>(resolve => {
+          set({ resolveLuYeQiangTarget: resolve })
+        })
+      },
       wuguPickHandler: async (game: Game, picker: Player, candidates: Card[]) => {
+        // AI 玩家: 自动选第1张, 加延迟让玩家看清
+        if (picker.getRole() !== 'player') {
+          await new Promise(resolve => setTimeout(resolve, 400))
+          return candidates[0]?.id ?? null
+        }
+        // 玩家: 进入选牌 UI
         set({
           phase: 'selectWugu',
           wuguCandidates: [...candidates],
@@ -499,14 +562,28 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         set({ resolveFaJiaPick: null, faJiaTargetInfo: null, phase: 'playing' })
         return cardId
       },
+      discardPickHandler: async (game: Game, player: Player, handCards: Card[], discardCount: number) => {
+        set({ phase: 'selectDiscardCards', selectedDiscardCards: [], discardCount })
+        return new Promise<string[]>(resolve => {
+          set({ resolveDiscard: resolve })
+        })
+      },
+      baWangMountHandler: async (game: Game, attacker: Player, defender: Player, mountOptions: { attackMount: Card | null; defenseMount: Card | null }) => {
+        set({ phase: 'selectBaWangMount', baWangOptions: mountOptions })
+        return new Promise<'attackMount' | 'defenseMount' | null>(resolve => {
+          set({ resolveBaWangMount: resolve })
+        })
+      },
       playerActionHandler: async (game: Game, player: any) => {
         while (true) {
           const state = game.getState()
+          const engineAoJianActive = game.isAoJianActive(player.getId())
           set({
             game,
             gameState: state,
             playerHand: player.getHand(),
             phase: 'playing',
+            aoJianActive: engineAoJianActive,
           })
 
           const action = await new Promise<string | null>(resolve => {
@@ -537,6 +614,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
             const cardId = parts[1]
             const targetId = parts[2] || undefined
             await game.playerPlayScheme(player, cardId, targetId)
+            // 五谷丰登选完后继续处理剩余玩家
+            if (game.pendingWuguContinuation) {
+              await game.pendingWuguContinuation()
+            }
           } else if (action.startsWith('heal:')) {
             const cardId = action.slice(5)
             game.playerPlayHeal(player, cardId)
@@ -545,6 +626,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
             game.playerEquipCard(player, cardId)
           } else if (action.startsWith('luYeQiang:')) {
             await game.playerUseLuYeQiang(player)
+          }
+
+          // 击杀最后一个敌人后立即退出出牌阶段
+          if (game.getState().isOver) {
+            set({ phase: 'waiting' })
+            return null
           }
 
           set({ gameState: game.getState(), playerHand: player.getHand() })
@@ -559,28 +646,23 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       if (msg) {
         set(s => ({ actionLog: [...s.actionLog, msg] }))
       }
-      // 判定最终结果 (中央高亮显示 2.5 秒)
-      if (event.type === 'judge') {
+      // 判定最终结果 (中央高亮显示 3 秒)
+      if (event.type === 'judge' && event.data?.phase === 'result') {
         const data = event.data as any
-        const phase = data?.phase
-        if (phase === 'result' || phase === 'resolve') {
-          const heroName = event.sourceHeroId ? getHeroName(event.sourceHeroId, game) : ''
-          const judgeCardName = data?.judgeCardName ?? ''
-          set({
-            lastJudgeResult: {
-              judgeHeroName: heroName,
-              judgeCardName,
-              resultCard: { suit: data?.suit, number: data?.number, name: data?.cardName ?? '' },
-            },
-          })
-          setTimeout(() => {
-            const cur = get().lastJudgeResult
-            // 防止被新的判定覆盖时, 误清空新结果
-            if (cur && cur.resultCard.name === (data?.cardName ?? '') && cur.resultCard.suit === data?.suit) {
-              set({ lastJudgeResult: null })
-            }
-          }, 2500)
-        }
+        const heroName = event.sourceHeroId ? getHeroName(event.sourceHeroId, game) : ''
+        const judgeCardName = (data?.judgeCardName as string) ?? ''
+        set({ lastJudgeResult: {
+          judgeHeroName: heroName,
+          judgeCardName,
+          resultCard: { suit: data?.suit as string, number: data?.number as number, name: (data?.cardName as string) ?? '' },
+        }})
+        setTimeout(() => {
+          const cur = get().lastJudgeResult
+          // 防止被新的判定覆盖时, 误清空新结果
+          if (cur && cur.resultCard.name === (data?.cardName ?? '') && cur.resultCard.suit === data?.suit) {
+            set({ lastJudgeResult: null })
+          }
+        }, 3000)
       }
       // 关键事件触发时同步 gameState, 避免 UI 显示陈旧的 HP/状态
       if (event.type === 'damage:deal' || event.type === 'damage:receive' ||
@@ -592,9 +674,9 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           event.type === 'scheme:nullify') {
         set({ gameState: game.getState() })
       }
-      // 玩家回合开始: 重置 侠胆 已用标记
+      // 玩家回合开始: 重置 侠胆/驭人 已用标记
       if (event.type === 'turn:start' && event.sourceHeroId === game.getPlayer()?.getId()) {
-        set({ xiaDanUsedThisTurn: false })
+        set({ xiaDanUsedThisTurn: false, yuRenUsedThisTurn: false })
       }
       // 追踪装备状态
       if (event.type === 'equipment:equip' && event.sourceHeroId && event.data) {
@@ -630,7 +712,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       game.eventBus.on(et, handler)
     }
 
-    set({ game, phase: 'waiting', actionLog: [], result: null, aoJianActive: false })
+    set({ game, phase: 'waiting', actionLog: [], result: null, aoJianActive: false, selectedDiscardCards: [], discardCount: 0, resolveDiscard: null, baWangOptions: null, resolveBaWangMount: null })
 
     const result = await game.start()
     set({ phase: 'ended', result, gameState: game.getState(), aoJianActive: false })
@@ -738,17 +820,19 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   toggleAoJian: () => {
-    const { game, aoJianActive, phase } = get()
+    const { game, phase } = get()
     if (phase !== 'playing' && phase !== 'awaitingResponse') return
     const player = game?.getPlayer()
     if (!player || !player.hasSkillOrTreasure('ao-jian')) return
-    if (aoJianActive) {
-      game?.deactivateAoJian(player.getId())
+    if (!game) return
+    if (game.isAoJianActive(player.getId())) {
+      game.deactivateAoJian(player.getId())
       set({ aoJianActive: false })
     } else {
-      game?.activateAoJian(player.getId())
+      game.activateAoJian(player.getId())
       set({ aoJianActive: true })
     }
+    // store 的 aoJianActive 会在 playerActionHandler 循环中自动从引擎同步
   },
 
   respondWithCard: (cardId: string | null) => {
@@ -830,6 +914,18 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (!resolveDualCard) return
     resolveDualCard([])
     set({ resolveDualCard: null, selectedDualCards: [], phase: 'playing' })
+  },
+  selectLuYeQiangTarget: (targetId: string) => {
+    const { resolveLuYeQiangTarget } = get()
+    if (!resolveLuYeQiangTarget) return
+    resolveLuYeQiangTarget(targetId)
+    set({ resolveLuYeQiangTarget: null, luYeQiangCandidates: [], luYeQiangKillCardId: null, phase: 'playing' })
+  },
+  cancelLuYeQiangTarget: () => {
+    const { resolveLuYeQiangTarget } = get()
+    if (!resolveLuYeQiangTarget) return
+    resolveLuYeQiangTarget(null)
+    set({ resolveLuYeQiangTarget: null, luYeQiangCandidates: [], luYeQiangKillCardId: null, phase: 'playing' })
   },
 
   // 龙鳞刀
@@ -985,9 +1081,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       if (playerHand.length < 2) { set({ treasureSkill: null, treasurePrompt: '手牌不足2张' }); return }
       set({ phase: 'treasureSelect2Cards', treasurePrompt: `【治愈】选择2张手牌弃置 (已选 0/2)` })
     } else if (skill === 'feng-huo') {
-      const eqs = playerHand.filter(c => c.type === 'equipment')
-      if (eqs.length === 0) { set({ treasureSkill: null, treasurePrompt: '无装备牌可弃' }); return }
-      set({ phase: 'treasureSelectEquipment', treasurePrompt: '【烽火】选择1张装备牌弃置' })
+      const slots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
+      const equipped = slots.map(s => player.getEquippedCard(s)).filter((c): c is Card => !!c)
+      if (equipped.length === 0) { set({ treasureSkill: null, treasurePrompt: '无装备牌可弃' }); return }
+      set({ phase: 'treasureSelectEquipment', treasurePrompt: '【烽火】选择1张装备区装备弃置' })
     } else if (skill === 'jue-ji') {
       set({ phase: 'treasureSelectTarget', treasurePrompt: '【绝击】选择攻击范围内的1名角色 (无武器则自己掉1血)' })
     } else if (skill === 'qi-yi') {
@@ -1009,15 +1106,26 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         treasurePrompt: '',
         treasureCardIds: [],
       })
+    } else if (skill === 'yu-ren') {
+      if (get().yuRenUsedThisTurn) { set({ treasureSkill: null, treasurePrompt: '本回合已使用过驭人' }); return }
+      const slots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
+      const hasEquip = slots.some(s => !!player.getEquippedCard(s))
+      if (playerHand.length === 0 && !hasEquip) { set({ treasureSkill: null, treasurePrompt: '无手牌或装备可弃' }); return }
+      set({ phase: 'treasureSelectCard', treasurePrompt: `【驭人】选择要弃置的手牌或装备 (弃X摸X)`, yuRenCardIds: [] })
     }
   },
 
-  pickTreasureCard: (cardId) => {
+  pickTreasureCard: async (cardId) => {
     const { treasureSkill, treasureCardIds, game, playerHand } = get()
     if (!treasureSkill) return
-    const card = playerHand.find(c => c.id === cardId)
-    if (!card) return
     const player = game!.getPlayer()!
+    // 检查手牌和装备区
+    let card = playerHand.find((c: Card) => c.id === cardId)
+    if (!card) {
+      const slots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
+      card = slots.map(s => player.getEquippedCard(s)).find((c: Card | undefined) => c?.id === cardId) ?? undefined
+    }
+    if (!card) return
 
     if (treasureSkill === 'liao-shang') {
       // 选完卡 → 选目标
@@ -1030,9 +1138,15 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         set({ treasureCardIds: next, phase: 'treasureSelectTarget', treasurePrompt: '【治愈】选择1名角色 (回复1血)' })
       }
     } else if (treasureSkill === 'feng-huo') {
-      // 直接执行
-      game!.playerFengHuo(player, cardId)
+      // 直接执行 (playerFengHuo 是 async, 必须 await 才能拿到妙计/乾坤袋的摸牌)
+      await game!.playerFengHuo(player, cardId)
       set({ treasureSkill: null, treasurePrompt: '', phase: 'playing', gameState: game!.getState(), playerHand: player.getHand() })
+    } else if (treasureSkill === 'yu-ren') {
+      const { yuRenCardIds } = get()
+      const next = yuRenCardIds.includes(cardId)
+        ? yuRenCardIds.filter(id => id !== cardId)
+        : [...yuRenCardIds, cardId]
+      set({ yuRenCardIds: next, treasurePrompt: `【驭人】选择要弃置的手牌 (已选 ${next.length}张) — 选好后点"确认驭人"` })
     }
     // 注: 侠胆不走 pickTreasureCard, 它先选目标再选自己手牌
   },
@@ -1087,10 +1201,19 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     }
   },
 
+  confirmYuRenCards: () => {
+    const { treasureSkill, yuRenCardIds, game } = get()
+    if (!treasureSkill || treasureSkill !== 'yu-ren') return
+    if (yuRenCardIds.length === 0) return
+    const player = game!.getPlayer()!
+    game!.playerYuRen(player, yuRenCardIds)
+    set({ treasureSkill: null, treasurePrompt: '', phase: 'playing', yuRenCardIds: [], yuRenUsedThisTurn: true, gameState: game!.getState(), playerHand: player.getHand() })
+  },
+
   cancelTreasureSkill: () => {
     set({
       treasureSkill: null, treasurePrompt: '', phase: 'playing',
-      treasureCardIds: [], treasureTargetIds: [],
+      treasureCardIds: [], treasureTargetIds: [], yuRenCardIds: [],
       xiaDanOpponentCard: null, xiaDanTargetName: null, xiaDanActive: false,
     })
     // 若引擎还在 await 侠胆选牌, 也告知取消
@@ -1114,5 +1237,38 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
   cancelXiaDan: () => {
     set({ xiaDanActive: false, phase: 'playing', treasurePrompt: '' })
+  },
+
+  // 弃牌阶段选牌
+  toggleDiscardCard: (cardId: string) => {
+    const { selectedDiscardCards, discardCount } = get()
+    if (selectedDiscardCards.includes(cardId)) {
+      set({ selectedDiscardCards: selectedDiscardCards.filter(id => id !== cardId) })
+    } else if (selectedDiscardCards.length < discardCount) {
+      set({ selectedDiscardCards: [...selectedDiscardCards, cardId] })
+    }
+  },
+  confirmDiscardCards: () => {
+    const { resolveDiscard, selectedDiscardCards, discardCount } = get()
+    if (!resolveDiscard) return
+    // 选够了才确认
+    if (selectedDiscardCards.length >= discardCount) {
+      resolveDiscard(selectedDiscardCards)
+    }
+    set({ resolveDiscard: null, selectedDiscardCards: [], discardCount: 0 })
+  },
+  cancelDiscardCards: () => {
+    const { resolveDiscard } = get()
+    if (!resolveDiscard) return
+    resolveDiscard([])
+    set({ resolveDiscard: null, selectedDiscardCards: [], discardCount: 0 })
+  },
+
+  // 霸王弓选马
+  selectBaWangMount: (mountSlot: 'attackMount' | 'defenseMount') => {
+    const { resolveBaWangMount } = get()
+    if (!resolveBaWangMount) return
+    resolveBaWangMount(mountSlot)
+    set({ resolveBaWangMount: null, baWangOptions: null })
   },
 }))

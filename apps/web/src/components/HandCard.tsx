@@ -12,6 +12,8 @@ interface Props {
   isJudgeReplace?: boolean
   isPending?: boolean  // 玩家刚点选等待选目标 (出杀/出锦囊时进入selectTarget)
   treasureSelectMode?: boolean  // 宝具选牌模式: 禁用常规出牌, 由外层div处理点击
+  selectDualMode?: boolean  // 芦叶枪选2张手牌模式: 禁用常规出牌, 由外层div处理点击
+  selectDiscardMode?: boolean  // 弃牌阶段选牌模式: 禁用常规出牌, 由外层div处理点击
   onPlayKill: (cardId: string) => void
   onPlayHeal: (cardId: string) => void
   onEquip: (cardId: string) => void
@@ -31,7 +33,7 @@ const typeColor: Record<string, string> = {
   basic: 'var(--text-light)', scheme: '#64b5f6', equipment: '#81c784'
 }
 
-export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, treasureSelectMode, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard }: Props) {
+export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, treasureSelectMode, selectDualMode, selectDiscardMode, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard }: Props) {
   const isKill = card.name === '杀'
   const isHeal = card.name === '药'
   const isEquip = card.type === 'equipment'
@@ -48,7 +50,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   const isDodge = card.name === '闪'
   const canRespond = isResponse && onRespondWithCard && (canUseAsKill || isWuXie || isDodge)
 
-  const canUse = !disabled && !treasureSelectMode && (
+  const canUse = !disabled && !treasureSelectMode && !selectDualMode && !selectDiscardMode && (
     isJudgeReplace ||
     canRespond ||
     canUseAsKillNow ||
@@ -80,11 +82,11 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
       onClick={handleClick}
       style={{
         background: 'var(--bg-dark)',
-        border: `1px solid ${isJudgeReplace && !disabled ? '#64b5f6' : (canUse || treasureSelectMode) ? '#8b6914' : '#333'}`,
+        border: `1px solid ${isJudgeReplace && !disabled ? '#64b5f6' : (canUse || treasureSelectMode || selectDualMode || selectDiscardMode) ? '#8b6914' : '#333'}`,
         borderRadius: '6px',
         padding: '22px 8px 8px',
-        cursor: (canUse || treasureSelectMode) ? 'pointer' : 'default',
-        opacity: (canUse || treasureSelectMode) ? 1 : 0.5,
+        cursor: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode) ? 'pointer' : 'default',
+        opacity: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode) ? 1 : 0.5,
         minWidth: '60px',
         textAlign: 'center',
         transition: 'all 0.15s',
@@ -107,7 +109,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
       <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
         {card.type === 'basic' ? '基本' : card.type === 'scheme' ? '锦囊' : '装备'}
       </div>
-      {canUseAsKillNow && !isKill && !isJudgeReplace && (
+      {effectiveIsRed && canUseAsKillNow && !isJudgeReplace && (aoJianActive || !isKill) && (
         <div style={{
           position: 'absolute', top: '-6px', right: '-4px',
           background: '#e57373', color: '#fff', fontSize: '9px',

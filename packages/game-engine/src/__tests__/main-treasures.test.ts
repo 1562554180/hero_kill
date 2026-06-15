@@ -112,6 +112,73 @@ describe('主印宝具: 实现验证', () => {
       // 敌人没杀 → 掉1血
       expect(enemy.getCurrentHp()).toBe(enemyHpBefore - 1)
     })
+
+    it('烽火+妙计: 视为锦囊额外摸1张', async () => {
+      const instance = makeInstanceWithTreasure([
+        { skill: { id: 'feng-huo' }, triggerRate: 1 },
+        { skill: { id: 'miao-ji' }, triggerRate: 1 },
+      ])
+      const game = new Game({
+        playerHeroId: 'yang-yan-zhao', playerInstance: instance,
+        allyHeroIds: [], enemyHeroIds: ['han-xin'],
+        playerActionHandler: async () => null,
+      })
+      const player = game.getPlayer()
+      // 装备
+      const weapon = { id: 'w1', suit: 'spade', number: 1, type: 'equipment', name: '诸葛弩', slot: 'weapon', range: 1 } as any
+      player.drawCards([weapon])
+      game.playerEquipCard(player, 'w1')
+      const w2 = { id: 'w2', suit: 'spade', number: 2, type: 'equipment', name: '雌雄双股剑', slot: 'weapon', range: 2 } as any
+      player.drawCards([w2])
+      // 给手牌补足以便观察摸牌
+      player.drawCards([card('杀', 'k1', 'spade', 7), card('杀', 'k2', 'spade', 8)])
+      const before = player.getHandSize()
+      await game.playerFengHuo(player, 'w2')
+      // 烽火弃1装备 -1, 妙计摸1 +1, 净0
+      expect(player.getHandSize()).toBe(before)
+    })
+
+    it('烽火+妙计(主印真实id): 视为锦囊额外摸1张', async () => {
+      const instance = makeInstanceWithTreasure([
+        { skill: { id: 'treasure-feng-huo' }, triggerRate: 1 },
+        { skill: { id: 'treasure-miao-ji' }, triggerRate: 1 },
+      ])
+      const game = new Game({
+        playerHeroId: 'yang-yan-zhao', playerInstance: instance,
+        allyHeroIds: [], enemyHeroIds: ['han-xin'],
+        playerActionHandler: async () => null,
+      })
+      const player = game.getPlayer()
+      const weapon = { id: 'w1', suit: 'spade', number: 1, type: 'equipment', name: '诸葛弩', slot: 'weapon', range: 1 } as any
+      player.drawCards([weapon])
+      game.playerEquipCard(player, 'w1')
+      const w2 = { id: 'w2', suit: 'spade', number: 2, type: 'equipment', name: '雌雄双股剑', slot: 'weapon', range: 2 } as any
+      player.drawCards([w2])
+      player.drawCards([card('杀', 'k1', 'spade', 7), card('杀', 'k2', 'spade', 8)])
+      const before = player.getHandSize()
+      await game.playerFengHuo(player, 'w2')
+      expect(player.getHandSize()).toBe(before)
+    })
+
+    it('烽火弃乾坤袋: 额外摸1张(装备丢失效果)', async () => {
+      const instance = makeInstanceWithTreasure([{ skill: { id: 'feng-huo' }, triggerRate: 1 }])
+      const game = new Game({
+        playerHeroId: 'yang-yan-zhao', playerInstance: instance,
+        allyHeroIds: [], enemyHeroIds: ['han-xin'],
+        playerActionHandler: async () => null,
+      })
+      const player = game.getPlayer()
+      // 装备乾坤袋
+      const qkd = { id: 'qkd1', suit: 'heart', number: 3, type: 'equipment', name: '乾坤袋', slot: 'armor' } as any
+      player.drawCards([qkd])
+      game.playerEquipCard(player, 'qkd1')
+      // 手牌加2张观察净变化
+      player.drawCards([card('杀', 'k1', 'spade', 7), card('杀', 'k2', 'spade', 8)])
+      const before = player.getHandSize()
+      await game.playerFengHuo(player, 'qkd1')
+      // 乾坤袋在装备区(不占手牌), 弃后乾坤袋装备丢失 → 摸1张
+      expect(player.getHandSize()).toBe(before + 1)
+    })
   })
 
   describe('侠胆 (xia-dan) 拼点', () => {

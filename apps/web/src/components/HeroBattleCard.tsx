@@ -12,6 +12,8 @@ interface Props {
   canPlayKill?: boolean
   onEquipAsKill?: (cardId: string) => void
   hasHongZhuang?: boolean
+  treasureSelectEquipment?: boolean
+  onPickEquipment?: (cardId: string) => void
 }
 
 export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang }: Props) {
@@ -175,25 +177,31 @@ function EquipTag({ heroId, slot, fallbackId, aoJianActive, canPlayKill, onUseAs
   heroId: string; slot: EquipmentSlot; fallbackId: string
   aoJianActive?: boolean; canPlayKill?: boolean; onUseAsKill?: () => void
 }) {
+  const phase = useBattleStore(s => s.phase)
+  const treasureSkill = useBattleStore(s => s.treasureSkill)
   const card = useBattleStore(s => s.equippedCards[heroId]?.[slot])
+  const pickTreasureCard = useBattleStore(s => s.pickTreasureCard)
   const label = card?.name ?? '⚙装备'
   const desc = (card as any)?.description ?? ''
   const isRed = card && isRedSuit(card.suit)
   const canActivate = aoJianActive && isRed && canPlayKill
+  const isSelectingEquipment = phase === 'treasureSelectEquipment' || (treasureSkill === 'yu-ren' && phase === 'treasureSelectCard')
+  const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
   const defaultColor = slot === 'weapon' ? '#ff8a65' : slot === 'armor' ? '#90caf9' : '#a5d6a7'
-  const color = canActivate ? '#e57373' : defaultColor
+  const color = canActivate ? '#e57373' : isSelectingEquipment ? (isYuRen ? '#b8860b' : '#ff9800') : defaultColor
+  const handleClick = canActivate ? onUseAsKill : isSelectingEquipment ? () => card && pickTreasureCard(card.id) : undefined
   return (
     <span
-      title={canActivate ? `点击 ${card!.name} 当杀使用` : desc}
-      onClick={canActivate ? onUseAsKill : undefined}
+      title={canActivate ? `点击 ${card!.name} 当杀使用` : isYuRen ? `点击 ${card?.name ?? '装备'} 加入驭人弃牌` : isSelectingEquipment ? `点击弃置${card?.name ?? '装备'}` : desc}
+      onClick={handleClick}
       style={{
         fontSize: '10px', color,
         background: `${color}22`,
         padding: '1px 5px', borderRadius: '3px',
-        border: `1px solid ${canActivate ? '#e57373' : `${defaultColor}55`}`,
-        boxShadow: canActivate ? '0 0 4px rgba(229,115,115,0.6)' : 'none',
-        cursor: canActivate ? 'pointer' : 'default',
-        fontWeight: canActivate ? 'bold' : 'normal',
+        border: `1px solid ${canActivate ? '#e57373' : isSelectingEquipment ? (isYuRen ? '#b8860b' : '#ff9800') : `${defaultColor}55`}`,
+        boxShadow: canActivate ? '0 0 4px rgba(229,115,115,0.6)' : isSelectingEquipment ? (isYuRen ? '0 0 4px rgba(255,215,0,0.6)' : '0 0 4px rgba(255,152,0,0.6)') : 'none',
+        cursor: handleClick ? 'pointer' : 'default',
+        fontWeight: canActivate || isSelectingEquipment ? 'bold' : 'normal',
       }}
     >
       {label}

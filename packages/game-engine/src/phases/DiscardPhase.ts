@@ -1,4 +1,5 @@
 import { Phase } from './Phase.js'
+import type { Card } from '@hero-legend/shared-types'
 
 export class DiscardPhase extends Phase {
   readonly type = 'discard' as const
@@ -21,16 +22,26 @@ export class DiscardPhase extends Phase {
     const actions = []
     if (handSize > handLimit) {
       const discardCount = handSize - handLimit
-      const discarded = []
-      for (let i = 0; i < discardCount; i++) {
+      let discardIds: string[] = []
+
+      if (player.getRole() === 'player' && (game as any).config.discardPickHandler) {
+        // 玩家: 通过 UI 选择要弃的牌
+        discardIds = await (game as any).config.discardPickHandler(game, player, player.getHand(), discardCount)
+      } else {
+        // AI: 自动弃手牌末尾的牌
         const hand = player.getHand()
-        if (hand.length === 0) break
-        const card = player.removeCard(hand[hand.length - 1].id)
+        discardIds = hand.slice(-discardCount).map((c: Card) => c.id)
+      }
+
+      const discarded: Card[] = []
+      for (const cid of discardIds) {
+        const card = player.removeCard(cid)
         if (card) {
           cardDeck.discard([card])
           discarded.push(card)
         }
       }
+
       if (discarded.length > 0) {
         eventBus.emit({
           type: 'card:discard',
