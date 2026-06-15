@@ -45,7 +45,7 @@ export class JudgePhase extends Phase {
       eventBus.emit({
         type: 'judge',
         sourceHeroId: player.getId(),
-        data: { judgeCardId: delayedCard.id, judgeCardName: delayedCard.name, resultCard: j.card.id, resultSuit, resultNumber, phase: 'resolve' },
+        data: { judgeCardId: delayedCard.id, judgeCardName: delayedCard.name, resultCard: j.card.id, resultSuit, resultNumber, suit: resultSuit, number: resultNumber, cardName: j.card.name, phase: 'resolve' },
       })
 
       if (delayedCard.name === '画地为牢') {
@@ -117,7 +117,7 @@ export class JudgePhase extends Phase {
       eventBus.emit({
         type: 'judge',
         sourceHeroId: player.getId(),
-        data: { judgeCardId: thunder.id, judgeCardName: '手捧雷', resultCard: j.card.id, resultSuit, resultNumber, phase: 'resolve' },
+        data: { judgeCardId: thunder.id, judgeCardName: '手捧雷', resultCard: j.card.id, resultSuit, resultNumber, suit: resultSuit, number: resultNumber, cardName: j.card.name, phase: 'resolve' },
       })
 
       if (resultSuit === 'spade' && resultNumber >= 2 && resultNumber <= 9) {

@@ -108,7 +108,6 @@ export function BattlePage() {
         wuguCandidates: null,
         fudiTargetInfo: null,
         faJiaTargetInfo: null,
-        fanJiCandidates: null,
         treasureSkill: null,
         treasurePrompt: '',
         treasureCardIds: [],
@@ -127,7 +126,6 @@ export function BattlePage() {
         resolveFudiTarget: null,
         resolveFudiPick: null,
         resolveFaJiaPick: null,
-        resolveFanJiPick: null,
         judgeCard: null,
       })
     }

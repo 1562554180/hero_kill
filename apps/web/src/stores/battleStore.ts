@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { Game, type GameConfig, type Player } from '@hero-legend/game-engine'
 import type { GameState, BattleResult, Card, GameEvent, GameEventType, HeroInstance, EquipmentSlot } from '@hero-legend/shared-types'
 
-export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'selectFanJiCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'xiaDanPickCard'
+export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'xiaDanPickCard'
 
 interface BattleState {
   game: Game | null
@@ -65,9 +65,6 @@ interface BattleState {
   // 法家: 从伤害来源选一张牌
   faJiaTargetInfo: { id: string; name: string; hand: Card[]; judge: Card[]; equipment: Card[] } | null
   resolveFaJiaPick: ((cardId: string | null) => void) | null
-  // 反击: 选一张杀/红色牌出杀
-  fanJiCandidates: Card[] | null
-  resolveFanJiPick: ((cardId: string | null) => void) | null
   resolveXiaDanCard: ((cardId: string | null) => void) | null
   judgeCard: Card | null
   // 最近一次判定结果 (含来源名/牌名, 供中央显示; 显示2.5秒后自动清空)
@@ -122,9 +119,6 @@ interface BattleState {
   // 法家
   selectFaJiaCard: (cardId: string | null) => void
   cancelFaJiaCard: () => void
-  // 反击
-  selectFanJiCard: (cardId: string | null) => void
-  cancelFanJiCard: () => void
   // 宝具技能
   useTreasureSkill: (skill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan') => void
   pickTreasureCard: (cardId: string) => void
@@ -249,8 +243,6 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveFudiPick: null,
   faJiaTargetInfo: null,
   resolveFaJiaPick: null,
-  fanJiCandidates: null,
-  resolveFanJiPick: null,
   treasureSkill: null,
   treasurePrompt: '',
   treasureCardIds: [],
@@ -505,18 +497,6 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           set({ resolveFaJiaPick: resolve })
         })
         set({ resolveFaJiaPick: null, faJiaTargetInfo: null, phase: 'playing' })
-        return cardId
-      },
-      fanJiPickHandler: async (game: Game, victim: Player, attacker: Player, candidates: Card[]) => {
-        set({
-          phase: 'selectFanJiCard',
-          fanJiCandidates: [...candidates],
-          game,
-        })
-        const cardId = await new Promise<string | null>(resolve => {
-          set({ resolveFanJiPick: resolve })
-        })
-        set({ resolveFanJiPick: null, fanJiCandidates: null, phase: 'playing' })
         return cardId
       },
       playerActionHandler: async (game: Game, player: any) => {
@@ -990,20 +970,6 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (!resolveFaJiaPick) return
     resolveFaJiaPick(null)
     set({ resolveFaJiaPick: null, faJiaTargetInfo: null })
-  },
-
-  // 反击
-  selectFanJiCard: (cardId: string | null) => {
-    const { resolveFanJiPick } = get()
-    if (!resolveFanJiPick) return
-    resolveFanJiPick(cardId)
-    set({ resolveFanJiPick: null, fanJiCandidates: null })
-  },
-  cancelFanJiCard: () => {
-    const { resolveFanJiPick } = get()
-    if (!resolveFanJiPick) return
-    resolveFanJiPick(null)
-    set({ resolveFanJiPick: null, fanJiCandidates: null })
   },
 
   // 宝具技能

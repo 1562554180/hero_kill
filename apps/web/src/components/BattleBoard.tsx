@@ -19,7 +19,6 @@ export function BattleBoard() {
     wuguCandidates, selectWuguCard, cancelWuguPick,
     fudiTargetInfo, selectFudiTarget, cancelFudiTarget, selectFudiCard, cancelFudiCard,
     faJiaTargetInfo, selectFaJiaCard, cancelFaJiaCard,
-    fanJiCandidates, selectFanJiCard, cancelFanJiCard,
     treasureSkill, treasurePrompt, treasureCardIds, treasureTargetIds,
     useTreasureSkill, pickTreasureCard, pickTreasureTarget, confirmTreasureTargets, cancelTreasureSkill,
     xiaDanOpponentCard, xiaDanTargetName, pickXiaDanCard, cancelXiaDanCard, xiaDanActive, cancelXiaDan,
@@ -930,36 +929,6 @@ export function BattleBoard() {
 
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <button onClick={() => cancelFaJiaCard()}>不拿</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 反击 选杀浮层 */}
-      {phase === 'selectFanJiCard' && fanJiCandidates && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 100,
-        }}>
-          <div style={{
-            background: 'var(--bg-medium)', border: '2px solid #e57373',
-            borderRadius: '12px', padding: '24px', minWidth: '420px', maxWidth: '720px', maxHeight: '80vh', overflow: 'auto',
-          }}>
-            <h2 style={{ color: '#e57373', fontSize: '22px', marginBottom: '12px', textAlign: 'center' }}>
-              反击 — 选一张杀/红色牌出杀
-            </h2>
-
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
-              {fanJiCandidates.map(card => (
-                <div key={card.id} onClick={() => selectFanJiCard(card.id)} style={{ cursor: 'pointer' }}>
-                  <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <button onClick={() => cancelFanJiCard()}>不出杀</button>
             </div>
           </div>
         </div>
