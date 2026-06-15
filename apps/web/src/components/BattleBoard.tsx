@@ -18,6 +18,8 @@ export function BattleBoard() {
     tanNangCandidates, tanNangTargetInfo, selectTanNangTarget, cancelTanNangTarget, selectTanNangCard, cancelTanNangCard,
     wuguCandidates, selectWuguCard, cancelWuguPick,
     fudiTargetInfo, selectFudiTarget, cancelFudiTarget, selectFudiCard, cancelFudiCard,
+    faJiaTargetInfo, selectFaJiaCard, cancelFaJiaCard,
+    fanJiCandidates, selectFanJiCard, cancelFanJiCard,
     treasureSkill, treasurePrompt, treasureCardIds, treasureTargetIds,
     useTreasureSkill, pickTreasureCard, pickTreasureTarget, confirmTreasureTargets, cancelTreasureSkill,
     xiaDanOpponentCard, xiaDanTargetName, pickXiaDanCard, cancelXiaDanCard, xiaDanActive, cancelXiaDan,
@@ -725,7 +727,7 @@ export function BattleBoard() {
 
             {tanNangTargetInfo.hand.length > 0 && (
               <>
-                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>手牌 (位置)</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>手牌</div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {tanNangTargetInfo.hand.map((card, idx) => (
                     <div key={card.id} onClick={() => selectTanNangCard(card.id)} style={{
@@ -733,12 +735,13 @@ export function BattleBoard() {
                       background: 'var(--bg-dark)',
                       border: '1px solid #8b6914',
                       borderRadius: '6px',
-                      padding: '8px 12px',
+                      padding: '22px 8px 8px',
                       minWidth: '60px',
                       textAlign: 'center',
                       userSelect: 'none',
                     }}>
-                      <div style={{ color: 'var(--text-light)', fontSize: '15px', fontWeight: 'bold' }}>位置 {idx + 1}</div>
+                      <div style={{ color: 'var(--text-light)', fontSize: '20px', fontWeight: 'bold', margin: '2px 0 6px' }}>{idx + 1}</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>手牌</div>
                     </div>
                   ))}
                 </div>
@@ -799,7 +802,7 @@ export function BattleBoard() {
 
             {fudiTargetInfo.hand.length > 0 && (
               <>
-                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>手牌 (位置)</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>手牌</div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {fudiTargetInfo.hand.map((card, idx) => (
                     <div key={card.id} onClick={() => selectFudiCard(card.id)} style={{
@@ -807,12 +810,13 @@ export function BattleBoard() {
                       background: 'var(--bg-dark)',
                       border: '1px solid #e57373',
                       borderRadius: '6px',
-                      padding: '8px 12px',
+                      padding: '22px 8px 8px',
                       minWidth: '60px',
                       textAlign: 'center',
                       userSelect: 'none',
                     }}>
-                      <div style={{ color: 'var(--text-light)', fontSize: '15px', fontWeight: 'bold' }}>位置 {idx + 1}</div>
+                      <div style={{ color: 'var(--text-light)', fontSize: '20px', fontWeight: 'bold', margin: '2px 0 6px' }}>{idx + 1}</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>手牌</div>
                     </div>
                   ))}
                 </div>
@@ -851,6 +855,111 @@ export function BattleBoard() {
 
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <button onClick={() => cancelFudiCard()}>不弃</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 法家 选伤害来源的牌浮层 */}
+      {phase === 'selectFaJiaCard' && faJiaTargetInfo && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 100,
+        }}>
+          <div style={{
+            background: 'var(--bg-medium)', border: '2px solid #ce93d8',
+            borderRadius: '12px', padding: '24px', minWidth: '420px', maxWidth: '720px', maxHeight: '80vh', overflow: 'auto',
+          }}>
+            <h2 style={{ color: '#ce93d8', fontSize: '22px', marginBottom: '12px', textAlign: 'center' }}>
+              法家 — 选{faJiaTargetInfo.name}的1张牌
+            </h2>
+
+            {faJiaTargetInfo.hand.length > 0 && (
+              <>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>手牌</div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                  {faJiaTargetInfo.hand.map((card, idx) => (
+                    <div key={card.id} onClick={() => selectFaJiaCard(card.id)} style={{
+                      cursor: 'pointer',
+                      background: 'var(--bg-dark)',
+                      border: '1px solid #8b6914',
+                      borderRadius: '6px',
+                      padding: '22px 8px 8px',
+                      minWidth: '60px',
+                      textAlign: 'center',
+                      userSelect: 'none',
+                    }}>
+                      <div style={{ color: 'var(--text-light)', fontSize: '20px', fontWeight: 'bold', margin: '2px 0 6px' }}>{idx + 1}</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>手牌</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {faJiaTargetInfo.judge.length > 0 && (
+              <>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>判定区</div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                  {faJiaTargetInfo.judge.map(card => (
+                    <div key={card.id} onClick={() => selectFaJiaCard(card.id)} style={{ cursor: 'pointer' }}>
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {faJiaTargetInfo.equipment.length > 0 && (
+              <>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>装备区</div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                  {faJiaTargetInfo.equipment.map(card => (
+                    <div key={card.id} onClick={() => selectFaJiaCard(card.id)} style={{ cursor: 'pointer' }}>
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {faJiaTargetInfo.hand.length === 0 && faJiaTargetInfo.judge.length === 0 && faJiaTargetInfo.equipment.length === 0 && (
+              <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginBottom: '16px' }}>无可拿的牌</p>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button onClick={() => cancelFaJiaCard()}>不拿</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 反击 选杀浮层 */}
+      {phase === 'selectFanJiCard' && fanJiCandidates && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 100,
+        }}>
+          <div style={{
+            background: 'var(--bg-medium)', border: '2px solid #e57373',
+            borderRadius: '12px', padding: '24px', minWidth: '420px', maxWidth: '720px', maxHeight: '80vh', overflow: 'auto',
+          }}>
+            <h2 style={{ color: '#e57373', fontSize: '22px', marginBottom: '12px', textAlign: 'center' }}>
+              反击 — 选一张杀/红色牌出杀
+            </h2>
+
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              {fanJiCandidates.map(card => (
+                <div key={card.id} onClick={() => selectFanJiCard(card.id)} style={{ cursor: 'pointer' }}>
+                  <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button onClick={() => cancelFanJiCard()}>不出杀</button>
             </div>
           </div>
         </div>

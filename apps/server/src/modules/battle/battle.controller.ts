@@ -21,6 +21,7 @@ export class BattleController {
     stageId: string
     battleIdx: number
     result: any
+    playerHeroId?: string
   }) {
     return this.battleService.saveResult(body)
   }

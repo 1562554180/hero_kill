@@ -44,6 +44,10 @@ export interface GameConfig {
   longLinPickHandler?: (game: Game, attacker: Player, defender: Player, options: { hand: Card[]; judge: Card[]; equipment: Card[] }) => Promise<string[] | null>
   /** 博浪锤：攻击方从手牌选2张弃掉强制命中 (返回2个cardId; null=放弃不触发) */
   boLangChuiHandler?: (game: Game, attacker: Player, hand: Card[]) => Promise<string[] | null>
+  /** 法家: 受伤后从伤害来源选一张牌(手牌/装备/判定)获得 (null=不触发/放弃) */
+  faJiaPickHandler?: (game: Game, victim: Player, attacker: Player, options: { hand: Card[]; judge: Card[]; equipment: Card[] }) => Promise<string | null>
+  /** 反击: 受伤后选择一张杀/红色牌对伤害来源出杀 (null=不触发/放弃) */
+  fanJiPickHandler?: (game: Game, victim: Player, attacker: Player, candidates: Card[]) => Promise<string | null>
   /** 玉如意: 防御方是否使用 (true=触发判定; false=跳过) */
   yuRuYiHandler?: (game: Game, defender: Player) => Promise<boolean>
 }
@@ -861,25 +865,72 @@ export class Game {
       this.emitSkillTrigger(victim, '舍身', '受伤摸两张')
     }
 
-    // 法家: 获得伤害来源一张手牌
-    if (victim.hasSkillOrTreasure('fa-jia') && attacker.getHandSize() > 0) {
-      this.stealRandomCard(attacker, victim)
-      this.emitSkillTrigger(victim, '法家', '获得伤害来源一张牌')
+    // 法家: 从伤害来源获得一张牌(手牌/装备/判定)
+    if (victim.hasSkillOrTreasure('fa-jia')) {
+      const attackerCards = attacker.getHandSize() + this.collectEquipmentCards(attacker).length + attacker.getJudgeCards().length
+      if (attackerCards > 0) {
+        let pickedId: string | null = null
+        if (victim.getRole() === 'player' && this.config.faJiaPickHandler) {
+          pickedId = await this.config.faJiaPickHandler(
+            this, victim, attacker,
+            { hand: attacker.getHand(), judge: attacker.getJudgeCards(), equipment: this.collectEquipmentCards(attacker) },
+          )
+        }
+        if (pickedId) {
+          this.takeCardFromTarget(victim, attacker, pickedId, '法家')
+        } else {
+          // AI或放弃时随机拿一张
+          this.stealRandomCard(attacker, victim)
+          this.emitSkillTrigger(victim, '法家', '获得伤害来源一张牌')
+        }
+      }
     }
 
-    // 还击: 对来源出杀(红色不可避)
+    // 反击: 对来源出杀(红色不可被闪, 黑色正常可闪)
     if (victim.hasSkillOrTreasure('fan-ji') && attacker.isAlive()) {
       const hand = victim.getHand()
-      // 找杀或红色牌当杀
-      const killCard = hand.find(c => c.name === '杀' || (isRedSuit(c.suit) && c.name !== '药'))
-      if (killCard) {
-        this.removeHandCard(victim,killCard.id)
-        this.cardDeck.discard([killCard])
-        const dmg = attacker.takeDamage(1)
-        this.emitSkillTrigger(victim, '还击', '对来源出杀')
-        this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
-        if (!attacker.isAlive()) {
-          this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
+      // 可当杀的牌: 杀(任意颜色) 或 红色非药
+      const candidates = hand.filter(c => c.name === '杀' || (isRedSuit(c.suit) && c.name !== '药'))
+      if (candidates.length > 0) {
+        let pickedId: string | null = null
+        if (victim.getRole() === 'player' && this.config.fanJiPickHandler) {
+          pickedId = await this.config.fanJiPickHandler(this, victim, attacker, candidates)
+        } else if (victim.getRole() !== 'player') {
+          pickedId = candidates[0].id
+        }
+        if (pickedId) {
+          const killCard = candidates.find(c => c.id === pickedId)
+          if (killCard) {
+            this.removeHandCard(victim, killCard.id)
+            this.cardDeck.discard([killCard])
+            const isRed = isRedSuit(killCard.suit)
+            this.emitSkillTrigger(victim, '反击', isRed ? '红色杀-不可闪' : '对来源出杀')
+
+            if (isRed) {
+              // 红色杀: 直接造成伤害, 不可被闪
+              const dmg = attacker.takeDamage(1)
+              this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
+              this.eventBus.emit({ type: 'damage:receive', sourceHeroId: attacker.getId(), data: { damage: 1, from: victim.getId() } })
+              if (!attacker.isAlive()) {
+                this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
+              }
+            } else {
+              // 黑色杀: 对方可以出闪
+              const dodgeCard = await this.promptResponseDodge(attacker, victim.getId(), '反击')
+              if (dodgeCard) {
+                this.removeHandCard(attacker, dodgeCard.id)
+                this.cardDeck.discard([dodgeCard])
+                this.eventBus.emit({ type: 'damage:prevent', sourceHeroId: attacker.getId(), data: { cardId: dodgeCard.id } })
+              } else {
+                const dmg = attacker.takeDamage(1)
+                this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
+                this.eventBus.emit({ type: 'damage:receive', sourceHeroId: attacker.getId(), data: { damage: 1, from: victim.getId() } })
+                if (!attacker.isAlive()) {
+                  this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -920,7 +971,7 @@ export class Game {
       const killCard = await this.promptResponseKill(current, initiator.getId(), '决斗', needCount)
       if (!killCard) {
         // 输: current 掉1血
-        this.dealDuelDamage(current, lastKiller ?? other)
+        await this.dealDuelDamage(current, lastKiller ?? other)
         return
       }
       // 出杀
@@ -991,7 +1042,7 @@ export class Game {
     return this.findDodgeCard(player) ?? null
   }
 
-  private dealDuelDamage(loser: Player, source: Player): void {
+  private async dealDuelDamage(loser: Player, source: Player): Promise<void> {
     let damage = 1
     if (this.zuijiuActive) {
       damage += 1
@@ -1000,6 +1051,10 @@ export class Game {
     const actual = loser.takeDamage(damage)
     this.eventBus.emit({ type: 'damage:deal', sourceHeroId: source.getId(), targetHeroId: loser.getId(), data: { damage } })
     this.eventBus.emit({ type: 'damage:receive', sourceHeroId: loser.getId(), data: { damage, from: source.getId() } })
+
+    // 受伤触发 (法家、还击/反击、复仇等)
+    await this.onDamageReceived(loser, source)
+
     if (!loser.isAlive()) {
       this.eventBus.emit({ type: 'die', sourceHeroId: loser.getId(), data: { killedBy: source.getId() } })
     }

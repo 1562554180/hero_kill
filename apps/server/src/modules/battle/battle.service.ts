@@ -24,8 +24,9 @@ export class BattleService {
     stageId: string
     battleIdx: number
     result: BattleResult
+    playerHeroId?: string
   }) {
-    const { userId, stageId, battleIdx, result } = body
+    const { userId, stageId, battleIdx, result, playerHeroId } = body
     const save = await this.saveService.getSave(userId)
     if (!save) return { success: false, error: '存档不存在' }
 
@@ -36,8 +37,10 @@ export class BattleService {
     }
 
     if (result.rewards.growthValue > 0) {
-      // Distribute growth to first hero
-      const hero = save.heroes[0]
+      // Distribute growth to the hero that actually fought
+      const hero = playerHeroId
+        ? save.heroes.find((h: any) => h.heroId === playerHeroId)
+        : save.heroes[0]
       if (hero) {
         hero.growthValue += result.rewards.growthValue
         hero.level = Math.min(50, Math.floor(hero.growthValue / 100) + 1)

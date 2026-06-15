@@ -117,7 +117,7 @@ export const heroes: Hero[] = [
     id: 'qin-qiong', name: '秦琼', faction: '臣', starLevel: 3, baseHp: 4,
     description: '门神，忠义无双',
     skills: [
-      { id: 'huan-ji', name: '还击', type: 'passive', description: '被【杀】或【决斗】损血后，可立即对伤害来源打出一张【杀】（红色不可回避）', triggerEvent: 'damage:receive' },
+      { id: 'fan-ji', name: '反击', type: 'passive', description: '被【杀】或【决斗】损血后，可立即对伤害来源打出一张【杀】（红色不可回避）', triggerEvent: 'damage:receive' },
       { id: 'men-shen', name: '门神', type: 'passive', description: '回合结束可指定一目标，直到下回合开始，对该目标的【杀】和【决斗】均视为对你打出', triggerEvent: 'turn:end' },
     ],
   },

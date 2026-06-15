@@ -13,6 +13,8 @@ export function BattlePage() {
   const [battleIdx, setBattleIdx] = useState(0)
   const [save, setSave] = useState<any>(null)
   const [starting, setStarting] = useState(false)
+  const [selectedHeroIdx, setSelectedHeroIdx] = useState(0)
+  const [allHeroes, setAllHeroes] = useState<any[]>([])
 
   const { phase, result, startBattle } = useBattleStore()
 
@@ -23,10 +25,12 @@ export function BattlePage() {
     Promise.all([
       fetch(`${API}/stage`).then(r => r.json()),
       fetch(`${API}/save/${userId}`).then(r => r.json()),
-    ]).then(([stageData, saveData]) => {
+      fetch(`${API}/hero`).then(r => r.json()),
+    ]).then(([stageData, saveData, heroData]) => {
       const s = stageData.stages?.find((st: any) => st.id === stageId)
       setStage(s)
       setSave(saveData)
+      setAllHeroes(heroData.heroes ?? [])
     })
   }, [stageId, userId])
 
@@ -35,8 +39,8 @@ export function BattlePage() {
   const currentBattle = stage.battles[battleIdx]
 
   const handleStartBattle = async () => {
-    // Use player's first hero, or fallback to yu-ji
-    const heroInstance = save.heroes?.[0]
+    // Use selected hero
+    const heroInstance = save.heroes?.[selectedHeroIdx]
     if (!heroInstance) {
       alert('请先招募一个英雄!')
       navigate('/heroes')
@@ -64,6 +68,7 @@ export function BattlePage() {
           stageId: stage.id,
           battleIdx,
           result: battleResult,
+          playerHeroId: heroInstance.heroId,
         }),
       })
 
@@ -102,6 +107,8 @@ export function BattlePage() {
         tanNangTargetInfo: null,
         wuguCandidates: null,
         fudiTargetInfo: null,
+        faJiaTargetInfo: null,
+        fanJiCandidates: null,
         treasureSkill: null,
         treasurePrompt: '',
         treasureCardIds: [],
@@ -119,6 +126,8 @@ export function BattlePage() {
         resolveWuguPick: null,
         resolveFudiTarget: null,
         resolveFudiPick: null,
+        resolveFaJiaPick: null,
+        resolveFanJiPick: null,
         judgeCard: null,
       })
     }
@@ -140,9 +149,35 @@ export function BattlePage() {
             {currentBattle.allies?.length > 0 && ` | 友军: ${currentBattle.allies.join(', ')}`}
           </p>
           {save.heroes?.length > 0 && (
-            <p style={{ color: 'var(--text-light)', fontSize: '13px', marginTop: '4px' }}>
-              出战英雄: {save.heroes[0].heroId} ({'★'.repeat(save.heroes[0].starLevel)})
-            </p>
+            <div style={{ marginTop: '8px' }}>
+              <p style={{ color: 'var(--text-light)', fontSize: '13px', marginBottom: '6px' }}>选择出战英雄:</p>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {save.heroes.map((hero: any, idx: number) => {
+                  const heroDef = allHeroes.find((h: any) => h.id === hero.heroId)
+                  const selected = idx === selectedHeroIdx
+                  return (
+                    <div
+                      key={hero.heroId}
+                      onClick={() => setSelectedHeroIdx(idx)}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        border: selected ? '2px solid var(--text-gold)' : '2px solid var(--bg-dark)',
+                        background: selected ? 'var(--bg-dark)' : 'var(--bg-medium)',
+                        color: selected ? 'var(--text-gold)' : 'var(--text-light)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{heroDef?.name ?? hero.heroId}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {'★'.repeat(hero.starLevel)} Lv.{hero.level}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           )}
         </div>
       )}
