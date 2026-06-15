@@ -131,6 +131,9 @@ export class Game {
         this.players.push(new Player(hero, { heroId: enemyId, level: 1, growthValue: 0, starLevel: hero.starLevel, treasures: { main: [], sub: [] } }, 'enemy'))
       }
     }
+
+    this.eventBus.on('die', (event) => this.handleKillReward(event))
+    this.eventBus.on('die', (event) => this.cleanupDeadPlayer(event))
   }
 
   // --- Helpers ---
@@ -348,8 +351,6 @@ export class Game {
   // --- Game flow ---
 
   async start(): Promise<BattleResult> {
-    this.eventBus.on('die', (event) => this.handleKillReward(event))
-    this.eventBus.on('die', (event) => this.cleanupDeadPlayer(event))
     this.eventBus.emit({ type: 'game:start', data: { playerCount: this.players.length } })
 
     for (const player of this.players) {
@@ -369,7 +370,7 @@ export class Game {
 
   /**
    * 击杀奖励: 玩家/友军杀死敌人后摸3张牌
-   * 若该敌人是最后一个敌人, 则直接结束游戏
+   * 若该敌人是最后一个敌人, 摸3张后直接判定闯关成功
    */
   private handleKillReward(event: GameEvent): void {
     const victimId = event.sourceHeroId
@@ -385,19 +386,18 @@ export class Game {
     if (killer.getRole() === 'enemy') return
     if (!killer.isAlive()) return
 
-    // 先判断是否是最后一个敌人: 是→直接胜利; 否→摸3张
+    // 任何击杀都先摸3张
+    const drawn = this.cardDeck.draw(3)
+    if (drawn.length > 0) {
+      killer.drawCards(drawn)
+      this.emitSkillTrigger(killer, '击杀', `击杀${victim.getName()}, 摸${drawn.length}张`)
+      this.eventBus.emit({ type: 'card:draw', sourceHeroId: killer.getId(), data: { count: drawn.length, reason: 'kill' } })
+    }
+
+    // 击杀最后一个敌人 → 摸3张后再判定闯关成功
     const otherEnemiesAlive = this.players.some(p => p.getRole() === 'enemy' && p.isAlive() && p.getId() !== victimId)
-    if (otherEnemiesAlive) {
-      // 非最后一个敌人: 摸3张
-      const drawn = this.cardDeck.draw(3)
-      if (drawn.length > 0) {
-        killer.drawCards(drawn)
-        this.emitSkillTrigger(killer, '击杀', `击杀${victim.getName()}, 摸${drawn.length}张`)
-        this.eventBus.emit({ type: 'card:draw', sourceHeroId: killer.getId(), data: { count: drawn.length, reason: 'kill' } })
-      }
-    } else {
-      // 最后一个敌人: 直接胜利
-      this.emitSkillTrigger(killer, '击杀', `击杀${victim.getName()}, 胜利!`)
+    if (!otherEnemiesAlive) {
+      this.emitSkillTrigger(killer, '击杀', `击杀${victim.getName()}, 闯关成功!`)
       this.checkGameEnd()
     }
   }

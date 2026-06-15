@@ -179,6 +179,31 @@ describe('主印宝具: 实现验证', () => {
       // 乾坤袋在装备区(不占手牌), 弃后乾坤袋装备丢失 → 摸1张
       expect(player.getHandSize()).toBe(before + 1)
     })
+
+    it('烽火杀死最后一个敌人: 先摸3张击杀奖励, 再闯关成功', async () => {
+      const instance = makeInstanceWithTreasure([{ skill: { id: 'feng-huo' }, triggerRate: 1 }])
+      const game = new Game({
+        playerHeroId: 'yang-yan-zhao', playerInstance: instance,
+        allyHeroIds: [], enemyHeroIds: ['han-xin'],
+        playerActionHandler: async () => null,
+      })
+      const player = game.getPlayer()
+      const enemy = game.getPlayerById('han-xin')!
+      // 敌人血量设为1, 烽火1伤可击杀
+      enemy.takeDamage(enemy.getCurrentHp() - 1)
+      // 玩家手牌放2张
+      player.drawCards([card('杀', 'k1', 'spade', 7)])
+      // 装备区放1张装备用于烽火
+      const weapon = { id: 'w1', suit: 'spade', number: 1, type: 'equipment', name: '诸葛弩', slot: 'weapon', range: 1 } as any
+      player.drawCards([weapon])
+      game.playerEquipCard(player, 'w1')
+      const before = player.getHandSize()
+      await game.playerFengHuo(player, 'w1')
+      // 击杀奖励: 摸3张, 烽火弃装备不占手牌
+      expect(player.getHandSize()).toBe(before + 3)
+      // 最后一个敌人死亡 → 游戏结束
+      expect((game as any).isOver).toBe(true)
+    })
   })
 
   describe('侠胆 (xia-dan) 拼点', () => {
