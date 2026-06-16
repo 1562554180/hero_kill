@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { Game, type GameConfig, type Player } from '@hero-legend/game-engine'
 import type { GameState, BattleResult, Card, GameEvent, GameEventType, HeroInstance, EquipmentSlot } from '@hero-legend/shared-types'
 
-export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount'
+export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang'
 
 interface BattleState {
   game: Game | null
@@ -77,6 +77,15 @@ interface BattleState {
   // 霸王弓: 选择拆哪匹马
   baWangOptions: { attackMount: Card | null; defenseMount: Card | null } | null
   resolveBaWangMount: ((mountSlot: 'attackMount' | 'defenseMount' | null) => void) | null
+  // 刺客: 出杀后是否发动 (玩家专用)
+  ciKePrompt: { defenderId: string; defenderName: string } | null
+  resolveCiKe: ((use: boolean) => void) | null
+  // 玉如意/国色: 受到攻击时是否发动判定
+  yuRuYiPrompt: { attackType: string; attackName: string } | null
+  resolveYuRuYi: ((use: boolean) => void) | null
+  // 天香: 判定前是否弃1张手牌免判
+  tianXiangJudgeCard: { name: string; suit: string; number: number } | null
+  resolveTianXiang: ((cardId: string | null) => void) | null
   judgeCard: Card | null
   // 最近一次判定结果 (含来源名/牌名, 供中央显示; 显示2.5秒后自动清空)
   lastJudgeResult: { judgeHeroName: string; judgeCardName: string; resultCard: { suit: string; number: number; name: string } } | null
@@ -156,6 +165,14 @@ interface BattleState {
   cancelDiscardCards: () => void
   // 霸王弓: 选择拆哪匹马
   selectBaWangMount: (mountSlot: 'attackMount' | 'defenseMount') => void
+  // 刺客
+  confirmCiKe: () => void
+  cancelCiKe: () => void
+  // 玉如意
+  confirmYuRuYi: () => void
+  cancelYuRuYi: () => void
+  // 天香
+  selectTianXiangCard: (cardId: string | null) => void
   // 驭人: 确认弃牌
   confirmYuRenCards: () => void
 }
@@ -293,6 +310,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveDiscard: null,
   baWangOptions: null,
   resolveBaWangMount: null,
+  ciKePrompt: null,
+  resolveCiKe: null,
+  yuRuYiPrompt: null,
+  resolveYuRuYi: null,
+  tianXiangJudgeCard: null,
+  resolveTianXiang: null,
   xiaDanActive: false,
   xiaDanUsedThisTurn: false,
   yuRenCardIds: [],
@@ -351,6 +374,14 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       yuRenUsedThisTurn: false,
       judgeCard: null,
       lastJudgeResult: null,
+      baWangOptions: null,
+      resolveBaWangMount: null,
+      ciKePrompt: null,
+      resolveCiKe: null,
+      yuRuYiPrompt: null,
+      resolveYuRuYi: null,
+      tianXiangJudgeCard: null,
+      resolveTianXiang: null,
     })
 
     const wrappedConfig: GameConfig = {
@@ -572,6 +603,28 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         set({ phase: 'selectBaWangMount', baWangOptions: mountOptions })
         return new Promise<'attackMount' | 'defenseMount' | null>(resolve => {
           set({ resolveBaWangMount: resolve })
+        })
+      },
+      ciKeHandler: async (game: Game, attacker: Player, defender: Player) => {
+        set({ ciKePrompt: { defenderId: defender.getId(), defenderName: defender.getName() } })
+        return new Promise<boolean>(resolve => {
+          set({ resolveCiKe: resolve })
+        })
+      },
+      yuRuYiHandler: async (game: Game, defender: Player) => {
+        set({ yuRuYiPrompt: { attackType: '杀', attackName: '杀' } })
+        return new Promise<boolean>(resolve => {
+          set({ resolveYuRuYi: resolve })
+        })
+      },
+      tianXiangHandler: async (game: Game, player: Player, judgeCard: Card) => {
+        set({
+          phase: 'tianXiang',
+          tianXiangJudgeCard: { name: judgeCard.name, suit: judgeCard.suit, number: judgeCard.number },
+          playerHand: player.getHand(),
+        })
+        return new Promise<string | null>(resolve => {
+          set({ resolveTianXiang: resolve })
         })
       },
       playerActionHandler: async (game: Game, player: any) => {
@@ -1271,5 +1324,46 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (!resolveBaWangMount) return
     resolveBaWangMount(mountSlot)
     set({ resolveBaWangMount: null, baWangOptions: null })
+  },
+
+  // 刺客: 使用 / 不用
+  confirmCiKe: () => {
+    const { resolveCiKe } = get()
+    if (!resolveCiKe) return
+    resolveCiKe(true)
+    set({ resolveCiKe: null, ciKePrompt: null })
+  },
+  cancelCiKe: () => {
+    const { resolveCiKe } = get()
+    if (!resolveCiKe) return
+    resolveCiKe(false)
+    set({ resolveCiKe: null, ciKePrompt: null })
+  },
+
+  // 玉如意: 使用 / 不用
+  confirmYuRuYi: () => {
+    const { resolveYuRuYi } = get()
+    if (!resolveYuRuYi) return
+    resolveYuRuYi(true)
+    set({ resolveYuRuYi: null, yuRuYiPrompt: null })
+  },
+  cancelYuRuYi: () => {
+    const { resolveYuRuYi } = get()
+    if (!resolveYuRuYi) return
+    resolveYuRuYi(false)
+    set({ resolveYuRuYi: null, yuRuYiPrompt: null })
+  },
+
+  // 天香: 选1张手牌弃掉免判 / 取消 = 不发动
+  selectTianXiangCard: (cardId: string | null) => {
+    const { resolveTianXiang, playerHand } = get()
+    if (!resolveTianXiang) return
+    // 校验牌确实在手牌中
+    if (cardId && !playerHand.some(c => c.id === cardId)) {
+      resolveTianXiang(null)
+    } else {
+      resolveTianXiang(cardId)
+    }
+    set({ resolveTianXiang: null, tianXiangJudgeCard: null, phase: 'waiting' })
   },
 }))

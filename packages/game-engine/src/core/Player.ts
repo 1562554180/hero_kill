@@ -99,7 +99,11 @@ export class Player {
   }
 
   getArmorName(): string | undefined {
-    return this.equippedCards.get('armor')?.name
+    const equipped = this.equippedCards.get('armor')?.name
+    if (equipped) return equipped
+    // 国色: 无防具时视为装备玉如意
+    if (this.hasSkillOrTreasure('guo-se')) return '玉如意'
+    return undefined
   }
 
   getAttackRange(): number {

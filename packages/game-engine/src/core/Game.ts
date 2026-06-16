@@ -58,6 +58,8 @@ export interface GameConfig {
   qiangLueHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
   /** 刺客: 出杀指定目标后是否发动 (true=发动判定; false=不发动) */
   ciKeHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
+  /** 天香: 判定开始前是否发动 (返回cardId=弃1张手牌免判; null=不发动, 正常判定) */
+  tianXiangHandler?: (game: Game, player: Player, judgeCard: Card) => Promise<string | null>
   /** 绝击: AI/玩家 是否发动以及选 (弃武器/null=受1血) + 目标. 返回null=不发动 */
   jueJiHandler?: (game: Game, attacker: Player, inRangeEnemies: Player[]) => Promise<{ weaponCardId: string | null; targetId: string } | null>
 }
@@ -812,9 +814,10 @@ export class Game {
       if (!ignoreArmor && (hasYuRuYiArmor || hasGuoSe) && dodgeCount < dodgeNeeded) {
         // 询问是否使用玉如意 (玩家可选, AI 默认使用)
         let useYuRuYi = true
-        if (this.config.yuRuYiHandler) {
-          useYuRuYi = await this.config.yuRuYiHandler(this, defender)
-        } else if (defender.getRole() !== 'player') {
+        if (defender.getRole() === 'player') {
+          // 玩家: 必须有 handler 才询问 (默认不使用以避免静默生效)
+          useYuRuYi = this.config.yuRuYiHandler ? await this.config.yuRuYiHandler(this, defender) : false
+        } else {
           // AI: 默认使用
           useYuRuYi = true
         }
@@ -1180,6 +1183,33 @@ export class Game {
     }
     // AI: 有闪则自动用
     return this.findDodgeCard(player) ?? null
+  }
+
+  /**
+   * 天香: 判定开始前, 询问是否弃1张手牌免判
+   * 返回 true=已发动 (已弃1张牌, 跳过本次判定), false=不发动
+   * 画地为牢/手捧雷等延时锦囊: 判定牌不消失也不顺延, 同一回合仍会再次判定
+   */
+  async promptTianXiang(player: Player, judgeCard: Card): Promise<boolean> {
+    if (!player.hasSkillOrTreasure('tian-xiang')) return false
+    if (player.getHandSize() === 0) return false  // 无手牌可弃
+    if (!player.useSkill('tian-xiang')) return false  // 已用本回合
+    let cardId: string | null = null
+    if (player.getRole() === 'player' && this.config.tianXiangHandler) {
+      cardId = await this.config.tianXiangHandler(this, player, judgeCard)
+    } else if (player.getRole() !== 'player') {
+      // AI: 有手牌就发动 (免判避免负面效果)
+      const hand = player.getHand()
+      // 优先弃非锦囊非装备的牌 (避免损失有价值的牌)
+      cardId = hand.find(c => c.type === 'basic')?.id ?? hand[0]?.id ?? null
+    }
+    if (!cardId) return false
+    const card = player.getHand().find(c => c.id === cardId)
+    if (!card) return false
+    this.removeHandCard(player, card.id)
+    this.cardDeck.discard([card])
+    this.emitSkillTrigger(player, '天香', `弃${card.name}免判${judgeCard.name}`)
+    return true
   }
 
   private async dealDuelDamage(loser: Player, source: Player): Promise<void> {
@@ -1762,20 +1792,7 @@ export class Game {
     this.emitSkillTrigger(player, '疏财', `给${target.getName()} ${cardIds.length}张牌`)
   }
 
-  /** 天香: 弃两张手牌令角色回复1 */
-  playerTianXiang(player: Player, cardIds: string[], targetId: string): void {
-    if (!player.hasSkillOrTreasure('tian-xiang')) return
-    if (!player.useSkill('tian-xiang')) return
-    const target = this.getPlayerById(targetId)
-    if (!target || target.getCurrentHp() >= target.getMaxHp()) return
-    for (const cid of cardIds) {
-      const c = this.removeHandCard(player,cid)
-      if (c) this.cardDeck.discard([c])
-    }
-    target.heal(1)
-    this.eventBus.emit({ type: 'heal', sourceHeroId: target.getId(), data: { amount: 1 } })
-    this.emitSkillTrigger(player, '天香', `${target.getName()}回复1体力`)
-  }
+  /** 天香: 判定开始前弃1张牌免判 (见 promptTianXiang) */
 
   /** 攻心: 观看对方手牌弃一张红或黑 */
   playerGongXin(player: Player, targetId: string, color: 'red' | 'black'): void {

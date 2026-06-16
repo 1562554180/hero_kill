@@ -202,7 +202,8 @@ export const heroes: Hero[] = [
     id: 'xiao-qiao', name: '小乔', faction: '民', starLevel: 2, baseHp: 3,
     description: '国色天香，江东二乔之一',
     skills: [
-      { id: 'tian-xiang', name: '天香', type: 'active', description: '出牌阶段，你可以弃两张手牌，令一名角色回复1点体力（每回合限用1次）', maxUsesPerTurn: 1 },
+      { id: 'guo-se', name: '国色', type: 'passive', description: '当你没有防具时，默认装备【玉如意】（视为一直装备着该防具）', triggerEvent: 'game:start' },
+      { id: 'tian-xiang', name: '天香', type: 'passive', description: '判定开始前，你可以弃1张牌，取消本次判定效果。判定牌不消失（如画地为牢/手捧雷仍保留在判定区，不顺延），同一回合仍会再次判定', triggerEvent: 'judge' },
     ],
   },
   {

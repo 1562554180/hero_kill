@@ -26,6 +26,9 @@ export function BattleBoard() {
     xiaDanUsedThisTurn, yuRenUsedThisTurn,
     selectedDiscardCards, discardCount, toggleDiscardCard, confirmDiscardCards, cancelDiscardCards,
     baWangOptions, selectBaWangMount,
+    ciKePrompt, confirmCiKe, cancelCiKe,
+    yuRuYiPrompt, confirmYuRuYi, cancelYuRuYi,
+    tianXiangJudgeCard, selectTianXiangCard,
     lastJudgeResult,
   } = useBattleStore()
 
@@ -655,6 +658,57 @@ export function BattleBoard() {
             </div>
           )}
 
+          {/* 刺客提示: 内联 yes/no */}
+          {ciKePrompt && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(156,39,176,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(156,39,176,0.3)',
+              color: '#ce93d8', fontSize: '13px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+            }}>
+              <span>🗡️ 刺客 — 对 <b>{ciKePrompt.defenderName}</b> 发动? (红色 → 不可被闪; 黑色 → 造成伤害后弃对方1张牌)</span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button style={{ fontSize: '12px' }} onClick={cancelCiKe}>不用</button>
+                <button className="primary" style={{ fontSize: '12px' }} onClick={confirmCiKe}>发动</button>
+              </div>
+            </div>
+          )}
+
+          {/* 玉如意/国色提示: 内联 yes/no */}
+          {yuRuYiPrompt && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(255,235,59,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(255,235,59,0.3)',
+              color: '#fff59d', fontSize: '13px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+            }}>
+              <span>🛡️ 玉如意 — 受到【{yuRuYiPrompt.attackName}】攻击, 是否发动判定? (红色 → 视为闪)</span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button style={{ fontSize: '12px' }} onClick={cancelYuRuYi}>不用</button>
+                <button className="primary" style={{ fontSize: '12px' }} onClick={confirmYuRuYi}>发动</button>
+              </div>
+            </div>
+          )}
+
+          {/* 天香提示: 判定前弃1张手牌免判(判定牌不消失) */}
+          {phase === 'tianXiang' && tianXiangJudgeCard && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(244,143,177,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(244,143,177,0.3)',
+              color: '#f48fb1', fontSize: '12px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+            }}>
+              <span>
+                🌸 天香 — 即将判定【{tianXiangJudgeCard.name}】({tianXiangJudgeCard.suit === 'heart' ? '♥' : tianXiangJudgeCard.suit === 'diamond' ? '♦' : tianXiangJudgeCard.suit === 'spade' ? '♠' : '♣'}{tianXiangJudgeCard.number === 1 ? 'A' : tianXiangJudgeCard.number > 10 ? ['J','Q','K'][tianXiangJudgeCard.number - 11] : tianXiangJudgeCard.number}),
+                点击1张手牌弃掉免判 (判定牌不消失, 同一回合仍会判定)
+              </span>
+              <button style={{ fontSize: '12px' }} onClick={() => selectTianXiangCard(null)}>不发动</button>
+            </div>
+          )}
+
           {/* Hand cards */}
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {playerHand.map(card => {
@@ -678,17 +732,20 @@ export function BattleBoard() {
                       useBattleStore.setState({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureCardIds: [], treasureTargetIds: [], gameState: game!.getState(), playerHand: player.getHand() })
                     } else if (phase === 'xiaDanPickCard') {
                       pickXiaDanCard(card.id)
+                    } else if (phase === 'tianXiang') {
+                      // 天香: 弃这张手牌免判
+                      selectTianXiangCard(card.id)
                     }
                   }}
                   style={{
                     outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard) ? '3px solid #b8860b' : 'none',
                     borderRadius: '6px',
-                    cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard') ? 'pointer' : undefined,
+                    cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang') ? 'pointer' : undefined,
                   }}
                 >
                   <HandCard
                     card={card}
-                    disabled={!(isPlayerTurn || phase === 'judgeReplace' || phase === 'awaitingResponse' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard') || phase === 'selectTarget'}
+                    disabled={!(isPlayerTurn || phase === 'judgeReplace' || phase === 'awaitingResponse' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang') || phase === 'selectTarget'}
                     canPlayKill={canPlayKill}
                     isFullHp={isFullHp}
                     aoJianActive={aoJianActive}
