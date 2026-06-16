@@ -42,7 +42,7 @@ export const heroes: Hero[] = [
     id: 'li-shi-min', name: '李世民', faction: '君', starLevel: 4, baseHp: 4,
     description: '唐太宗，贞观之治',
     skills: [
-      { id: 'kong-ju', name: '控局', type: 'passive', description: '当你的手牌数不大于满血血量时可不用弃牌；手牌小于满血血量时不能被【探囊取物】或【釜底抽薪】', triggerEvent: 'phase:start' },
+      { id: 'kong-ju', name: '控局', type: 'passive', description: '手牌数≤体力上限时跳过弃牌阶段；手牌数<体力上限时免疫探囊取物和釜底抽薪；手牌数>体力上限时免疫画地为牢', triggerEvent: 'phase:start' },
     ],
   },
   {

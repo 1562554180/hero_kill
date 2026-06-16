@@ -1617,6 +1617,11 @@ export class Game {
       // 画地为牢
       let target = targetId ? this.players.find(p => p.getId() === targetId) : undefined
       if (!target || !target.isAlive()) return
+      // 控局: 手牌数>体力上限时免疫画地为牢
+      if (target.hasSkillOrTreasure('kong-ju') && target.getHandSize() > target.getMaxHp()) {
+        this.emitSkillTrigger(target, '控局', '免疫画地为牢')
+        return
+      }
       target.addJudgeCard(card)
       this.eventBus.emit({
         type: 'skill:trigger', sourceHeroId: target.getId(),
@@ -1662,6 +1667,11 @@ export class Game {
         this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-探囊取物失效`)
         return
       }
+      // 控局: 手牌数<体力上限时免疫探囊取物
+      if (target.hasSkillOrTreasure('kong-ju') && target.getHandSize() < target.getMaxHp()) {
+        this.emitSkillTrigger(target, '控局', `免疫探囊取物`)
+        return
+      }
       // 选1张牌(手牌/装备/判定)
       let pickedId: string | null = null
       if (player.getRole() === 'player' && this.config.tanNangPickHandler) {
@@ -1694,6 +1704,11 @@ export class Game {
       }
       if (target && !this.canBeSchemeTarget(target, card)) {
         this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-釜底抽薪失效`)
+        return
+      }
+      // 控局: 手牌数<体力上限时免疫釜底抽薪
+      if (target && target.hasSkillOrTreasure('kong-ju') && target.getHandSize() < target.getMaxHp()) {
+        this.emitSkillTrigger(target, '控局', `免疫釜底抽薪`)
         return
       }
       if (target) {

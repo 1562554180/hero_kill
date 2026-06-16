@@ -14,8 +14,8 @@ export class DiscardPhase extends Phase {
       return { completed: true, actions: [] }
     }
 
-    // 控局: 手牌数≤体力值不用弃牌
-    if (player.hasSkillOrTreasure('kong-ju') && handSize <= handLimit) {
+    // 控局: 手牌数≤体力上限不用弃牌
+    if (player.hasSkillOrTreasure('kong-ju') && handSize <= player.getMaxHp()) {
       return { completed: true, actions: [] }
     }
 
