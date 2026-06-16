@@ -72,11 +72,17 @@ export function BattleBoard() {
       // 洞察: 黑桃锦囊 (排除延时锦囊) 对拥有此技能的目标无效
       return game.canBeSchemeTarget(target, pendingSchemeCard)
     }
+    if (phase === 'treasureSelectTarget') {
+      // 绝击: 只允许攻击范围内的敌方
+      const tSkill = useBattleStore.getState().treasureSkill
+      if (tSkill === 'jue-ji') return game.isInAttackRange(attacker, target)
+    }
     return true
   }
   // 选目标阶段是否应启用 dim 效果 (出杀/锦囊)
-  const dimInvalidTargets = phase === 'selectTarget' && game && player && (
-    pendingCardType === 'kill' || (pendingCardType === 'scheme' && pendingSchemeName === '探囊取物')
+  const dimInvalidTargets = game && player && (
+    (phase === 'selectTarget' && (pendingCardType === 'kill' || (pendingCardType === 'scheme' && pendingSchemeName === '探囊取物'))) ||
+    (phase === 'treasureSelectTarget' && useBattleStore.getState().treasureSkill === 'jue-ji')
   )
 
   const isPlayerTurn = phase === 'playing' || phase === 'selectTarget' || phase === 'selectDualCards' || phase === 'selectLuYeQiangTarget'

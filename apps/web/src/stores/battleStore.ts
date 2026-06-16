@@ -1163,10 +1163,11 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       game!.playerZhiYu(player, treasureCardIds, targetId)
       set({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureCardIds: [], gameState: game!.getState(), playerHand: player.getHand() })
     } else if (treasureSkill === 'jue-ji') {
-      // 检查手牌有无武器, 有则询问, 没有则受1伤
-      const hasWeapon = player.getHand().some(c => c.type === 'equipment' && (c as any).slot === 'weapon')
-      if (hasWeapon) {
-        set({ treasureTargetIds: [targetId], phase: 'treasureSelectWeapon', treasurePrompt: '【绝击】选择1张手牌中的武器弃置, 或点"受1血"直接执行' })
+      // 检查手牌或装备区有无武器, 有则询问, 没有则受1伤
+      const hasHandWeapon = player.getHand().some(c => c.type === 'equipment' && (c as any).slot === 'weapon')
+      const hasEquippedWeapon = !!player.getEquippedCard('weapon')
+      if (hasHandWeapon || hasEquippedWeapon) {
+        set({ treasureTargetIds: [targetId], phase: 'treasureSelectWeapon', treasurePrompt: '【绝击】选择装备区或手牌里的武器弃置, 或点"受1血"直接执行' })
       } else {
         game!.playerJueJi(player, null, targetId)
         set({ treasureSkill: null, treasurePrompt: '', phase: 'playing', gameState: game!.getState(), playerHand: player.getHand() })
