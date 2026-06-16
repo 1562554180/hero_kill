@@ -103,6 +103,96 @@ describe('强掠 (qiang-lue) 询问技能', () => {
   })
 })
 
+describe('绝击 (jue-ji) 询问技能', () => {
+  const jingKeInstance: HeroInstance = {
+    heroId: 'jing-ke', level: 1, growthValue: 0, starLevel: 3, treasures: { main: [], sub: [] },
+  }
+
+  it('玩家拒绝发动 jueJiHandler 返回 null → 不发动绝击', async () => {
+    const game = new Game({
+      playerHeroId: 'jing-ke', playerInstance: jingKeInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+      jueJiHandler: async () => null,  // 玩家拒绝发动
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    const weapon = equipment('诸葛弩', 'w1', 'weapon', 1)
+    player.drawCards([weapon])
+    game.playerEquipCard(player, 'w1')
+    const playerHpBefore = player.getCurrentHp()
+    const enemyHpBefore = enemy.getCurrentHp()
+    // 直接调用 autoPlayPhase: 玩家路径不走这里, 但绝击会调用 jueJiHandler
+    await (game as any).autoPlayPhase(player)
+    // 拒绝发动: 玩家不弃武器不掉血, 敌人不掉血
+    expect(player.getEquippedCard('weapon')).toBeDefined()
+    expect(player.getCurrentHp()).toBe(playerHpBefore)
+    expect(enemy.getCurrentHp()).toBe(enemyHpBefore)
+  })
+
+  it('玩家选择受1血 → 玩家掉血, 目标掉血', async () => {
+    const game = new Game({
+      playerHeroId: 'jing-ke', playerInstance: jingKeInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+      jueJiHandler: async (_g, _p, enemies) => ({ weaponCardId: null, targetId: enemies[0].getId() }),
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    const weapon = equipment('诸葛弩', 'w1', 'weapon', 1)
+    player.drawCards([weapon])
+    game.playerEquipCard(player, 'w1')
+    const playerHpBefore = player.getCurrentHp()
+    const enemyHpBefore = enemy.getCurrentHp()
+    await (game as any).autoPlayPhase(player)
+    // 受1血: 玩家-1, 敌人-1, 武器保留
+    expect(player.getCurrentHp()).toBe(playerHpBefore - 1)
+    expect(enemy.getCurrentHp()).toBe(enemyHpBefore - 1)
+    expect(player.getEquippedCard('weapon')).toBeDefined()
+  })
+
+  it('玩家选择弃武器 → 武器丢弃, 玩家不掉血, 目标掉血', async () => {
+    const game = new Game({
+      playerHeroId: 'jing-ke', playerInstance: jingKeInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+      jueJiHandler: async (_g, p, enemies) => ({ weaponCardId: p.getEquippedCard('weapon')!.id, targetId: enemies[0].getId() }),
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    const weapon = equipment('诸葛弩', 'w1', 'weapon', 1)
+    player.drawCards([weapon])
+    game.playerEquipCard(player, 'w1')
+    const playerHpBefore = player.getCurrentHp()
+    const enemyHpBefore = enemy.getCurrentHp()
+    await (game as any).autoPlayPhase(player)
+    // 弃武器: 玩家HP不变, 武器已弃, 敌人-1
+    expect(player.getCurrentHp()).toBe(playerHpBefore)
+    expect(player.getEquippedCard('weapon')).toBeUndefined()
+    expect(enemy.getCurrentHp()).toBe(enemyHpBefore - 1)
+  })
+
+  it('默认 (无 jueJiHandler): 有武器则弃武器, 不掉血', async () => {
+    const game = new Game({
+      playerHeroId: 'jing-ke', playerInstance: jingKeInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+      // 无 jueJiHandler: 走默认逻辑
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    const weapon = equipment('诸葛弩', 'w1', 'weapon', 1)
+    player.drawCards([weapon])
+    game.playerEquipCard(player, 'w1')
+    const playerHpBefore = player.getCurrentHp()
+    const enemyHpBefore = enemy.getCurrentHp()
+    await (game as any).autoPlayPhase(player)
+    expect(player.getCurrentHp()).toBe(playerHpBefore)
+    expect(player.getEquippedCard('weapon')).toBeUndefined()
+    expect(enemy.getCurrentHp()).toBe(enemyHpBefore - 1)
+  })
+})
+
 describe('AI 锦囊使用', () => {
   it('AI有探囊取物+距离内有牌的目标, 会在autoPlayPhase中使用', async () => {
     const game = new Game({

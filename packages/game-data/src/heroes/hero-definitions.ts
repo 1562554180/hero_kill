@@ -172,6 +172,7 @@ export const heroes: Hero[] = [
     description: '易水壮士，图穷匕见',
     skills: [
       { id: 'ci-ke', name: '刺客', type: 'passive', description: '你对其他角色出【杀】时可判定：红色不可被闪抵消；黑色造成伤害后可弃对方一张牌', triggerEvent: 'card:play' },
+      { id: 'jue-ji', name: '绝击', type: 'active', description: '出牌阶段，你可以弃置一张武器牌或受到一点伤害，然后令一名在你的攻击范围内的角色受到1点伤害。' },
     ],
   },
 

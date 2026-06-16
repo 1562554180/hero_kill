@@ -56,6 +56,10 @@ export interface GameConfig {
   baWangMountHandler?: (game: Game, attacker: Player, defender: Player, mountOptions: { attackMount: Card | null; defenseMount: Card | null }) => Promise<'attackMount' | 'defenseMount' | null>
   /** 强掠: 杀被闪后是否要发动 (true=发动判定; false=不发动) */
   qiangLueHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
+  /** 刺客: 出杀指定目标后是否发动 (true=发动判定; false=不发动) */
+  ciKeHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
+  /** 绝击: AI/玩家 是否发动以及选 (弃武器/null=受1血) + 目标. 返回null=不发动 */
+  jueJiHandler?: (game: Game, attacker: Player, inRangeEnemies: Player[]) => Promise<{ weaponCardId: string | null; targetId: string } | null>
 }
 
 export class Game {
@@ -603,6 +607,29 @@ export class Game {
       }
     }
 
+    // 绝击: 询问发动 + (弃武器/null=受1血) + 选目标
+    if (player.hasSkillOrTreasure('jue-ji')) {
+      const inRangeEnemies = this.getEnemies(player).filter(e => e.isAlive() && this.isInAttackRange(player, e))
+      if (inRangeEnemies.length > 0 && player.getCurrentHp() > 1) {
+        let choice: { weaponCardId: string | null; targetId: string } | null = null
+        if (this.config.jueJiHandler) {
+          choice = await this.config.jueJiHandler(this, player, inRangeEnemies)
+        } else {
+          // AI 默认: 有武器弃武器 (无损失), 无武器且血量>1 才自伤
+          const weapon = player.getEquippedCard('weapon')
+          if (weapon) {
+            choice = { weaponCardId: weapon.id, targetId: inRangeEnemies[0].getId() }
+          } else {
+            choice = { weaponCardId: null, targetId: inRangeEnemies[0].getId() }
+          }
+        }
+        if (choice) {
+          this.playerJueJi(player, choice.weaponCardId, choice.targetId)
+          if (!player.isAlive() || this.isOver) return
+        }
+      }
+    }
+
     // 锦囊: AI主动使用
     const enemies = this.getEnemies(player).filter(e => e.isAlive())
     const hand2 = player.getHand()
@@ -729,16 +756,25 @@ export class Game {
       return
     }
 
-    // 刺客: 判定
+    // 刺客: 询问发动 → 判定, 红色不可被闪, 黑色造成伤害后弃对方一张牌
     let assassinNoDodge = opts?.forceNoDodge ?? false
     let assassinDiscard = false
     if (attacker.hasSkillOrTreasure('ci-ke')) {
-      const j = await this.judge(attacker, '刺客')
-      if (isRedSuit(j.suit)) {
-        assassinNoDodge = true
-        this.emitSkillTrigger(attacker, '刺客', '红色-不可被闪')
-      } else {
-        assassinDiscard = true
+      let trigger = false
+      if (attacker.getRole() === 'player' && this.config.ciKeHandler) {
+        trigger = await this.config.ciKeHandler(this, attacker, defender)
+      } else if (attacker.getRole() !== 'player') {
+        // AI: 总是发动刺客 (判定期望收益最高)
+        trigger = true
+      }
+      if (trigger) {
+        const j = await this.judge(attacker, '刺客')
+        if (isRedSuit(j.suit)) {
+          assassinNoDodge = true
+          this.emitSkillTrigger(attacker, '刺客', '红色-不可被闪')
+        } else {
+          assassinDiscard = true
+        }
       }
     }
 
@@ -1894,10 +1930,11 @@ export class Game {
     if (!target || !target.isAlive()) return
     if (!this.isInAttackRange(player, target)) return
     if (weaponCardId) {
-      const card = player.getHand().find(c => c.id === weaponCardId)
-      if (!card) return
-      this.removeHandCard(player,card.id)
-      this.cardDeck.discard([card])
+      const weapon = player.getEquippedCard('weapon')
+      if (!weapon || weapon.id !== weaponCardId) return
+      player.unequip('weapon')
+      this.cardDeck.discard([weapon])
+      this.emitSkillTrigger(player, '绝击', `弃置${weapon.name}`)
     } else {
       const dmg = player.takeDamage(1)
       this.eventBus.emit({ type: 'damage:receive', sourceHeroId: player.getId(), data: { damage: dmg, from: '绝击' } })
