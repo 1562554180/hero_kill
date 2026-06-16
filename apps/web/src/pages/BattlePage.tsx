@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useBattleStore } from '../stores/battleStore'
 import { BattleBoard } from '../components/BattleBoard'
@@ -20,6 +20,26 @@ export function BattlePage() {
 
   const userId = localStorage.getItem('hero-legend-userId') || ''
 
+  // 计算当前关卡中作为敌人的英雄id集合, 玩家不能选这些英雄
+  const currentBattle = stage?.battles?.[battleIdx]
+  const forbiddenHeroIds = useMemo(
+    () => new Set(currentBattle?.enemies ?? []),
+    [currentBattle],
+  )
+  const availableHeroes = useMemo(
+    () => (save?.heroes ?? [])
+      .map((h: any, idx: number) => ({ h, idx }))
+      .filter(({ h }: any) => !forbiddenHeroIds.has(h.heroId)),
+    [save, forbiddenHeroIds],
+  )
+
+  useEffect(() => {
+    const current = save?.heroes?.[selectedHeroIdx]
+    if (!current || forbiddenHeroIds.has(current.heroId)) {
+      setSelectedHeroIdx(availableHeroes[0]?.idx ?? 0)
+    }
+  }, [availableHeroes, forbiddenHeroIds, save, selectedHeroIdx])
+
   useEffect(() => {
     if (!userId) { navigate('/'); return }
     Promise.all([
@@ -36,14 +56,17 @@ export function BattlePage() {
 
   if (!stage || !save) return <div style={{ padding: 40, textAlign: 'center' }}>加载中...</div>
 
-  const currentBattle = stage.battles[battleIdx]
-
   const handleStartBattle = async () => {
     // Use selected hero
     const heroInstance = save.heroes?.[selectedHeroIdx]
     if (!heroInstance) {
       alert('请先招募一个英雄!')
       navigate('/heroes')
+      return
+    }
+    // 防御: 所选英雄是本关敌人, 阻止开始战斗
+    if (forbiddenHeroIds.has(heroInstance.heroId)) {
+      alert('该英雄是本关敌人, 不能出战!')
       return
     }
 
@@ -148,29 +171,44 @@ export function BattlePage() {
           </p>
           {save.heroes?.length > 0 && (
             <div style={{ marginTop: '8px' }}>
-              <p style={{ color: 'var(--text-light)', fontSize: '13px', marginBottom: '6px' }}>选择出战英雄:</p>
+              <p style={{ color: 'var(--text-light)', fontSize: '13px', marginBottom: '6px' }}>
+                选择出战英雄{availableHeroes.length === 0 && ' (无可用英雄!)'}:
+              </p>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {save.heroes.map((hero: any, idx: number) => {
                   const heroDef = allHeroes.find((h: any) => h.id === hero.heroId)
                   const selected = idx === selectedHeroIdx
+                  const isForbidden = forbiddenHeroIds.has(hero.heroId)
                   return (
                     <div
-                      key={hero.heroId}
-                      onClick={() => setSelectedHeroIdx(idx)}
+                      key={`${hero.heroId}-${idx}`}
+                      onClick={() => { if (!isForbidden) setSelectedHeroIdx(idx) }}
+                      title={isForbidden ? '该英雄是本关敌人, 不可选择' : ''}
                       style={{
                         padding: '8px 14px',
                         borderRadius: '6px',
-                        cursor: 'pointer',
+                        cursor: isForbidden ? 'not-allowed' : 'pointer',
                         border: selected ? '2px solid var(--text-gold)' : '2px solid var(--bg-dark)',
                         background: selected ? 'var(--bg-dark)' : 'var(--bg-medium)',
                         color: selected ? 'var(--text-gold)' : 'var(--text-light)',
                         transition: 'all 0.15s',
+                        opacity: isForbidden ? 0.4 : 1,
+                        position: 'relative',
                       }}
                     >
                       <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{heroDef?.name ?? hero.heroId}</div>
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                         {'★'.repeat(hero.starLevel)} Lv.{hero.level}
                       </div>
+                      {isForbidden && (
+                        <div style={{
+                          position: 'absolute', top: '-6px', right: '-4px',
+                          background: '#e57373', color: '#fff', fontSize: '10px',
+                          padding: '0 4px', borderRadius: '3px', fontWeight: 'bold',
+                        }}>
+                          敌方
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -184,8 +222,13 @@ export function BattlePage() {
         <BattleBoard />
       ) : (
         <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <button className="primary" onClick={handleStartBattle} disabled={starting} style={{ fontSize: '18px', padding: '12px 40px' }}>
-            {starting ? '战斗中...' : '开始战斗'}
+          <button
+            className="primary"
+            onClick={handleStartBattle}
+            disabled={starting || availableHeroes.length === 0}
+            style={{ fontSize: '18px', padding: '12px 40px' }}
+          >
+            {starting ? '战斗中...' : availableHeroes.length === 0 ? '无可用英雄' : '开始战斗'}
           </button>
         </div>
       )}
