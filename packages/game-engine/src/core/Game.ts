@@ -788,12 +788,17 @@ export class Game {
         trigger = true
       }
       if (trigger) {
-        const j = await this.judge(attacker, '刺客')
-        if (isRedSuit(j.suit)) {
-          assassinNoDodge = true
-          this.emitSkillTrigger(attacker, '刺客', '红色-不可被闪')
-        } else {
-          assassinDiscard = true
+        // 天香: 刺客判定前可弃牌免判
+        const ciKeCard = { name: '刺客', type: 'skill' as const, suit: 'spade' as const, number: 1, id: `skill-ciKe-${Date.now()}` } as unknown as Card
+        const tianXiangSkipped = await this.promptTianXiang(attacker, ciKeCard)
+        if (!tianXiangSkipped) {
+          const j = await this.judge(attacker, '刺客')
+          if (isRedSuit(j.suit)) {
+            assassinNoDodge = true
+            this.emitSkillTrigger(attacker, '刺客', '红色-不可被闪')
+          } else {
+            assassinDiscard = true
+          }
         }
       }
     }
@@ -963,12 +968,18 @@ export class Game {
           trigger = defender.getHandSize() + this.collectEquipmentCards(defender).length + defender.getJudgeCards().length > 0
         }
         if (trigger) {
-          const j = await this.judge(attacker, '强掠')
-          if (isBlackSuit(j.suit)) {
-            this.stealRandomCard(defender, attacker)
-            this.emitSkillTrigger(attacker, '强掠', '抽对方一张牌')
+          // 天香: 强掠判定前可弃牌免判
+          const qiangLueCard = { name: '强掠', type: 'skill' as const, suit: 'spade' as const, number: 1, id: `skill-qiangLue-${Date.now()}` } as unknown as Card
+          if (await this.promptTianXiang(attacker, qiangLueCard)) {
+            // 天香免判强掠 → 不抽牌
           } else {
-            this.emitSkillTrigger(attacker, '强掠', '判定非黑-失效')
+            const j = await this.judge(attacker, '强掠')
+            if (isBlackSuit(j.suit)) {
+              this.stealRandomCard(defender, attacker)
+              this.emitSkillTrigger(attacker, '强掠', '抽对方一张牌')
+            } else {
+              this.emitSkillTrigger(attacker, '强掠', '判定非黑-失效')
+            }
           }
         }
       }
@@ -1199,6 +1210,12 @@ export class Game {
       this.emitSkillTrigger(defender, srcName, '选择不使用')
       return false
     }
+    // 天香: 玉如意判定前可弃牌免判
+    const yuRuYiCard = { name: '玉如意', type: 'skill' as const, suit: 'spade' as const, number: 1, id: `skill-yuRuYi-${Date.now()}` } as unknown as Card
+    if (await this.promptTianXiang(defender, yuRuYiCard)) {
+      // 天香免判玉如意 → 直接视为未闪
+      return false
+    }
     const j = await this.judge(defender, '玉如意')
     if (isRedSuit(j.suit)) {
       this.emitSkillTrigger(defender, srcName, `玉如意判定${j.card.name}-视为闪`)
@@ -1209,29 +1226,46 @@ export class Game {
   }
 
   /**
-   * 天香: 判定开始前, 询问是否弃1张手牌免判
+   * 天香: 判定开始前, 询问是否弃1张牌免判
    * 返回 true=已发动 (已弃1张牌, 跳过本次判定), false=不发动
-   * 画地为牢/手捧雷等延时锦囊: 判定牌不消失也不顺延, 同一回合仍会再次判定
+   * 延时锦囊(画地为牢/手捧雷等): 判定牌不消失也不顺延, 同一回合仍会再次判定
+   * 技能判定(刺客/玉如意/强掠等): 同样可以天香取消, 正常跳过该技能效果
    */
   async promptTianXiang(player: Player, judgeCard: Card): Promise<boolean> {
     if (!player.hasSkillOrTreasure('tian-xiang')) return false
-    if (player.getHandSize() === 0) return false  // 无手牌可弃
+    const hand = player.getHand()
+    const equipment = this.collectEquipmentCards(player)
+    if (hand.length === 0 && equipment.length === 0) return false  // 无牌可弃
     if (!player.useSkill('tian-xiang')) return false  // 已用本回合
     let cardId: string | null = null
     if (player.getRole() === 'player' && this.config.tianXiangHandler) {
       cardId = await this.config.tianXiangHandler(this, player, judgeCard)
     } else if (player.getRole() !== 'player') {
-      // AI: 有手牌就发动 (免判避免负面效果)
-      const hand = player.getHand()
-      // 优先弃非锦囊非装备的牌 (避免损失有价值的牌)
+      // AI: 有手牌就发动 (优先弃基本牌, 避免损失有价值的装备/锦囊)
       cardId = hand.find(c => c.type === 'basic')?.id ?? hand[0]?.id ?? null
     }
     if (!cardId) return false
-    const card = player.getHand().find(c => c.id === cardId)
-    if (!card) return false
-    this.removeHandCard(player, card.id)
-    this.cardDeck.discard([card])
-    this.emitSkillTrigger(player, '天香', `弃${card.name}免判${judgeCard.name}`)
+    // 优先从手牌中移除
+    const handCard = hand.find(c => c.id === cardId)
+    if (handCard) {
+      this.removeHandCard(player, handCard.id)
+      this.cardDeck.discard([handCard])
+      this.emitSkillTrigger(player, '天香', `弃${handCard.name}免判${judgeCard.name}`)
+    } else {
+      // 从装备区移除
+      const slots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
+      let discarded: Card | null = null
+      for (const s of slots) {
+        const eq = player.getEquippedCard(s)
+        if (eq && eq.id === cardId) {
+          discarded = player.unequip(s)
+          if (discarded) this.cardDeck.discard([discarded])
+          break
+        }
+      }
+      if (!discarded) return false
+      this.emitSkillTrigger(player, '天香', `弃${discarded.name}免判${judgeCard.name}`)
+    }
     return true
   }
 
@@ -1554,7 +1588,7 @@ export class Game {
       }
       // 选1张牌(手牌/装备/判定)
       let pickedId: string | null = null
-      if (this.config.tanNangPickHandler) {
+      if (player.getRole() === 'player' && this.config.tanNangPickHandler) {
         pickedId = await this.config.tanNangPickHandler(
           this, player, target,
           { hand: target.getHand(), judge: target.getJudgeCards(), equipment: this.collectEquipmentCards(target) },
@@ -1594,7 +1628,7 @@ export class Game {
           return
         }
         let pickedId: string | null = null
-        if (this.config.fudiPickHandler) {
+        if (player.getRole() === 'player' && this.config.fudiPickHandler) {
           pickedId = await this.config.fudiPickHandler(
             this, player, target,
             { hand: target.getHand(), judge: target.getJudgeCards(), equipment: this.collectEquipmentCards(target) },

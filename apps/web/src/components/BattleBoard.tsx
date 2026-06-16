@@ -29,7 +29,7 @@ export function BattleBoard() {
     ciKePrompt, confirmCiKe, cancelCiKe,
     yuRuYiPrompt, confirmYuRuYi, cancelYuRuYi,
     dieHunPrompt, confirmDieHun, cancelDieHun,
-    tianXiangJudgeCard, selectTianXiangCard,
+    tianXiangJudgeCard, tianXiangEquipment, selectTianXiangCard,
     lastJudgeResult,
   } = useBattleStore()
 
@@ -710,7 +710,21 @@ export function BattleBoard() {
             </div>
           )}
 
-          {/* 天香提示: 判定前弃1张手牌免判(判定牌不消失) */}
+          {/* 天香: 装备区可弃的牌 */}
+          {phase === 'tianXiang' && tianXiangEquipment.length > 0 && (
+            <>
+              <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px', marginTop: '4px' }}>装备区 (点击弃掉)</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                {tianXiangEquipment.map(card => (
+                  <div key={card.id} onClick={() => selectTianXiangCard(card.id)} style={{ cursor: 'pointer' }}>
+                    <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* 天香提示: 判定前弃1张手牌或装备免判(判定牌不消失) */}
           {phase === 'tianXiang' && tianXiangJudgeCard && (
             <div style={{
               marginBottom: '8px', padding: '8px 12px',
@@ -721,7 +735,7 @@ export function BattleBoard() {
             }}>
               <span>
                 🌸 天香 — 即将判定【{tianXiangJudgeCard.name}】({tianXiangJudgeCard.suit === 'heart' ? '♥' : tianXiangJudgeCard.suit === 'diamond' ? '♦' : tianXiangJudgeCard.suit === 'spade' ? '♠' : '♣'}{tianXiangJudgeCard.number === 1 ? 'A' : tianXiangJudgeCard.number > 10 ? ['J','Q','K'][tianXiangJudgeCard.number - 11] : tianXiangJudgeCard.number}),
-                点击1张手牌弃掉免判 (判定牌不消失, 同一回合仍会判定)
+                点击1张手牌或装备区弃掉免判 (判定牌不消失, 同一回合仍会判定)
               </span>
               <button style={{ fontSize: '12px' }} onClick={() => selectTianXiangCard(null)}>不发动</button>
             </div>

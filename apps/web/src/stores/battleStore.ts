@@ -86,8 +86,9 @@ interface BattleState {
   // 蝶魂: 群体锦囊目标是否发动 (玩家专用)
   dieHunPrompt: { schemeName: string } | null
   resolveDieHun: ((use: boolean) => void) | null
-  // 天香: 判定前是否弃1张手牌免判
+  // 天香: 判定前是否弃1张手牌或装备免判
   tianXiangJudgeCard: { name: string; suit: string; number: number } | null
+  tianXiangEquipment: Card[]
   resolveTianXiang: ((cardId: string | null) => void) | null
   judgeCard: Card | null
   // 最近一次判定结果 (含来源名/牌名, 供中央显示; 显示2.5秒后自动清空)
@@ -323,6 +324,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   dieHunPrompt: null,
   resolveDieHun: null,
   tianXiangJudgeCard: null,
+  tianXiangEquipment: [],
   resolveTianXiang: null,
   xiaDanActive: false,
   xiaDanUsedThisTurn: false,
@@ -391,6 +393,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       dieHunPrompt: null,
       resolveDieHun: null,
       tianXiangJudgeCard: null,
+      tianXiangEquipment: [],
       resolveTianXiang: null,
     })
 
@@ -634,9 +637,11 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         })
       },
       tianXiangHandler: async (game: Game, player: Player, judgeCard: Card) => {
+        const equipment = game.collectEquipmentCards(player)
         set({
           phase: 'tianXiang',
           tianXiangJudgeCard: { name: judgeCard.name, suit: judgeCard.suit, number: judgeCard.number },
+          tianXiangEquipment: equipment,
           playerHand: player.getHand(),
         })
         return new Promise<string | null>(resolve => {
@@ -1386,14 +1391,14 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
   // 天香: 选1张手牌弃掉免判 / 取消 = 不发动
   selectTianXiangCard: (cardId: string | null) => {
-    const { resolveTianXiang, playerHand } = get()
+    const { resolveTianXiang, playerHand, tianXiangEquipment } = get()
     if (!resolveTianXiang) return
-    // 校验牌确实在手牌中
-    if (cardId && !playerHand.some(c => c.id === cardId)) {
+    // 校验牌在手牌或装备区中
+    if (cardId && !playerHand.some(c => c.id === cardId) && !tianXiangEquipment.some(c => c.id === cardId)) {
       resolveTianXiang(null)
     } else {
       resolveTianXiang(cardId)
     }
-    set({ resolveTianXiang: null, tianXiangJudgeCard: null, phase: 'waiting' })
+    set({ resolveTianXiang: null, tianXiangJudgeCard: null, tianXiangEquipment: [], phase: 'waiting' })
   },
 }))
