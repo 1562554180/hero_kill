@@ -801,9 +801,11 @@ export class Game {
         const tianXiangSkipped = await this.promptTianXiang(attacker, ciKeCard)
         if (!tianXiangSkipped) {
           const j = await this.judge(attacker, '刺客')
-          if (isRedSuit(j.suit)) {
+          // 红妆: 黑桃视为红桃
+          const isRed = isRedSuit(j.suit) || this.isEffectivelyHeart(j.suit, attacker)
+          if (isRed) {
             assassinNoDodge = true
-            this.emitSkillTrigger(attacker, '刺客', '红色-不可被闪')
+            this.emitSkillTrigger(attacker, '刺客', `红色-${this.isEffectivelyHeart(j.suit, attacker) && j.suit === 'spade' ? '(红妆)' : ''}不可被闪`)
           } else {
             assassinDiscard = true
           }
@@ -987,11 +989,13 @@ export class Game {
             // 天香免判强掠 → 不抽牌
           } else {
             const j = await this.judge(attacker, '强掠')
-            if (isBlackSuit(j.suit)) {
+            // 红妆: 黑桃视为红桃 → 不再是黑色, 强掠失效
+            const isBlack = isBlackSuit(j.suit) && !this.isEffectivelyHeart(j.suit, attacker)
+            if (isBlack) {
               this.stealRandomCard(defender, attacker)
               this.emitSkillTrigger(attacker, '强掠', '抽对方一张牌')
             } else {
-              this.emitSkillTrigger(attacker, '强掠', '判定非黑-失效')
+              this.emitSkillTrigger(attacker, '强掠', `判定非黑${this.isEffectivelyHeart(j.suit, attacker) && j.suit === 'spade' ? '(红妆)' : ''}-失效`)
             }
           }
         }
@@ -1101,14 +1105,17 @@ export class Game {
     // 复仇: 判定，非红桃则来源受1伤或弃2牌
     if (victim.hasSkillOrTreasure('fu-chou') && attacker.isAlive()) {
       const j = await this.judge(victim, '复仇')
-      if (j.suit !== 'heart') {
+      // 红妆: 黑桃视为红桃 → 不触发复仇
+      if (!this.isEffectivelyHeart(j.suit, victim)) {
         // 简化：直接造成1点伤害
         const dmg = attacker.takeDamage(1)
-        this.emitSkillTrigger(victim, '复仇', '来源受到1点伤害')
+        this.emitSkillTrigger(victim, '复仇', `判定${j.card.name}-来源受到1点伤害`)
         this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
         if (!attacker.isAlive()) {
           this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
         }
+      } else {
+        this.emitSkillTrigger(victim, '复仇', `判定${j.card.name}-${j.suit === 'spade' ? '(红妆)' : ''}失效`)
       }
     }
 
@@ -1235,8 +1242,10 @@ export class Game {
       return false
     }
     const j = await this.judge(defender, '玉如意')
-    if (isRedSuit(j.suit)) {
-      this.emitSkillTrigger(defender, srcName, `玉如意判定${j.card.name}-视为闪`)
+    // 红妆: 黑桃视为红桃 → 同样视为闪
+    const isRed = isRedSuit(j.suit) || this.isEffectivelyHeart(j.suit, defender)
+    if (isRed) {
+      this.emitSkillTrigger(defender, srcName, `玉如意判定${j.card.name}${this.isEffectivelyHeart(j.suit, defender) && j.suit === 'spade' ? '(红妆)' : ''}-视为闪`)
       return true
     }
     this.emitSkillTrigger(defender, srcName, `玉如意判定${j.card.name}-失效`)
