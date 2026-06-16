@@ -615,34 +615,59 @@ export class Game {
     }
 
     if (enemies.length > 0) {
-      // 2) 探囊取物: 距离内有牌的目标
+      // 计算每个敌方角色的"总牌数" (手牌+装备+判定), 用于排序
+      const enemyCardTotal = (e: Player) =>
+        e.getHandSize() + this.collectEquipmentCards(e).length + e.getJudgeCards().length
+
+      // 2) 探囊取物: 选距离内总牌数最多的目标
       const tn = player.getHand().find((c: Card) => c.name === '探囊取物')
       if (tn) {
-        const target = enemies.find(e => this.canTanNang(player, e))
+        const target = [...enemies]
+          .filter(e => this.canTanNang(player, e))
+          .sort((a, b) => enemyCardTotal(b) - enemyCardTotal(a))[0]
         if (target) {
           await this.playerPlayScheme(player, tn.id, target.getId())
           if (!player.isAlive() || this.isOver) return
         }
       }
 
-      // 3) 釜底抽薪: 选手牌最多的目标
+      // 3) 釜底抽薪: 选手牌数最多的目标 (无距离限制, 任意敌方)
       const fudi = player.getHand().find((c: Card) => c.name === '釜底抽薪')
       if (fudi) {
-        const target = [...enemies].sort((a, b) => b.getHandSize() - a.getHandSize())[0]
-        if (target && target.getHandSize() > 0) {
+        const target = [...enemies]
+          .filter(e => e.isAlive() && (
+            e.getHandSize() > 0 || this.collectEquipmentCards(e).length > 0 || e.getJudgeCards().length > 0
+          ))
+          .sort((a, b) => b.getHandSize() - a.getHandSize())[0]
+        if (target) {
           await this.playerPlayScheme(player, fudi.id, target.getId())
           if (!player.isAlive() || this.isOver) return
         }
       }
 
-      // 4) 决斗: 对手牌少且没杀的目标
+      // 4) 决斗: 选手牌少且没杀的目标 (低威胁优先)
       const duel = player.getHand().find((c: Card) => c.name === '决斗')
       if (duel) {
         const target = [...enemies]
-          .filter(e => !this.findKillCard(e) || e.getHandSize() <= 1)
-          .sort((a, b) => a.getHandSize() - b.getHandSize())[0]
+          .filter(e => e.isAlive() && this.canBeSchemeTarget(e, duel))
+          .sort((a, b) => {
+            // 优先: 无杀 / 手牌≤1
+            const aScore = (this.findKillCard(a) ? 100 : 0) + a.getHandSize()
+            const bScore = (this.findKillCard(b) ? 100 : 0) + b.getHandSize()
+            return aScore - bScore
+          })[0]
         if (target) {
           await this.playerPlayScheme(player, duel.id, target.getId())
+          if (!player.isAlive() || this.isOver) return
+        }
+      }
+
+      // 4.5) 借刀杀人: 找有武器的敌方 + 有杀的我方
+      const jieDao = player.getHand().find((c: Card) => c.name === '借刀杀人')
+      if (jieDao) {
+        const holder = [...enemies].find(e => e.isAlive() && e.getEquippedCard('weapon'))
+        if (holder) {
+          await this.playerPlayScheme(player, jieDao.id, holder.getId())
           if (!player.isAlive() || this.isOver) return
         }
       }

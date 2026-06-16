@@ -141,4 +141,30 @@ describe('AI 锦囊使用', () => {
     expect(player.getHandSize()).toBe(beforePlayer - 1)  // 出了1张
     expect(enemy.getHandSize()).toBe(beforeEnemy - 1)  // 被弃1张
   })
+
+  it('AI有多张探囊/釜底, 选总牌数最多的敌方目标', async () => {
+    // 2个敌方, 一个手牌多, 一个手牌少
+    // AI应优先对手牌多的敌方使用探囊/釜底
+    const game = new Game({
+      playerHeroId: 'tie-mu-zhen', playerInstance: tieMuZhenInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin', 'shang-yang'],
+      playerActionHandler: async () => null,
+    })
+    const enemy1 = game.getPlayerById('han-xin')!  // 手牌多
+    const enemy2 = game.getPlayerById('shang-yang')!  // 手牌少
+    // 玩家(铁木真): 探囊+釜底
+    game.getPlayer().drawCards([
+      card('探囊取物', 'tn1', 'club', 3, 'scheme'),
+      card('釜底抽薪', 'fd1', 'spade', 3, 'scheme'),
+    ])
+    // enemy1: 3张手牌 (更多)
+    enemy1.drawCards([card('杀', 'a1'), card('杀', 'a2'), card('闪', 'a3')])
+    // enemy2: 1张手牌
+    enemy2.drawCards([card('杀', 'e1')])
+
+    await (game as any).autoPlayPhase(game.getPlayer())
+    // AI用探囊拿enemy1 1张 + 釜底弃enemy1 1张 → enemy1剩1张, enemy2剩1张
+    expect(enemy1.getHandSize()).toBe(1)
+    expect(enemy2.getHandSize()).toBe(1)
+  })
 })
