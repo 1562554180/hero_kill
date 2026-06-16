@@ -48,8 +48,8 @@ export interface GameConfig {
   boLangChuiHandler?: (game: Game, attacker: Player, hand: Card[]) => Promise<string[] | null>
   /** 法家: 受伤后从伤害来源选一张牌(手牌/装备/判定)获得 (null=不触发/放弃) */
   faJiaPickHandler?: (game: Game, victim: Player, attacker: Player, options: { hand: Card[]; judge: Card[]; equipment: Card[] }) => Promise<string | null>
-  /** 玉如意: 防御方是否使用 (true=触发判定; false=跳过) */
-  yuRuYiHandler?: (game: Game, defender: Player) => Promise<boolean>
+  /** 玉如意: 防御方是否使用 (true=触发判定; false=跳过). attackName 用于显示在提示中 */
+  yuRuYiHandler?: (game: Game, defender: Player, attackName: string) => Promise<boolean>
   /** 弃牌阶段: 选要弃的手牌, 返回要弃的牌ID数组 */
   discardPickHandler?: (game: Game, player: Player, handCards: Card[], discardCount: number) => Promise<string[]>
   /** 霸王弓: 选拆哪匹马, 返回 'attackMount' | 'defenseMount' | null */
@@ -806,34 +806,9 @@ export class Game {
       }
 
       let dodgeCount = 0
-      // 鱼肠剑: 无视防具 (跳过玉如意/国色的判定)
-      const ignoreArmor = attacker.getWeaponName() === '鱼肠剑'
-      // 玉如意 (防具/国色宝具): 被杀时判定, 红色视为闪 — 每次杀只判定一次
-      const hasYuRuYiArmor = defender.getArmorName() === '玉如意'
-      const hasGuoSe = defender.hasSkillOrTreasure('guo-se')
-      if (!ignoreArmor && (hasYuRuYiArmor || hasGuoSe) && dodgeCount < dodgeNeeded) {
-        // 询问是否使用玉如意 (玩家可选, AI 默认使用)
-        let useYuRuYi = true
-        if (defender.getRole() === 'player') {
-          // 玩家: 必须有 handler 才询问 (默认不使用以避免静默生效)
-          useYuRuYi = this.config.yuRuYiHandler ? await this.config.yuRuYiHandler(this, defender) : false
-        } else {
-          // AI: 默认使用
-          useYuRuYi = true
-        }
-        if (useYuRuYi) {
-          const j = await this.judge(defender, '玉如意')
-          const srcName = hasYuRuYiArmor && !hasGuoSe ? '玉如意' : '国色'
-          if (isRedSuit(j.suit)) {
-            dodgeCount++
-            this.emitSkillTrigger(defender, srcName, `玉如意判定${j.card.name}-视为闪`)
-          } else {
-            this.emitSkillTrigger(defender, srcName, `玉如意判定${j.card.name}-失效`)
-          }
-        } else {
-          const srcName = hasYuRuYiArmor && !hasGuoSe ? '玉如意' : '国色'
-          this.emitSkillTrigger(defender, srcName, `选择不使用`)
-        }
+      // 玉如意/国色: 判定, 红色视为闪 — 每次杀只判定一次
+      if (dodgeCount < dodgeNeeded && await this.tryYuRuYiDodge(defender, '杀', attacker.getWeaponName())) {
+        dodgeCount++
       }
       for (let i = 0; i < dodgeNeeded; i++) {
         if (dodgeCount >= dodgeNeeded) break
@@ -1183,6 +1158,38 @@ export class Game {
     }
     // AI: 有闪则自动用
     return this.findDodgeCard(player) ?? null
+  }
+
+  /**
+   * 玉如意/国色: 受到闪响应请求时(杀/万箭齐发), 可判定一次, 红色视为闪
+   * 返回 true=已发动且红色, 视作闪响应成功
+   * attackName: 用于UI显示(如"杀"/"万箭齐发")
+   * attackerWeapon: 攻击方的武器名(鱼肠剑无视防具)
+   */
+  async tryYuRuYiDodge(defender: Player, attackName: string, attackerWeapon?: string): Promise<boolean> {
+    if (attackerWeapon === '鱼肠剑') return false  // 鱼肠剑无视防具
+    const hasYuRuYiArmor = defender.getArmorName() === '玉如意'
+    const hasGuoSe = defender.hasSkillOrTreasure('guo-se')
+    if (!hasYuRuYiArmor && !hasGuoSe) return false
+
+    // 询问是否使用玉如意 (玩家可选, AI 默认使用)
+    let useYuRuYi = true
+    if (defender.getRole() === 'player') {
+      useYuRuYi = this.config.yuRuYiHandler ? await this.config.yuRuYiHandler(this, defender, attackName) : false
+    }
+    // AI: 默认使用
+    const srcName = hasYuRuYiArmor && !hasGuoSe ? '玉如意' : '国色'
+    if (!useYuRuYi) {
+      this.emitSkillTrigger(defender, srcName, '选择不使用')
+      return false
+    }
+    const j = await this.judge(defender, '玉如意')
+    if (isRedSuit(j.suit)) {
+      this.emitSkillTrigger(defender, srcName, `玉如意判定${j.card.name}-视为闪`)
+      return true
+    }
+    this.emitSkillTrigger(defender, srcName, `玉如意判定${j.card.name}-失效`)
+    return false
   }
 
   /**
@@ -1649,6 +1656,8 @@ export class Game {
           this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-万箭齐发无效`)
           continue
         }
+        // 玉如意/国色: 受到万箭齐发时也可判定, 红色视为闪
+        if (await this.tryYuRuYiDodge(target, '万箭齐发')) continue
         const dodgeCard = await this.promptResponseDodge(target, player.getId(), '万箭齐发')
         if (dodgeCard) {
           this.removeHandCard(target,dodgeCard.id)

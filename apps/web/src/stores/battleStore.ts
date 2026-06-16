@@ -611,8 +611,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           set({ resolveCiKe: resolve })
         })
       },
-      yuRuYiHandler: async (game: Game, defender: Player) => {
-        set({ yuRuYiPrompt: { attackType: '杀', attackName: '杀' } })
+      yuRuYiHandler: async (game: Game, defender: Player, attackName: string) => {
+        set({ yuRuYiPrompt: { attackType: attackName, attackName } })
         return new Promise<boolean>(resolve => {
           set({ resolveYuRuYi: resolve })
         })

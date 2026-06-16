@@ -29,6 +29,8 @@ export class JudgePhase extends Phase {
       // 天香: 判定开始前, 玩家可弃1张手牌免判 (判定牌不消失, 同一回合仍会判定)
       const tianXiangUsed = await game.promptTianXiang(player, delayedCard)
       if (tianXiangUsed) {
+        // 把判定牌放回判定区 (画地为牢保留, 下一回合再判)
+        player.addJudgeCard(delayedCard)
         actions.push({ type: 'judge', data: { heroId: player.getId(), cardId: delayedCard.id, skipped: true } })
         continue
       }
@@ -94,7 +96,11 @@ export class JudgePhase extends Phase {
 
       // 天香: 判定开始前, 玩家可弃1张手牌免判 (手捧雷保留, 不顺延, 同一回合仍会判定)
       const tianXiangUsed = await game.promptTianXiang(player, thunder)
-      if (tianXiangUsed) continue
+      if (tianXiangUsed) {
+        // 把手捧雷放回判定区 (保留在当前玩家, 不顺延, 同一回合仍会判定)
+        player.addJudgeCard(thunder)
+        continue
+      }
 
       // 判定开始: 允许任何玩家响应无懈可击抵消本次手捧雷判定
       const fromPlayer = (thunder as any).fromPlayerId
