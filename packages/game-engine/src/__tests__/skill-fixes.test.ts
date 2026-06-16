@@ -191,6 +191,90 @@ describe('绝击 (jue-ji) 询问技能', () => {
     expect(player.getEquippedCard('weapon')).toBeUndefined()
     expect(enemy.getCurrentHp()).toBe(enemyHpBefore - 1)
   })
+
+  it('弃手牌里的武器 → 玩家不掉血, 目标掉血, 手牌-1', async () => {
+    const game = new Game({
+      playerHeroId: 'jing-ke', playerInstance: jingKeInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+      jueJiHandler: async (_g, p, enemies) => {
+        // AI 选装备区武器 (autoPlayPhase 会自动装备手牌里的装备)
+        const equipped = p.getEquippedCard('weapon')!
+        return { weaponCardId: equipped.id, targetId: enemies[0].getId() }
+      },
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    // 给玩家手牌1张武器 (AI autoPlayPhase 会自动装备它)
+    const weapon = equipment('诸葛弩', 'hw1', 'weapon', 1)
+    player.drawCards([weapon])
+    const playerHpBefore = player.getCurrentHp()
+    const enemyHpBefore = enemy.getCurrentHp()
+    await (game as any).autoPlayPhase(player)
+    expect(player.getCurrentHp()).toBe(playerHpBefore)
+    expect(player.getEquippedCard('weapon')).toBeUndefined()  // 装备区武器被弃
+    expect(enemy.getCurrentHp()).toBe(enemyHpBefore - 1)
+  })
+
+  it('每回合限1次: 已使用后再调 playerJueJi 无效', () => {
+    const game = new Game({
+      playerHeroId: 'jing-ke', playerInstance: jingKeInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    // 第1次: 受1血
+    const enemyHpBefore = enemy.getCurrentHp()
+    const playerHpBefore = player.getCurrentHp()
+    game.playerJueJi(player, null, 'han-xin')
+    expect(player.getCurrentHp()).toBe(playerHpBefore - 1)
+    expect(enemy.getCurrentHp()).toBe(enemyHpBefore - 1)
+    expect(player.getSkillUseCount('jue-ji')).toBe(1)
+    // 第2次: 同一回合再次调用 → 无效 (useSkill 返回 false)
+    game.playerJueJi(player, null, 'han-xin')
+    expect(player.getCurrentHp()).toBe(playerHpBefore - 1)  // 不再掉血
+    expect(enemy.getCurrentHp()).toBe(enemyHpBefore - 1)   // 目标也不再掉血
+    expect(player.getSkillUseCount('jue-ji')).toBe(1)
+  })
+
+  it('autoPlayPhase 已用后不再触发 (技能计数>0 跳过)', async () => {
+    const game = new Game({
+      playerHeroId: 'jing-ke', playerInstance: jingKeInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+      jueJiHandler: async (_g, _p, enemies) => ({ weaponCardId: null, targetId: enemies[0].getId() }),
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    // 手动先用1次
+    game.playerJueJi(player, null, 'han-xin')
+    const playerHpAfterFirst = player.getCurrentHp()
+    const enemyHpAfterFirst = enemy.getCurrentHp()
+    // 再调 autoPlayPhase: 应跳过绝击 (已用1次)
+    await (game as any).autoPlayPhase(player)
+    expect(player.getCurrentHp()).toBe(playerHpAfterFirst)
+    expect(enemy.getCurrentHp()).toBe(enemyHpAfterFirst)
+  })
+
+  it('直接调 playerJueJi 弃手牌武器 → 手牌-1, 玩家不掉血', () => {
+    const game = new Game({
+      playerHeroId: 'jing-ke', playerInstance: jingKeInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    const weapon = equipment('诸葛弩', 'hw1', 'weapon', 1)
+    player.drawCards([weapon])
+    const playerHpBefore = player.getCurrentHp()
+    const enemyHpBefore = enemy.getCurrentHp()
+    const handBefore = player.getHandSize()
+    game.playerJueJi(player, 'hw1', 'han-xin')
+    expect(player.getCurrentHp()).toBe(playerHpBefore)
+    expect(player.getHandSize()).toBe(handBefore - 1)
+    expect(enemy.getCurrentHp()).toBe(enemyHpBefore - 1)
+  })
 })
 
 describe('AI 锦囊使用', () => {

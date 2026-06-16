@@ -610,13 +610,15 @@ export class Game {
     // 绝击: 询问发动 + (弃武器/null=受1血) + 选目标
     if (player.hasSkillOrTreasure('jue-ji')) {
       const inRangeEnemies = this.getEnemies(player).filter(e => e.isAlive() && this.isInAttackRange(player, e))
-      if (inRangeEnemies.length > 0 && player.getCurrentHp() > 1) {
+      if (inRangeEnemies.length > 0 && player.getCurrentHp() > 1 && player.getSkillUseCount('jue-ji') === 0) {
         let choice: { weaponCardId: string | null; targetId: string } | null = null
         if (this.config.jueJiHandler) {
           choice = await this.config.jueJiHandler(this, player, inRangeEnemies)
         } else {
-          // AI 默认: 有武器弃武器 (无损失), 无武器且血量>1 才自伤
-          const weapon = player.getEquippedCard('weapon')
+          // AI 默认: 优先弃武器 (装备区或手牌, 无损失), 无武器才掉血
+          const equipped = player.getEquippedCard('weapon')
+          const handWeapon = player.getHand().find(c => c.type === 'equipment' && (c as any).slot === 'weapon')
+          const weapon = equipped ?? handWeapon
           if (weapon) {
             choice = { weaponCardId: weapon.id, targetId: inRangeEnemies[0].getId() }
           } else {
@@ -1922,7 +1924,7 @@ export class Game {
     }
   }
 
-  /** 绝击: 弃1张武器牌或受1点伤害, 令攻击范围内1名角色受1点伤害 */
+  /** 绝击: 弃1张武器牌 (装备区或手牌) 或受1点伤害, 令攻击范围内1名角色受1点伤害 (每回合限1次) */
   playerJueJi(player: Player, weaponCardId: string | null, targetId: string): void {
     if (!player.hasSkillOrTreasure('jue-ji')) return
     if (!player.useSkill('jue-ji')) return
@@ -1930,11 +1932,19 @@ export class Game {
     if (!target || !target.isAlive()) return
     if (!this.isInAttackRange(player, target)) return
     if (weaponCardId) {
-      const weapon = player.getEquippedCard('weapon')
-      if (!weapon || weapon.id !== weaponCardId) return
-      player.unequip('weapon')
-      this.cardDeck.discard([weapon])
-      this.emitSkillTrigger(player, '绝击', `弃置${weapon.name}`)
+      // 优先从装备区找, 否则从手牌找
+      const equipped = player.getEquippedCard('weapon')
+      if (equipped && equipped.id === weaponCardId) {
+        player.unequip('weapon')
+        this.cardDeck.discard([equipped])
+        this.emitSkillTrigger(player, '绝击', `弃置${equipped.name}`)
+      } else {
+        const handCard = player.getHand().find(c => c.id === weaponCardId)
+        if (!handCard) return
+        this.removeHandCard(player, handCard.id)
+        this.cardDeck.discard([handCard])
+        this.emitSkillTrigger(player, '绝击', `弃置手牌${handCard.name}`)
+      }
     } else {
       const dmg = player.takeDamage(1)
       this.eventBus.emit({ type: 'damage:receive', sourceHeroId: player.getId(), data: { damage: dmg, from: '绝击' } })

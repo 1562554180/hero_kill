@@ -125,6 +125,13 @@ export function BattleBoard() {
     return equipped?.name
   })()
 
+  // 绝击本回合已用次数
+  const jueJiUsedThisTurn = (() => {
+    const g = useBattleStore.getState().game
+    const p = g?.getPlayer()
+    return p ? p.getSkillUseCount('jue-ji') : 0
+  })()
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
       {/* Enemy area */}
@@ -470,8 +477,19 @@ export function BattleBoard() {
                   </button>
                 )}
                 {hasJueJi && (
-                  <button onClick={() => useTreasureSkill('jue-ji')} style={treasureBtnStyle} title="绝击: 弃武器或受1伤, 令攻击范围内1名角色受1伤">
-                    ⚔ 绝击
+                  <button
+                    onClick={() => useTreasureSkill('jue-ji')}
+                    disabled={jueJiUsedThisTurn > 0}
+                    style={{
+                      ...treasureBtnStyle,
+                      background: jueJiUsedThisTurn > 0 ? '#444' : (treasureSkill === 'jue-ji' ? '#b8860b' : treasureBtnStyle.background),
+                      color: jueJiUsedThisTurn > 0 ? '#888' : (treasureSkill === 'jue-ji' ? '#fff' : treasureBtnStyle.color),
+                      cursor: jueJiUsedThisTurn > 0 ? 'not-allowed' : 'pointer',
+                      opacity: jueJiUsedThisTurn > 0 ? 0.5 : 1,
+                    }}
+                    title={jueJiUsedThisTurn > 0 ? '绝击: 本回合已用' : '绝击: 弃装备区或手牌武器, 或受1伤, 令攻击范围内1名角色受1伤 (每回合限1次)'}
+                  >
+                    ⚔ 绝击{jueJiUsedThisTurn > 0 ? ' ·已用' : ''}
                   </button>
                 )}
                 {hasQiYi && (
@@ -596,7 +614,7 @@ export function BattleBoard() {
               color: '#ff5722', fontSize: '12px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
-              <span>⚔ 绝击 — 点击装备区武器牌弃置触发, 或点"受1血"自伤</span>
+              <span>⚔ 绝击 — 点击装备区或手牌里的武器弃置触发, 或点"受1血"自伤</span>
               <div style={{ display: 'flex', gap: '6px' }}>
                 <button style={{ fontSize: '12px' }} onClick={cancelTreasureSkill}>取消</button>
                 <button
