@@ -187,21 +187,32 @@ function EquipTag({ heroId, slot, fallbackId, aoJianActive, canPlayKill, onUseAs
   const canActivate = aoJianActive && isRed && canPlayKill
   const isSelectingEquipment = phase === 'treasureSelectEquipment' || (treasureSkill === 'yu-ren' && phase === 'treasureSelectCard')
   const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
+  const isJueJiWeaponPick = treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon' && slot === 'weapon' && !!card
   const defaultColor = slot === 'weapon' ? '#ff8a65' : slot === 'armor' ? '#90caf9' : '#a5d6a7'
-  const color = canActivate ? '#e57373' : isSelectingEquipment ? (isYuRen ? '#b8860b' : '#ff9800') : defaultColor
-  const handleClick = canActivate ? onUseAsKill : isSelectingEquipment ? () => card && pickTreasureCard(card.id) : undefined
+  const color = canActivate ? '#e57373' : isJueJiWeaponPick ? '#ff5722' : isSelectingEquipment ? (isYuRen ? '#b8860b' : '#ff9800') : defaultColor
+  const handleClick = canActivate
+    ? onUseAsKill
+    : isJueJiWeaponPick
+      ? () => {
+          const { game, treasureTargetIds } = useBattleStore.getState()
+          const player = game!.getPlayer()!
+          game!.playerJueJi(player, card!.id, treasureTargetIds[0])
+          useBattleStore.setState({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureCardIds: [], treasureTargetIds: [], gameState: game!.getState(), playerHand: player.getHand() })
+        }
+      : isSelectingEquipment ? () => card && pickTreasureCard(card.id) : undefined
+  const isHighlighted = canActivate || isSelectingEquipment || isJueJiWeaponPick
   return (
     <span
-      title={canActivate ? `点击 ${card!.name} 当杀使用` : isYuRen ? `点击 ${card?.name ?? '装备'} 加入驭人弃牌` : isSelectingEquipment ? `点击弃置${card?.name ?? '装备'}` : desc}
+      title={canActivate ? `点击 ${card!.name} 当杀使用` : isYuRen ? `点击 ${card?.name ?? '装备'} 加入驭人弃牌` : isJueJiWeaponPick ? `点击弃置${card!.name}触发绝击` : isSelectingEquipment ? `点击弃置${card?.name ?? '装备'}` : desc}
       onClick={handleClick}
       style={{
         fontSize: '10px', color,
         background: `${color}22`,
         padding: '1px 5px', borderRadius: '3px',
-        border: `1px solid ${canActivate ? '#e57373' : isSelectingEquipment ? (isYuRen ? '#b8860b' : '#ff9800') : `${defaultColor}55`}`,
-        boxShadow: canActivate ? '0 0 4px rgba(229,115,115,0.6)' : isSelectingEquipment ? (isYuRen ? '0 0 4px rgba(255,215,0,0.6)' : '0 0 4px rgba(255,152,0,0.6)') : 'none',
+        border: `1px solid ${canActivate ? '#e57373' : isJueJiWeaponPick ? '#ff5722' : isSelectingEquipment ? (isYuRen ? '#b8860b' : '#ff9800') : `${defaultColor}55`}`,
+        boxShadow: canActivate ? '0 0 4px rgba(229,115,115,0.6)' : isJueJiWeaponPick ? '0 0 4px rgba(255,87,34,0.6)' : isSelectingEquipment ? (isYuRen ? '0 0 4px rgba(255,215,0,0.6)' : '0 0 4px rgba(255,152,0,0.6)') : 'none',
         cursor: handleClick ? 'pointer' : 'default',
-        fontWeight: canActivate || isSelectingEquipment ? 'bold' : 'normal',
+        fontWeight: isHighlighted ? 'bold' : 'normal',
       }}
     >
       {label}

@@ -587,6 +587,34 @@ export function BattleBoard() {
             </div>
           )}
 
+          {/* 绝击激活: 内联提示 — 选武器 (点击装备区/手牌武器) 或 点"受1血" */}
+          {treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon' && (
+            <div style={{
+              marginBottom: '8px', padding: '6px 12px',
+              background: 'rgba(255,87,34,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(255,87,34,0.3)',
+              color: '#ff5722', fontSize: '12px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <span>⚔ 绝击 — 点击装备区武器牌弃置触发, 或点"受1血"自伤</span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button style={{ fontSize: '12px' }} onClick={cancelTreasureSkill}>取消</button>
+                <button
+                  className="primary"
+                  style={{ fontSize: '12px' }}
+                  onClick={() => {
+                    const { game, treasureTargetIds } = useBattleStore.getState()
+                    const player = game!.getPlayer()!
+                    game!.playerJueJi(player, null, treasureTargetIds[0])
+                    useBattleStore.setState({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureCardIds: [], treasureTargetIds: [], gameState: game!.getState(), playerHand: player.getHand() })
+                  }}
+                >
+                  受1血
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* 侠胆拼点提示: 双方同时选牌, 玩家选自己手牌 (不知道对方出什么) */}
           {phase === 'xiaDanPickCard' && (
             <div style={{
@@ -663,8 +691,8 @@ export function BattleBoard() {
         </div>
       )}
 
-      {/* 宝具技能 浮层 — 侠胆自己选牌时不要遮挡手牌, 侠胆激活时也无需浮层; 驭人/烽火用内联提示 */}
-      {treasureSkill && phase !== 'xiaDanPickCard' && !xiaDanActive && treasureSkill !== 'yu-ren' && treasureSkill !== 'feng-huo' && (
+      {/* 宝具技能 浮层 — 侠胆自己选牌时不要遮挡手牌, 侠胆激活时也无需浮层; 驭人/烽火/绝击用内联提示 */}
+      {treasureSkill && phase !== 'xiaDanPickCard' && !xiaDanActive && treasureSkill !== 'yu-ren' && treasureSkill !== 'feng-huo' && treasureSkill !== 'jue-ji' && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
