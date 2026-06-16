@@ -1,5 +1,5 @@
 import { Phase } from './Phase.js'
-import type { Card } from '@hero-legend/shared-types'
+import type { Card, Suit } from '@hero-legend/shared-types'
 
 export class JudgePhase extends Phase {
   readonly type = 'judge' as const
@@ -50,13 +50,15 @@ export class JudgePhase extends Phase {
       const j = await game.judge(player, delayedCard.name)
       const resultSuit = j.suit
       const resultNumber = j.card.number
+      // 红妆: 黑桃视为红桃
+      const isHeart = game.isEffectivelyHeart(resultSuit, player)
 
       if (delayedCard.name === '画地为牢') {
-        if (resultSuit === 'heart') {
-          game.emitSkillTrigger(player, '画地为牢', '红桃-失效')
+        if (isHeart) {
+          game.emitSkillTrigger(player, '画地为牢', `判定${j.card.name}-${isHeart && resultSuit === 'spade' ? '(红妆)' : ''}失效`)
         } else {
           ;(game as any).skipCurrentTurnPlayerId = player.getId()
-          game.emitSkillTrigger(player, '画地为牢', '生效-跳过出牌阶段')
+          game.emitSkillTrigger(player, '画地为牢', '判定非红桃-生效-跳过出牌阶段')
         }
       }
 
@@ -124,26 +126,36 @@ export class JudgePhase extends Phase {
       const j = await game.judge(player, '手捧雷')
       const resultSuit = j.suit
       const resultNumber = j.card.number
+      // 红妆: 黑桃视为红桃 → 手捧雷判定
+      const isHeart = game.isEffectivelyHeart(resultSuit, player)
+      const isSpade = resultSuit === 'spade' && resultNumber >= 2 && resultNumber <= 9
 
-      if (resultSuit === 'spade' && resultNumber >= 2 && resultNumber <= 9) {
-        // 生效: 3血, 标记消失
-        const dmg = player.takeDamage(3)
-        eventBus.emit({ type: 'damage:receive', sourceHeroId: player.getId(), data: { damage: dmg, from: '手捧雷' } })
-        game.emitSkillTrigger(player, '手捧雷', `黑桃${resultNumber}-受到3点伤害`)
-        game.cardDeck.discard([thunder])
-        if (!player.isAlive()) {
-          eventBus.emit({ type: 'die', sourceHeroId: player.getId(), data: { killedBy: '手捧雷' } })
+      if (isSpade && !isHeart) {
+        // 生效: 3血, 标记消失 (黑桃2-9且未被红妆转换)
+        // 曼舞: 受伤前检查, 可转移伤害
+        const manWuTriggered = await (game as any).promptManWu(player, { getId: () => '手捧雷', isAlive: () => true } as any, 3)
+        if (manWuTriggered) {
+          // 伤害已转移, 雷消失
+          game.cardDeck.discard([thunder])
+        } else {
+          const dmg = player.takeDamage(3)
+          eventBus.emit({ type: 'damage:receive', sourceHeroId: player.getId(), data: { damage: dmg, from: '手捧雷' } })
+          game.emitSkillTrigger(player, '手捧雷', `黑桃${resultNumber}-受到3点伤害`)
+          game.cardDeck.discard([thunder])
+          if (!player.isAlive()) {
+            eventBus.emit({ type: 'die', sourceHeroId: player.getId(), data: { killedBy: '手捧雷' } })
+          }
         }
       } else {
-        // 失效: 顺延给下一个存活且无雷的玩家
+        // 失效: 顺延给下一个存活且无雷的玩家 (包括红妆转换或非黑桃2-9)
         const nextPlayer = this.findNextPlayerWithoutThunder(game, player)
         if (nextPlayer) {
           nextPlayer.addJudgeCard(thunder)
-          game.emitSkillTrigger(player, '手捧雷', `失效-顺延给${nextPlayer.getName()}`)
+          game.emitSkillTrigger(player, '手捧雷', `判定${j.card.name}-失效-顺延给${nextPlayer.getName()}${isHeart ? '(红妆)' : ''}`)
         } else {
           // 所有人都有雷(或只剩自己), 放回自己
           player.addJudgeCard(thunder)
-          game.emitSkillTrigger(player, '手捧雷', `失效-无目标, 雷保留`)
+          game.emitSkillTrigger(player, '手捧雷', `判定${j.card.name}-失效-雷保留${isHeart ? '(红妆)' : ''}`)
         }
       }
     }

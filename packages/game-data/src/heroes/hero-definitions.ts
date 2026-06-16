@@ -195,7 +195,8 @@ export const heroes: Hero[] = [
     id: 'li-shi-shi', name: '李师师', faction: '民', starLevel: 3, baseHp: 3,
     description: '青楼名妓，倾国倾城',
     skills: [
-      { id: 'man-wu', name: '曼舞', type: 'active', description: '当你受到伤害时，你可以弃一张手牌，将伤害转移给另一名角色（每回合限用1次）', maxUsesPerTurn: 1, triggerEvent: 'damage:receive' },
+      { id: 'man-wu', name: '曼舞', type: 'active', description: '当你受到伤害时，你可以弃一张红桃花色的手牌，将伤害转移给另一名角色，被转移的角色摸X张牌，X为你损失的体力值（每回合限用1次）', maxUsesPerTurn: 1, triggerEvent: 'damage:receive' },
+      { id: 'hong-zhuang', name: '红妆', type: 'passive', description: '你使用或判定结果的牌，黑桃花色都视为红桃' },
     ],
   },
   {

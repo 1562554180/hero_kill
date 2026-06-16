@@ -29,6 +29,7 @@ export function BattleBoard() {
     ciKePrompt, confirmCiKe, cancelCiKe,
     yuRuYiPrompt, confirmYuRuYi, cancelYuRuYi,
     dieHunPrompt, confirmDieHun, cancelDieHun,
+    manWuPrompt, selectManWuTarget, cancelManWu,
     tianXiangJudgeCard, tianXiangEquipment, selectTianXiangCard,
     lastJudgeResult,
   } = useBattleStore()
@@ -163,7 +164,8 @@ export function BattleBoard() {
                   (phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === h.hero.id)) ||
                   (phase === 'selectLuYeQiangTarget' && luYeQiangCandidates.some(lc => lc.id === h.hero.id)) ||
                   (phase === 'treasureSelectTarget') ||
-                  (phase === 'treasureSelectTargets')
+                  (phase === 'treasureSelectTargets') ||
+                  (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id))
                 )
               }
               dimmed={
@@ -181,6 +183,7 @@ export function BattleBoard() {
                 else if (phase === 'selectTanNangTarget') selectTanNangTarget(h.hero.id)
                 else if (phase === 'selectFudiTarget') selectFudiTarget(h.hero.id)
                 else if (phase === 'treasureSelectTarget') pickTreasureTarget(h.hero.id)
+                else if (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id)) selectManWuTarget(h.hero.id)
                 else if (phase === 'treasureSelectTargets') {
                   // 起义: toggle target selection
                   const t = treasureTargetIds
@@ -707,6 +710,20 @@ export function BattleBoard() {
                 <button style={{ fontSize: '12px' }} onClick={cancelDieHun}>不发动</button>
                 <button className="primary" style={{ fontSize: '12px' }} onClick={confirmDieHun}>发动</button>
               </div>
+            </div>
+          )}
+
+          {/* 曼舞提示: 选择转移伤害目标 */}
+          {manWuPrompt && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(255,182,193,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(255,182,193,0.3)',
+              color: '#ffb6c1', fontSize: '12px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+            }}>
+              <span>💃 曼舞 — 受到{manWuPrompt.attackerName}的{manWuPrompt.damage}点伤害，是否弃1张红桃手牌转移给其他角色? (目标摸X张牌，X为你损失的血量)</span>
+              <button style={{ fontSize: '12px' }} onClick={cancelManWu}>不发动</button>
             </div>
           )}
 

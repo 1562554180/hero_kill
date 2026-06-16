@@ -86,6 +86,9 @@ interface BattleState {
   // 蝶魂: 群体锦囊目标是否发动 (玩家专用)
   dieHunPrompt: { schemeName: string } | null
   resolveDieHun: ((use: boolean) => void) | null
+  // 曼舞: 受伤时转移伤害
+  manWuPrompt: { attackerName: string; damage: number; candidates: { id: string; name: string }[] } | null
+  resolveManWu: ((targetId: string | null) => void) | null
   // 天香: 判定前是否弃1张手牌或装备免判
   tianXiangJudgeCard: { name: string; suit: string; number: number } | null
   tianXiangEquipment: Card[]
@@ -178,6 +181,9 @@ interface BattleState {
   // 蝶魂
   confirmDieHun: () => void
   cancelDieHun: () => void
+  // 曼舞: 选择转移目标
+  selectManWuTarget: (targetId: string) => void
+  cancelManWu: () => void
   // 天香
   selectTianXiangCard: (cardId: string | null) => void
   // 驭人: 确认弃牌
@@ -323,6 +329,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveYuRuYi: null,
   dieHunPrompt: null,
   resolveDieHun: null,
+  manWuPrompt: null,
+  resolveManWu: null,
   tianXiangJudgeCard: null,
   tianXiangEquipment: [],
   resolveTianXiang: null,
@@ -392,6 +400,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveYuRuYi: null,
       dieHunPrompt: null,
       resolveDieHun: null,
+      manWuPrompt: null,
+      resolveManWu: null,
       tianXiangJudgeCard: null,
       tianXiangEquipment: [],
       resolveTianXiang: null,
@@ -634,6 +644,20 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         set({ dieHunPrompt: { schemeName } })
         return new Promise<boolean>(resolve => {
           set({ resolveDieHun: resolve })
+        })
+      },
+      manWuHandler: async (game: Game, victim: Player, attacker: Player, damage: number, candidates: Player[]) => {
+        const redHeartCards = victim.getHand().filter((c: Card) => c.suit === 'heart')
+        if (redHeartCards.length === 0) return null
+        set({
+          manWuPrompt: {
+            attackerName: attacker.getName(),
+            damage,
+            candidates: candidates.map((p: Player) => ({ id: p.getId(), name: p.getName() })),
+          },
+        })
+        return new Promise<string | null>(resolve => {
+          set({ resolveManWu: resolve })
         })
       },
       tianXiangHandler: async (game: Game, player: Player, judgeCard: Card) => {
@@ -1387,6 +1411,20 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (!resolveDieHun) return
     resolveDieHun(false)
     set({ resolveDieHun: null, dieHunPrompt: null })
+  },
+
+  // 曼舞: 选择转移目标 / 取消 = 不发动
+  selectManWuTarget: (targetId: string) => {
+    const { resolveManWu } = get()
+    if (!resolveManWu) return
+    resolveManWu(targetId)
+    set({ resolveManWu: null, manWuPrompt: null })
+  },
+  cancelManWu: () => {
+    const { resolveManWu } = get()
+    if (!resolveManWu) return
+    resolveManWu(null)
+    set({ resolveManWu: null, manWuPrompt: null })
   },
 
   // 天香: 选1张手牌弃掉免判 / 取消 = 不发动
