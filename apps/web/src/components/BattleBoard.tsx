@@ -83,6 +83,21 @@ export function BattleBoard() {
   const canPlayKill = game?.canPlayKill ?? false
   const isFullHp = player ? player.currentHp >= player.maxHp : true
 
+  // 校验某张锦囊牌是否当前有合法目标 (用于禁用 探囊/釜底 等需选目标的牌)
+  const hasValidSchemeTarget = (cardName: string): boolean => {
+    if (!game) return true
+    const attacker = game.getPlayer()
+    if (!attacker) return true
+    if (cardName === '探囊取物') {
+      return game.getEnemies(attacker).some(e => e.isAlive() && game.canTanNang(attacker, e))
+    }
+    if (cardName === '釜底抽薪') {
+      return game.getEnemies(attacker).some(e => e.isAlive() &&
+        (e.getHandSize() > 0 || game.collectEquipmentCards(e).length > 0 || e.getJudgeCards().length > 0))
+    }
+    return true
+  }
+
   const playerHero = player?.instance
   const allSkills = player?.hero.skills ?? []
   const allTreasures = [
@@ -632,6 +647,7 @@ export function BattleBoard() {
                     treasureSelectMode={phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'xiaDanPickCard'}
                     selectDualMode={phase === 'selectDualCards'}
                     selectDiscardMode={phase === 'selectDiscardCards'}
+                    hasValidSchemeTarget={hasValidSchemeTarget(card.name)}
                     onPlayKill={playKill}
                     onPlayHeal={playHeal}
                     onEquip={equipCard}

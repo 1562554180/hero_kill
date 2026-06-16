@@ -14,6 +14,7 @@ interface Props {
   treasureSelectMode?: boolean  // 宝具选牌模式: 禁用常规出牌, 由外层div处理点击
   selectDualMode?: boolean  // 芦叶枪选2张手牌模式: 禁用常规出牌, 由外层div处理点击
   selectDiscardMode?: boolean  // 弃牌阶段选牌模式: 禁用常规出牌, 由外层div处理点击
+  hasValidSchemeTarget?: boolean  // 锦囊当前是否有合法目标 (无目标时禁用, 避免点了再提示无效)
   onPlayKill: (cardId: string) => void
   onPlayHeal: (cardId: string) => void
   onEquip: (cardId: string) => void
@@ -33,7 +34,7 @@ const typeColor: Record<string, string> = {
   basic: 'var(--text-light)', scheme: '#64b5f6', equipment: '#81c784'
 }
 
-export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, treasureSelectMode, selectDualMode, selectDiscardMode, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard }: Props) {
+export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, treasureSelectMode, selectDualMode, selectDiscardMode, hasValidSchemeTarget = true, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard }: Props) {
   const isKill = card.name === '杀'
   const isHeal = card.name === '药'
   const isEquip = card.type === 'equipment'
@@ -57,7 +58,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
     (isHeal && !isFullHp) ||
     isEquip ||
     (isSelfTargeted && !!onPlaySchemeSelf) ||
-    (isScheme && !isSelfTargeted && card.name !== '无懈可击' && !!onPlayScheme)
+    (isScheme && !isSelfTargeted && card.name !== '无懈可击' && hasValidSchemeTarget && !!onPlayScheme)
   )
 
   const handleClick = () => {

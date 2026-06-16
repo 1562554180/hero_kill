@@ -131,4 +131,47 @@ describe('无懈可击', () => {
     expect(enemy.getJudgeCards().find(c => c.name === '手捧雷')).toBeDefined()
     vi.restoreAllMocks()
   })
+
+  it('链式: 玩家抵消敌方抵消, 敌方再次抵消 → 原锦囊失效', async () => {
+    // 3轮抵消: 原→敌方(失效)→玩家(恢复)→敌方(再次失效)
+    let playerResponded = false
+    const game = new Game({
+      playerHeroId: 'shang-yang', playerInstance: baseInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+      responseActionHandler: async (_g, p, type) => {
+        if (type === 'nullify') {
+          if (playerResponded) return null
+          playerResponded = true
+          const wx = p.getHand().find(c => c.name === '无懈可击')
+          return wx?.id ?? null
+        }
+        return null
+      },
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    player.drawCards([
+      { id: 's1', suit: 'spade', number: 5, type: 'scheme', name: '探囊取物' },
+      { id: 'p-wx', suit: 'diamond', number: 1, type: 'scheme', name: '无懈可击' },
+    ])
+    enemy.drawCards([
+      { id: 'e1', suit: 'heart', number: 3, type: 'basic', name: '杀' },
+      { id: 'e-wx1', suit: 'club', number: 2, type: 'scheme', name: '无懈可击' },
+      { id: 'e-wx2', suit: 'club', number: 3, type: 'scheme', name: '无懈可击' },
+    ])
+    // AI 在两次被询问时都出无懈可击
+    let callCount = 0
+    vi.spyOn(Math, 'random').mockImplementation(() => {
+      callCount++
+      return callCount <= 2 ? 0.05 : 0.95
+    })
+
+    await game.playerPlayScheme(player, 's1', enemy.getId())
+    // 链: 原→敌方(nullified=true)→玩家(nullified=false)→敌方(nullified=true)
+    // 探囊取物最终被抵消, 玩家没拿到牌
+    expect(player.getHandSize()).toBe(0)  // 探囊取物 + 无懈可击 都用掉
+    expect(enemy.getHandSize()).toBe(1)   // 杀还在 (探囊取物失效)
+    vi.restoreAllMocks()
+  })
 })

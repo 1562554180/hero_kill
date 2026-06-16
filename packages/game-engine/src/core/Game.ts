@@ -1152,22 +1152,34 @@ export class Game {
       ? alivePlayers.indexOf(targetPlayer)
       : (alivePlayers.indexOf(schemePlayer) + 1) % alivePlayers.length
     if (startIdx < 0) return false
-    const ordered = [
-      ...alivePlayers.slice(startIdx),
-      ...alivePlayers.slice(0, startIdx),
-    ]
 
+    // 链式响应: 轮询从目标开始, 每个存活玩家可选择抵消当前 active 卡
+    // - 第一轮 active = 原锦囊, 上一个施法者 = schemePlayer (使用者不能抵消自己的原锦囊)
+    // - 任何玩家出无懈可击后, active 变成那张无懈可击, 上一个施法者变成该玩家
+    // - 跳过上一个施法者 (不能抵消自己的无懈可击)
+    // - 一轮轮询 (所有存活非施法者都放弃) 结束
     let nullified = false
+    let lastActor: Player = schemePlayer
+    let position = startIdx
+    let idleCount = 0  // 连续无反应的玩家数, 达到存活数 - 1 则结束 (因为跳过 lastActor)
 
-    for (let i = 0; i < ordered.length; i++) {
-      const candidate = ordered[i]
-      if (!candidate.isAlive()) continue
-      // 锦囊使用者自己不抵消自己的锦囊
-      if (candidate === schemePlayer) continue
+    while (idleCount < Math.max(1, alivePlayers.length - 1)) {
+      const candidate = alivePlayers[position]
+      // 跳过死亡玩家与上一个施法者 (含初始 schemePlayer)
+      if (!candidate.isAlive() || candidate === lastActor) {
+        position = (position + 1) % alivePlayers.length
+        idleCount++
+        continue
+      }
+
       const wxCard = await this.promptNullifyResponse(candidate, schemePlayer, schemeCard)
-      if (!wxCard) continue
+      if (!wxCard) {
+        position = (position + 1) % alivePlayers.length
+        idleCount++
+        continue
+      }
 
-      this.removeHandCard(candidate,wxCard.id)
+      this.removeHandCard(candidate, wxCard.id)
       this.cardDeck.discard([wxCard])
       this.eventBus.emit({
         type: 'card:play', sourceHeroId: candidate.getId(),
@@ -1180,6 +1192,9 @@ export class Game {
         this.emitSkillTrigger(candidate, '无懈', '摸1张')
       }
       nullified = !nullified
+      lastActor = candidate
+      position = (position + 1) % alivePlayers.length
+      idleCount = 0  // 有人响应, 重置
     }
 
     if (nullified) {
@@ -1983,7 +1998,7 @@ export class Game {
   }
 
   /** 收集目标装备区所有卡牌 */
-  private collectEquipmentCards(target: Player): Card[] {
+  collectEquipmentCards(target: Player): Card[] {
     const result: Card[] = []
     for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
       const c = target.getEquippedCard(slot)
