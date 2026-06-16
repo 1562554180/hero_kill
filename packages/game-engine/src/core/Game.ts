@@ -58,6 +58,8 @@ export interface GameConfig {
   qiangLueHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
   /** 刺客: 出杀指定目标后是否发动 (true=发动判定; false=不发动) */
   ciKeHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
+  /** 蝶魂: 群体锦囊目标是否发动 (true=跳过结算并摸1张; false=走正常逻辑) */
+  dieHunHandler?: (game: Game, target: Player, schemeName: string) => Promise<boolean>
   /** 天香: 判定开始前是否发动 (返回cardId=弃1张手牌免判; null=不发动, 正常判定) */
   tianXiangHandler?: (game: Game, player: Player, judgeCard: Card) => Promise<string | null>
   /** 绝击: AI/玩家 是否发动以及选 (弃武器/null=受1血) + 目标. 返回null=不发动 */
@@ -293,9 +295,23 @@ export class Game {
     return !femaleIds.includes(player.getId())
   }
 
-  /** 蝶魂: 非延时锦囊目标时跳过结算并摸1张, 返回 true 表示跳过 */
-  private checkDieHun(target: Player, schemeName: string): boolean {
+  /** 蝶魂: 群体锦囊(五谷丰登/万箭齐发/烽火狼烟/休养生息)目标时可发动, 跳过结算并摸1张
+   *  - 休养生息仅血量不满时触发
+   *  - 玩家: 询问发动(默认不发动, 以避免静默生效)
+   *  - AI: 默认发动
+   *  返回 true=发动, 跳过本次锦囊效果; false=不发动, 走正常逻辑
+   */
+  private async checkDieHun(target: Player, schemeName: string): Promise<boolean> {
     if (!target.hasSkillOrTreasure('die-hun')) return false
+    const allowed = ['五谷丰登', '万箭齐发', '烽火狼烟', '休养生息']
+    if (!allowed.includes(schemeName)) return false
+    if (schemeName === '休养生息' && target.getCurrentHp() >= target.getMaxHp()) return false
+
+    let trigger = true
+    if (target.getRole() === 'player') {
+      trigger = this.config.dieHunHandler ? await this.config.dieHunHandler(this, target, schemeName) : false
+    }
+    if (!trigger) return false
     const drawn = this.cardDeck.draw(1)
     target.drawCards(drawn)
     this.emitSkillTrigger(target, '蝶魂', `跳过${schemeName}并摸1张`)
@@ -1536,7 +1552,6 @@ export class Game {
         this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-探囊取物失效`)
         return
       }
-      if (this.checkDieHun(target, '探囊取物')) return
       // 选1张牌(手牌/装备/判定)
       let pickedId: string | null = null
       if (this.config.tanNangPickHandler) {
@@ -1571,7 +1586,7 @@ export class Game {
         this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-釜底抽薪失效`)
         return
       }
-      if (target && !this.checkDieHun(target, '釜底抽薪')) {
+      if (target) {
         // 目标无任何牌: 无法使用
         const hasAny = target.getHandSize() > 0 || this.collectEquipmentCards(target).length > 0 || target.getJudgeCards().length > 0
         if (!hasAny) {
@@ -1601,13 +1616,19 @@ export class Game {
       return
     } else if (card.name === '决斗') {
       const target = targetId ? this.players.find(p => p.getId() === targetId) : undefined
-      if (target && target.isAlive() && target.getId() !== player.getId() && this.canBeSchemeTarget(target, card) && !this.checkDieHun(target, '决斗')) {
+      if (target && target.isAlive() && target.getId() !== player.getId() && this.canBeSchemeTarget(target, card)) {
         await this.executeDuel(player, target)
       } else if (target && target.isAlive() && !this.canBeSchemeTarget(target, card)) {
         this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-决斗失效`)
       }
     } else if (card.name === '休养生息') {
       for (const p of this.getAlivePlayers()) {
+        if (!this.canBeSchemeTarget(p, card)) {
+          this.emitSkillTrigger(p, '洞察', `免疫黑桃锦囊-休养生息无效`)
+          continue
+        }
+        // 蝶魂: 血量不满时才可发动 (因为休养生息只给不满血的人加血)
+        if (await this.checkDieHun(p, '休养生息')) continue
         if (p.getCurrentHp() < p.getMaxHp()) {
           const healed = p.heal(1)
           this.eventBus.emit({ type: 'heal', sourceHeroId: p.getId(), data: { amount: healed } })
@@ -1620,11 +1641,11 @@ export class Game {
       if (this.rollSubTreasure(player, 'treasure-lang-yan')) langYanBoost = true
       for (const target of this.getEnemies(player)) {
         if (!target.isAlive()) continue
-        if (this.checkDieHun(target, '烽火狼烟')) continue
         if (!this.canBeSchemeTarget(target, card)) {
           this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-烽火狼烟无效`)
           continue
         }
+        if (await this.checkDieHun(target, '烽火狼烟')) continue
         const killCard = await this.promptResponseKill(target, player.getId(), '烽火狼烟', 1)
         if (killCard) {
           this.removeCardFromPlayer(target, killCard)
@@ -1651,11 +1672,11 @@ export class Game {
       if (this.rollSubTreasure(player, 'treasure-wan-jian')) wanJianBoost = true
       for (const target of this.getEnemies(player)) {
         if (!target.isAlive()) continue
-        if (this.checkDieHun(target, '万箭齐发')) continue
         if (!this.canBeSchemeTarget(target, card)) {
           this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-万箭齐发无效`)
           continue
         }
+        if (await this.checkDieHun(target, '万箭齐发')) continue
         // 玉如意/国色: 受到万箭齐发时也可判定, 红色视为闪
         if (await this.tryYuRuYiDodge(target, '万箭齐发')) continue
         const dodgeCard = await this.promptResponseDodge(target, player.getId(), '万箭齐发')
@@ -1905,9 +1926,15 @@ export class Game {
   private async executeFengHuoLangYan(player: Player): Promise<void> {
     let langYanBoost = false
     if (this.rollSubTreasure(player, 'treasure-lang-yan')) langYanBoost = true
+    // 烽火狼烟 card 引用(用于 canBeSchemeTarget)
+    const fengHuoCard: Card = { id: 'fhly-virtual', suit: 'spade', number: 1, type: 'scheme', name: '烽火狼烟' } as Card
     for (const target of this.getEnemies(player)) {
       if (!target.isAlive()) continue
-      if (this.checkDieHun(target, '烽火狼烟')) continue
+      if (!this.canBeSchemeTarget(target, fengHuoCard)) {
+        this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-烽火狼烟无效`)
+        continue
+      }
+      if (await this.checkDieHun(target, '烽火狼烟')) continue
       const killCard = this.findKillCard(target)
       if (killCard) {
         this.removeHandCard(target,killCard.id)
@@ -2240,6 +2267,9 @@ export class Game {
         this.emitSkillTrigger(p, '洞察', `免疫黑桃锦囊-五谷丰登无效`)
         return
       }
+
+      // 蝶魂: 群体锦囊目标可发动, 跳过拿牌
+      if (await this.checkDieHun(p, '五谷丰登')) return
 
       const virtualCard = { name: '五谷丰登', type: 'scheme' as const, id: 'wugu-virtual', suit: 'heart', number: 1, delayed: false } as Card
       const nullified = await this.checkNullification(player, p, virtualCard)

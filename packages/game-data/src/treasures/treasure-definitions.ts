@@ -21,7 +21,7 @@ export const treasureDefinitions: TreasureDefinition[] = [
   { id: 'treasure-yu-ren', name: '驭人', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '出牌阶段，你可以弃掉任意数量的手牌和装备区的牌，然后立即摸取等量的牌。', baseTriggerRate: 1.0, starLevel: 5 },
   { id: 'treasure-ao-jian', name: '傲剑', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '你可以使用1张红色手牌(或装备)当作【杀】使用。', baseTriggerRate: 1.0, starLevel: 5 },
   { id: 'treasure-xia-dan', name: '侠胆', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '出牌时，可消耗1张手牌与另一名角色拼点。若你赢，本回合可出2张不限距离的【杀】，每张【杀】最多指定2个目标；若你没赢，则本回合不能出【杀】。', baseTriggerRate: 1.0, starLevel: 5 },
-  { id: 'treasure-die-hun', name: '蝶魂', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '当你成为非延时锦囊（如【烽火狼烟】、【万箭齐发】）的目标时，你将跳过结算并摸一张牌。', baseTriggerRate: 1.0, starLevel: 5 },
+  { id: 'treasure-die-hun', name: '蝶魂', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '当你成为群体锦囊(五谷丰登/万箭齐发/烽火狼烟/休养生息)的目标时，可选择发动：跳过结算并摸1张牌。休养生息仅在血量不满时可发动。', baseTriggerRate: 1.0, starLevel: 5 },
   { id: 'treasure-kong-ju', name: '控局', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '你的手牌上限等于当前体力值，且不会因任何原因被弃置或获得。', baseTriggerRate: 1.0, starLevel: 5 },
   { id: 'treasure-she-shen', name: '舍身', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '当你受到伤害后，可以摸两张牌分给任何人。', baseTriggerRate: 1.0, starLevel: 5 },
   { id: 'treasure-miao-ji', name: '妙计', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '当你使用锦囊牌时，可以立即摸一张牌。', baseTriggerRate: 1.0, starLevel: 5 },

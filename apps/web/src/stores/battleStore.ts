@@ -83,6 +83,9 @@ interface BattleState {
   // 玉如意/国色: 受到攻击时是否发动判定
   yuRuYiPrompt: { attackType: string; attackName: string } | null
   resolveYuRuYi: ((use: boolean) => void) | null
+  // 蝶魂: 群体锦囊目标是否发动 (玩家专用)
+  dieHunPrompt: { schemeName: string } | null
+  resolveDieHun: ((use: boolean) => void) | null
   // 天香: 判定前是否弃1张手牌免判
   tianXiangJudgeCard: { name: string; suit: string; number: number } | null
   resolveTianXiang: ((cardId: string | null) => void) | null
@@ -171,6 +174,9 @@ interface BattleState {
   // 玉如意
   confirmYuRuYi: () => void
   cancelYuRuYi: () => void
+  // 蝶魂
+  confirmDieHun: () => void
+  cancelDieHun: () => void
   // 天香
   selectTianXiangCard: (cardId: string | null) => void
   // 驭人: 确认弃牌
@@ -314,6 +320,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveCiKe: null,
   yuRuYiPrompt: null,
   resolveYuRuYi: null,
+  dieHunPrompt: null,
+  resolveDieHun: null,
   tianXiangJudgeCard: null,
   resolveTianXiang: null,
   xiaDanActive: false,
@@ -380,6 +388,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveCiKe: null,
       yuRuYiPrompt: null,
       resolveYuRuYi: null,
+      dieHunPrompt: null,
+      resolveDieHun: null,
       tianXiangJudgeCard: null,
       resolveTianXiang: null,
     })
@@ -615,6 +625,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         set({ yuRuYiPrompt: { attackType: attackName, attackName } })
         return new Promise<boolean>(resolve => {
           set({ resolveYuRuYi: resolve })
+        })
+      },
+      dieHunHandler: async (game: Game, target: Player, schemeName: string) => {
+        set({ dieHunPrompt: { schemeName } })
+        return new Promise<boolean>(resolve => {
+          set({ resolveDieHun: resolve })
         })
       },
       tianXiangHandler: async (game: Game, player: Player, judgeCard: Card) => {
@@ -1352,6 +1368,20 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (!resolveYuRuYi) return
     resolveYuRuYi(false)
     set({ resolveYuRuYi: null, yuRuYiPrompt: null })
+  },
+
+  // 蝶魂: 发动 / 不发动
+  confirmDieHun: () => {
+    const { resolveDieHun } = get()
+    if (!resolveDieHun) return
+    resolveDieHun(true)
+    set({ resolveDieHun: null, dieHunPrompt: null })
+  },
+  cancelDieHun: () => {
+    const { resolveDieHun } = get()
+    if (!resolveDieHun) return
+    resolveDieHun(false)
+    set({ resolveDieHun: null, dieHunPrompt: null })
   },
 
   // 天香: 选1张手牌弃掉免判 / 取消 = 不发动

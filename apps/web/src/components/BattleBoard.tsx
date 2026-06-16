@@ -28,6 +28,7 @@ export function BattleBoard() {
     baWangOptions, selectBaWangMount,
     ciKePrompt, confirmCiKe, cancelCiKe,
     yuRuYiPrompt, confirmYuRuYi, cancelYuRuYi,
+    dieHunPrompt, confirmDieHun, cancelDieHun,
     tianXiangJudgeCard, selectTianXiangCard,
     lastJudgeResult,
   } = useBattleStore()
@@ -688,6 +689,23 @@ export function BattleBoard() {
               <div style={{ display: 'flex', gap: '6px' }}>
                 <button style={{ fontSize: '12px' }} onClick={cancelYuRuYi}>不用</button>
                 <button className="primary" style={{ fontSize: '12px' }} onClick={confirmYuRuYi}>发动</button>
+              </div>
+            </div>
+          )}
+
+          {/* 蝶魂提示: 群体锦囊目标是否发动 (跳过结算并摸1张) */}
+          {dieHunPrompt && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(186,153,255,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(186,153,255,0.3)',
+              color: '#ba99ff', fontSize: '13px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+            }}>
+              <span>🦋 蝶魂 — 受到群体锦囊【{dieHunPrompt.schemeName}】, 是否发动? (跳过结算并摸1张牌)</span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button style={{ fontSize: '12px' }} onClick={cancelDieHun}>不发动</button>
+                <button className="primary" style={{ fontSize: '12px' }} onClick={confirmDieHun}>发动</button>
               </div>
             </div>
           )}
