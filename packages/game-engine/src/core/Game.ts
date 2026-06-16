@@ -127,6 +127,26 @@ export class Game {
     return player.hasSkillOrTreasure('hong-zhuang') && suit === 'spade'
   }
 
+  /**
+   * 统一判定处理: 自动处理天香(可跳过)和红妆(黑桃→红桃)
+   * - 先检查天香, 发动则跳过判定
+   * - 判定结果自动应用红妆转换
+   * - 返回: { skipped: boolean; suit: Suit; number: number }
+   *
+   * 所有新增判定技能都应调用此方法, 只需关注红/黑结果的业务逻辑
+   */
+  async judgeWithSkills(
+    player: Player,
+    reason: string,
+  ): Promise<{ skipped: boolean; suit: Suit; number: number }> {
+    // 构造虚拟判定牌供天香使用
+    const judgeCard = { name: reason, type: 'skill' as const, suit: 'spade' as const, number: 1, id: `skill-${reason}-${Date.now()}` } as unknown as Card
+    const skipped = await this.promptTianXiang(player, judgeCard)
+    if (skipped) return { skipped: true, suit: 'spade', number: 1 }
+    const j = await this.judge(player, reason)
+    return { skipped: false, suit: j.suit, number: j.card.number }
+  }
+
   constructor(private config: GameConfig) {
     this.id = `game-${Date.now()}`
     this.eventBus = new EventBus()
@@ -796,16 +816,12 @@ export class Game {
         trigger = true
       }
       if (trigger) {
-        // 天香: 刺客判定前可弃牌免判
-        const ciKeCard = { name: '刺客', type: 'skill' as const, suit: 'spade' as const, number: 1, id: `skill-ciKe-${Date.now()}` } as unknown as Card
-        const tianXiangSkipped = await this.promptTianXiang(attacker, ciKeCard)
-        if (!tianXiangSkipped) {
-          const j = await this.judge(attacker, '刺客')
-          // 红妆: 黑桃视为红桃
-          const isRed = isRedSuit(j.suit) || this.isEffectivelyHeart(j.suit, attacker)
+        const result = await this.judgeWithSkills(attacker, '刺客')
+        if (!result.skipped) {
+          const isRed = this.isEffectivelyHeart(result.suit, attacker)
           if (isRed) {
             assassinNoDodge = true
-            this.emitSkillTrigger(attacker, '刺客', `红色-${this.isEffectivelyHeart(j.suit, attacker) && j.suit === 'spade' ? '(红妆)' : ''}不可被闪`)
+            this.emitSkillTrigger(attacker, '刺客', `红色不可被闪`)
           } else {
             assassinDiscard = true
           }
@@ -983,19 +999,14 @@ export class Game {
           trigger = defender.getHandSize() + this.collectEquipmentCards(defender).length + defender.getJudgeCards().length > 0
         }
         if (trigger) {
-          // 天香: 强掠判定前可弃牌免判
-          const qiangLueCard = { name: '强掠', type: 'skill' as const, suit: 'spade' as const, number: 1, id: `skill-qiangLue-${Date.now()}` } as unknown as Card
-          if (await this.promptTianXiang(attacker, qiangLueCard)) {
-            // 天香免判强掠 → 不抽牌
-          } else {
-            const j = await this.judge(attacker, '强掠')
-            // 红妆: 黑桃视为红桃 → 不再是黑色, 强掠失效
-            const isBlack = isBlackSuit(j.suit) && !this.isEffectivelyHeart(j.suit, attacker)
+          const result = await this.judgeWithSkills(attacker, '强掠')
+          if (!result.skipped) {
+            const isBlack = isBlackSuit(result.suit)
             if (isBlack) {
               this.stealRandomCard(defender, attacker)
               this.emitSkillTrigger(attacker, '强掠', '抽对方一张牌')
             } else {
-              this.emitSkillTrigger(attacker, '强掠', `判定非黑${this.isEffectivelyHeart(j.suit, attacker) && j.suit === 'spade' ? '(红妆)' : ''}-失效`)
+              this.emitSkillTrigger(attacker, '强掠', '判定非黑-失效')
             }
           }
         }
@@ -1104,18 +1115,19 @@ export class Game {
 
     // 复仇: 判定，非红桃则来源受1伤或弃2牌
     if (victim.hasSkillOrTreasure('fu-chou') && attacker.isAlive()) {
-      const j = await this.judge(victim, '复仇')
-      // 红妆: 黑桃视为红桃 → 不触发复仇
-      if (!this.isEffectivelyHeart(j.suit, victim)) {
-        // 简化：直接造成1点伤害
-        const dmg = attacker.takeDamage(1)
-        this.emitSkillTrigger(victim, '复仇', `判定${j.card.name}-来源受到1点伤害`)
-        this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
-        if (!attacker.isAlive()) {
-          this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
+      const result = await this.judgeWithSkills(victim, '复仇')
+      if (!result.skipped) {
+        const isHeart = this.isEffectivelyHeart(result.suit, victim)
+        if (!isHeart) {
+          const dmg = attacker.takeDamage(1)
+          this.emitSkillTrigger(victim, '复仇', `判定非红桃-来源受到1点伤害`)
+          this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
+          if (!attacker.isAlive()) {
+            this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
+          }
+        } else {
+          this.emitSkillTrigger(victim, '复仇', '判定红桃-失效')
         }
-      } else {
-        this.emitSkillTrigger(victim, '复仇', `判定${j.card.name}-${j.suit === 'spade' ? '(红妆)' : ''}失效`)
       }
     }
 
@@ -1235,20 +1247,14 @@ export class Game {
       this.emitSkillTrigger(defender, srcName, '选择不使用')
       return false
     }
-    // 天香: 玉如意判定前可弃牌免判
-    const yuRuYiCard = { name: '玉如意', type: 'skill' as const, suit: 'spade' as const, number: 1, id: `skill-yuRuYi-${Date.now()}` } as unknown as Card
-    if (await this.promptTianXiang(defender, yuRuYiCard)) {
-      // 天香免判玉如意 → 直接视为未闪
-      return false
-    }
-    const j = await this.judge(defender, '玉如意')
-    // 红妆: 黑桃视为红桃 → 同样视为闪
-    const isRed = isRedSuit(j.suit) || this.isEffectivelyHeart(j.suit, defender)
+    const result = await this.judgeWithSkills(defender, '玉如意')
+    if (result.skipped) return false
+    const isRed = this.isEffectivelyHeart(result.suit, defender)
     if (isRed) {
-      this.emitSkillTrigger(defender, srcName, `玉如意判定${j.card.name}${this.isEffectivelyHeart(j.suit, defender) && j.suit === 'spade' ? '(红妆)' : ''}-视为闪`)
+      this.emitSkillTrigger(defender, srcName, '玉如意判定-视为闪')
       return true
     }
-    this.emitSkillTrigger(defender, srcName, `玉如意判定${j.card.name}-失效`)
+    this.emitSkillTrigger(defender, srcName, '玉如意判定-失效')
     return false
   }
 
