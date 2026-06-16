@@ -54,6 +54,8 @@ export interface GameConfig {
   discardPickHandler?: (game: Game, player: Player, handCards: Card[], discardCount: number) => Promise<string[]>
   /** 霸王弓: 选拆哪匹马, 返回 'attackMount' | 'defenseMount' | null */
   baWangMountHandler?: (game: Game, attacker: Player, defender: Player, mountOptions: { attackMount: Card | null; defenseMount: Card | null }) => Promise<'attackMount' | 'defenseMount' | null>
+  /** 强掠: 杀被闪后是否要发动 (true=发动判定; false=不发动) */
+  qiangLueHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
 }
 
 export class Game {
@@ -600,6 +602,63 @@ export class Game {
         }
       }
     }
+
+    // 锦囊: AI主动使用
+    const enemies = this.getEnemies(player).filter(e => e.isAlive())
+    const hand2 = player.getHand()
+
+    // 1) 自身锦囊: 手牌少时用无中生有/休养生息
+    const selfCard = hand2.find((c: Card) => c.name === '无中生有' || c.name === '休养生息')
+    if (selfCard && hand2.length <= 3) {
+      await this.playerPlayScheme(player, selfCard.id)
+      if (!player.isAlive() || this.isOver) return
+    }
+
+    if (enemies.length > 0) {
+      // 2) 探囊取物: 距离内有牌的目标
+      const tn = player.getHand().find((c: Card) => c.name === '探囊取物')
+      if (tn) {
+        const target = enemies.find(e => this.canTanNang(player, e))
+        if (target) {
+          await this.playerPlayScheme(player, tn.id, target.getId())
+          if (!player.isAlive() || this.isOver) return
+        }
+      }
+
+      // 3) 釜底抽薪: 选手牌最多的目标
+      const fudi = player.getHand().find((c: Card) => c.name === '釜底抽薪')
+      if (fudi) {
+        const target = [...enemies].sort((a, b) => b.getHandSize() - a.getHandSize())[0]
+        if (target && target.getHandSize() > 0) {
+          await this.playerPlayScheme(player, fudi.id, target.getId())
+          if (!player.isAlive() || this.isOver) return
+        }
+      }
+
+      // 4) 决斗: 对手牌少且没杀的目标
+      const duel = player.getHand().find((c: Card) => c.name === '决斗')
+      if (duel) {
+        const target = [...enemies]
+          .filter(e => !this.findKillCard(e) || e.getHandSize() <= 1)
+          .sort((a, b) => a.getHandSize() - b.getHandSize())[0]
+        if (target) {
+          await this.playerPlayScheme(player, duel.id, target.getId())
+          if (!player.isAlive() || this.isOver) return
+        }
+      }
+    }
+
+    // 5) AOE锦囊: 多敌人才用
+    if (enemies.length >= 2) {
+      const aoeOrder = ['万箭齐发', '南蛮入侵', '烽火狼烟', '五谷丰登']
+      for (const name of aoeOrder) {
+        const aoe = player.getHand().find((c: Card) => c.name === name)
+        if (!aoe) continue
+        await this.playerPlayScheme(player, aoe.id)
+        if (!player.isAlive() || this.isOver) return
+        break
+      }
+    }
   }
 
   // --- Kill execution ---
@@ -837,12 +896,23 @@ export class Game {
         }
       }
     } else {
-      // 强掠: 杀被闪后判定，黑色抽对方一张
-      if (attacker.hasSkillOrTreasure('qiang-lue')) {
-        const j = await this.judge(attacker, '强掠')
-        if (isBlackSuit(j.suit)) {
-          this.stealRandomCard(defender, attacker)
-          this.emitSkillTrigger(attacker, '强掠', '抽对方一张牌')
+      // 强掠: 杀被闪后询问是否发动 → 判定，黑色抽对方一张
+      if (attacker.hasSkillOrTreasure('qiang-lue') && attacker.isAlive() && defender.isAlive()) {
+        let trigger = false
+        if (attacker.getRole() === 'player' && this.config.qiangLueHandler) {
+          trigger = await this.config.qiangLueHandler(this, attacker, defender)
+        } else if (attacker.getRole() !== 'player') {
+          // AI: 有手牌可抽才发动
+          trigger = defender.getHandSize() + this.collectEquipmentCards(defender).length + defender.getJudgeCards().length > 0
+        }
+        if (trigger) {
+          const j = await this.judge(attacker, '强掠')
+          if (isBlackSuit(j.suit)) {
+            this.stealRandomCard(defender, attacker)
+            this.emitSkillTrigger(attacker, '强掠', '抽对方一张牌')
+          } else {
+            this.emitSkillTrigger(attacker, '强掠', '判定非黑-失效')
+          }
         }
       }
       // 博浪锤: 杀被闪避后, 攻击方可弃2张手牌强制命中 (掉1血)
@@ -1922,13 +1992,12 @@ export class Game {
     return result
   }
 
-  /** 探囊取物: 是否可对目标使用 (基础1+进攻马, 防御马算入有效距离; 目标至少有一张牌) */
+  /** 探囊取物: 是否可对目标使用 (基础1+进攻马+骑射/单骑, 防御马算入有效距离; 目标至少有一张牌) */
   canTanNang(player: Player, target: Player): boolean {
     if (!target.isAlive() || target.getId() === player.getId()) return false
     const effectiveDistance = this.getEffectiveDistance(player, target)
-    let range = 1
-    if (player.getEquippedCard('attackMount')) range += 1
-    if (effectiveDistance > range || range <= 0) return false
+    const range = player.getAttackRange()
+    if (range <= 0 || effectiveDistance > range) return false
     if (target.getHandSize() === 0 && this.collectEquipmentCards(target).length === 0 && target.getJudgeCards().length === 0) {
       return false
     }
