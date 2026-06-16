@@ -1365,7 +1365,7 @@ export class Game {
     this.lastPlayedCardName = effectiveCard.name
     if (usedAsSkill) this.emitSkillTrigger(player, '魅惑', `${card.name}当画地为牢`)
 
-    // 延时锦囊：放到目标判定区
+    // 延时锦囊：放到目标判定区 (使用时不支持无懈可击, 判定前才响应)
     if ((effectiveCard as any).delayed) {
       if (effectiveCard.name === '手捧雷') {
         const hasThunder = player.getJudgeCards().some(c => c.name === '手捧雷')

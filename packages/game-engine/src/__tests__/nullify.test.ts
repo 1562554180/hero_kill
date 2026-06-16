@@ -88,7 +88,8 @@ describe('无懈可击', () => {
     vi.restoreAllMocks()
   })
 
-  it('画地为牢被抵消 → 不放置', async () => {
+  it('画地为牢: 使用时不支持抵消, 直接放判定区', async () => {
+    // 延时锦囊在 play 阶段不支持无懈可击, 判定前才响应
     const game = new Game({
       playerHeroId: 'shang-yang', playerInstance: baseInstance,
       allyHeroIds: [], enemyHeroIds: ['han-xin'],
@@ -102,14 +103,12 @@ describe('无懈可击', () => {
     enemy.drawCards([
       { id: 'wx1', suit: 'diamond', number: 7, type: 'scheme', name: '无懈可击' },
     ])
-    vi.spyOn(Math, 'random').mockReturnValue(0.1)
-
+    // 即便敌方有 无懈可击, play 阶段画地为牢也应直接放置 (判定阶段才响应)
     await game.playerPlayScheme(player, 'hd1', enemy.getId())
-    expect(enemy.getJudgeCards().length).toBe(0)
-    vi.restoreAllMocks()
+    expect(enemy.getJudgeCards().length).toBe(1)
   })
 
-  it('手捧雷被抵消 → 顺延到下一个玩家', async () => {
+  it('手捧雷: 使用时不支持抵消, 直接放判定区', async () => {
     const game = new Game({
       playerHeroId: 'shang-yang', playerInstance: baseInstance,
       allyHeroIds: [], enemyHeroIds: ['han-xin'],
@@ -123,12 +122,48 @@ describe('无懈可击', () => {
     enemy.drawCards([
       { id: 'wx1', suit: 'diamond', number: 7, type: 'scheme', name: '无懈可击' },
     ])
-    vi.spyOn(Math, 'random').mockReturnValue(0.1)
-
     await game.playerPlayScheme(player, 't1')
-    // 被抵消后顺延: 玩家无雷, 敌方有雷
-    expect(player.getJudgeCards().length).toBe(0)
-    expect(enemy.getJudgeCards().find(c => c.name === '手捧雷')).toBeDefined()
+    // play 阶段不支持无懈可击, 雷直接放到自己判定区
+    expect(player.getJudgeCards().find(c => c.name === '手捧雷')).toBeDefined()
+  })
+
+  it('画地为牢: 判定阶段链式响应 - 玩家抵消敌方抵消, 画地为牢生效', async () => {
+    // 玩家出 画地为牢 放到敌方判定区
+    // 进入敌方判定阶段: 敌方先出无懈可击 → 玩家出无懈可击 → 画地为牢继续判定
+    let playerUsedWx = false
+    const game = new Game({
+      playerHeroId: 'shang-yang', playerInstance: baseInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+      responseActionHandler: async (_g, p, type) => {
+        if (type === 'nullify' && p.getRole() === 'player' && !playerUsedWx) {
+          playerUsedWx = true
+          const wx = p.getHand().find(c => c.name === '无懈可击')
+          return wx?.id ?? null
+        }
+        return null
+      },
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    player.drawCards([
+      { id: 'hd1', suit: 'heart', number: 5, type: 'scheme', name: '画地为牢', delayed: true } as any,
+      { id: 'p-wx', suit: 'diamond', number: 1, type: 'scheme', name: '无懈可击' },
+    ])
+    enemy.drawCards([
+      { id: 'e-wx', suit: 'club', number: 2, type: 'scheme', name: '无懈可击' },
+    ])
+    vi.spyOn(Math, 'random').mockReturnValue(0.1)  // 敌方AI会出无懈可击
+
+    // 玩家出画地为牢: 放到敌方判定区 (play阶段不响应)
+    await game.playerPlayScheme(player, 'hd1', enemy.getId())
+    expect(enemy.getJudgeCards().find(c => c.name === '画地为牢')).toBeDefined()
+
+    // 模拟进入敌方判定阶段, 手动调用 checkJudgeNullify
+    const fromPlayer = player
+    const judgeNullified = await game.checkJudgeNullify(enemy, '画地为牢', fromPlayer)
+    // 敌方先出无懈可击(true)→ 玩家再出(false) → 最终未被抵消
+    expect(judgeNullified).toBe(false)
     vi.restoreAllMocks()
   })
 
