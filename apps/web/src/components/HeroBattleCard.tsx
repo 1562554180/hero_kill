@@ -1,5 +1,5 @@
-import type { BattleHero, EquipmentSlot, Card } from '@hero-legend/shared-types'
-import { isRedSuit, isBlackSuit } from '@hero-legend/shared-types'
+import type { BattleHero, Card } from '@hero-legend/shared-types'
+import { isRedSuit } from '@hero-legend/shared-types'
 import { useBattleStore } from '../stores/battleStore'
 
 interface Props {
@@ -12,12 +12,13 @@ interface Props {
   canPlayKill?: boolean
   onEquipAsKill?: (cardId: string) => void
   hasHongZhuang?: boolean
-  treasureSelectEquipment?: boolean
-  onPickEquipment?: (cardId: string) => void
 }
 
 export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang }: Props) {
   const game = useBattleStore(s => s.game)
+  const phase = useBattleStore(s => s.phase)
+  const treasureSkill = useBattleStore(s => s.treasureSkill)
+  const pickTreasureCard = useBattleStore(s => s.pickTreasureCard)
   const { hero: config, currentHp, maxHp, role, instance } = hero
   const hpPercent = (currentHp / maxHp) * 100
   const hpColor = hpPercent > 60 ? '#4caf50' : hpPercent > 30 ? '#ff9800' : '#f44336'
@@ -123,7 +124,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         </span>
       </div>
 
-      {/* 装备区: 只显示图标, hover 显示名称 */}
+      {/* 装备区: 只显示图标, hover 显示名称+描述; 交互状态下高亮可点击 */}
       {(() => {
         const p = game?.getPlayerById(hero.hero.id)
         const slots: { slot: 'weapon' | 'armor' | 'attackMount' | 'defenseMount' }[] = [
@@ -132,6 +133,9 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
           { slot: 'attackMount' },
           { slot: 'defenseMount' },
         ]
+        const isSelectingEquipment = phase === 'treasureSelectEquipment' || (treasureSkill === 'yu-ren' && phase === 'treasureSelectCard')
+        const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
+        const isJueJiWeaponPick = treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon'
         return (
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px', fontSize: '10px' }}>
             <span style={{ color: 'var(--text-muted)' }}>手牌: {hero.handCards.length}</span>
@@ -140,16 +144,56 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
               if (!id) return null
               const card = p?.getEquippedCard(s.slot)
               const name = card?.name ?? '???'
+              const desc = (card as any)?.description ?? ''
               const icon = (card as any)?.icon ?? '⚙'
+              const isRed = !!card && isRedSuit(card.suit)
+              // 傲剑: 红色武器当杀
+              const canActivate = s.slot === 'weapon' && aoJianActive && isRed && !!canPlayKill && !!card
+              // 绝击: 选武器
+              const isJueJiThis = isJueJiWeaponPick && s.slot === 'weapon' && !!card
+              // 驭人/烽火: 选装备
+              const isPickingEquip = isSelectingEquipment && !!card
+              const defaultColor = s.slot === 'weapon' ? '#ff8a65' : s.slot === 'armor' ? '#90caf9' : '#a5d6a7'
+              const activeColor = isYuRen ? '#b8860b' : '#ff9800'
+              const color = canActivate ? '#e57373' : isJueJiThis ? '#ff5722' : isPickingEquip ? activeColor : defaultColor
+              const handleClick = canActivate
+                ? () => onEquipAsKill?.(card!.id)
+                : isJueJiThis
+                  ? () => {
+                      const { game: g, treasureTargetIds } = useBattleStore.getState()
+                      const player = g!.getPlayer()!
+                      g!.playerJueJi(player, card!.id, treasureTargetIds[0])
+                      useBattleStore.setState({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureCardIds: [], treasureTargetIds: [], gameState: g!.getState(), playerHand: player.getHand() })
+                    }
+                  : isPickingEquip ? () => card && pickTreasureCard(card.id) : undefined
+              const isHighlighted = canActivate || isJueJiThis || isPickingEquip
+              const hoverText = canActivate
+                ? `点击 ${name} 当杀使用`
+                : isYuRen
+                  ? `点击 ${name} 加入驭人弃牌`
+                  : isJueJiThis
+                    ? `点击弃置${name}触发绝击`
+                    : isPickingEquip
+                      ? `点击弃置${name}`
+                      : `${name} - ${desc}`
               return (
-                <span key={s.slot} title={name} style={{
-                  color: 'var(--text-gold)',
-                  background: 'rgba(184,134,11,0.12)',
-                  border: '1px solid rgba(184,134,11,0.3)',
-                  padding: '1px 5px', borderRadius: '3px',
-                  fontSize: '14px',
-                  lineHeight: '1',
-                }}>
+                <span
+                  key={s.slot}
+                  title={hoverText}
+                  onClick={handleClick}
+                  style={{
+                    color,
+                    background: `${color}22`,
+                    border: `1px solid ${color}55`,
+                    padding: '1px 5px',
+                    borderRadius: '3px',
+                    fontSize: '14px',
+                    lineHeight: '1',
+                    cursor: handleClick ? 'pointer' : 'help',
+                    fontWeight: isHighlighted ? 'bold' : 'normal',
+                    boxShadow: canActivate ? '0 0 4px rgba(229,115,115,0.6)' : isJueJiThis ? '0 0 4px rgba(255,87,34,0.6)' : isPickingEquip ? (isYuRen ? '0 0 4px rgba(255,215,0,0.6)' : '0 0 4px rgba(255,152,0,0.6)') : 'none',
+                  }}
+                >
                   {icon}
                 </span>
               )
@@ -180,15 +224,6 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
           })}
         </div>
       )}
-      {/* 装备名称标签 */}
-      {(hero.equipment.weapon || hero.equipment.armor || hero.equipment.attackMount || hero.equipment.defenseMount) && (
-        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
-          {hero.equipment.weapon && <EquipTag heroId={hero.hero.id} slot="weapon" fallbackId={hero.equipment.weapon} aoJianActive={aoJianActive} canPlayKill={canPlayKill} onUseAsKill={() => onEquipAsKill?.(hero.equipment.weapon!)} />}
-          {hero.equipment.armor && <EquipTag heroId={hero.hero.id} slot="armor" fallbackId={hero.equipment.armor} aoJianActive={aoJianActive} canPlayKill={canPlayKill} onUseAsKill={() => onEquipAsKill?.(hero.equipment.armor!)} />}
-          {hero.equipment.attackMount && <EquipTag heroId={hero.hero.id} slot="attackMount" fallbackId={hero.equipment.attackMount} aoJianActive={aoJianActive} canPlayKill={canPlayKill} onUseAsKill={() => onEquipAsKill?.(hero.equipment.attackMount!)} />}
-          {hero.equipment.defenseMount && <EquipTag heroId={hero.hero.id} slot="defenseMount" fallbackId={hero.equipment.defenseMount} aoJianActive={aoJianActive} canPlayKill={canPlayKill} onUseAsKill={() => onEquipAsKill?.(hero.equipment.defenseMount!)} />}
-        </div>
-      )}
 
       {currentHp <= 0 && (
         <div style={{
@@ -197,53 +232,5 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         }}>阵亡</div>
       )}
     </div>
-  )
-}
-
-function EquipTag({ heroId, slot, fallbackId, aoJianActive, canPlayKill, onUseAsKill }: {
-  heroId: string; slot: EquipmentSlot; fallbackId: string
-  aoJianActive?: boolean; canPlayKill?: boolean; onUseAsKill?: () => void
-}) {
-  const phase = useBattleStore(s => s.phase)
-  const treasureSkill = useBattleStore(s => s.treasureSkill)
-  const card = useBattleStore(s => s.equippedCards[heroId]?.[slot])
-  const pickTreasureCard = useBattleStore(s => s.pickTreasureCard)
-  const icon = (card as any)?.icon ?? '⚙'
-  const name = card?.name ?? '装备'
-  const desc = (card as any)?.description ?? ''
-  const isRed = card && isRedSuit(card.suit)
-  const canActivate = aoJianActive && isRed && canPlayKill
-  const isSelectingEquipment = phase === 'treasureSelectEquipment' || (treasureSkill === 'yu-ren' && phase === 'treasureSelectCard')
-  const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
-  const isJueJiWeaponPick = treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon' && slot === 'weapon' && !!card
-  const defaultColor = slot === 'weapon' ? '#ff8a65' : slot === 'armor' ? '#90caf9' : '#a5d6a7'
-  const color = canActivate ? '#e57373' : isJueJiWeaponPick ? '#ff5722' : isSelectingEquipment ? (isYuRen ? '#b8860b' : '#ff9800') : defaultColor
-  const handleClick = canActivate
-    ? onUseAsKill
-    : isJueJiWeaponPick
-      ? () => {
-          const { game, treasureTargetIds } = useBattleStore.getState()
-          const player = game!.getPlayer()!
-          game!.playerJueJi(player, card!.id, treasureTargetIds[0])
-          useBattleStore.setState({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureCardIds: [], treasureTargetIds: [], gameState: game!.getState(), playerHand: player.getHand() })
-        }
-      : isSelectingEquipment ? () => card && pickTreasureCard(card.id) : undefined
-  const isHighlighted = canActivate || isSelectingEquipment || isJueJiWeaponPick
-  return (
-    <span
-      title={canActivate ? `点击 ${name} 当杀使用` : isYuRen ? `点击 ${name} 加入驭人弃牌` : isJueJiWeaponPick ? `点击弃置${name}触发绝击` : isSelectingEquipment ? `点击弃置${name}` : desc}
-      onClick={handleClick}
-      style={{
-        fontSize: '14px', color, lineHeight: '1',
-        background: `${color}22`,
-        padding: '1px 5px', borderRadius: '3px',
-        border: `1px solid ${canActivate ? '#e57373' : isJueJiWeaponPick ? '#ff5722' : isSelectingEquipment ? (isYuRen ? '#b8860b' : '#ff9800') : `${defaultColor}55`}`,
-        boxShadow: canActivate ? '0 0 4px rgba(229,115,115,0.6)' : isJueJiWeaponPick ? '0 0 4px rgba(255,87,34,0.6)' : isSelectingEquipment ? (isYuRen ? '0 0 4px rgba(255,215,0,0.6)' : '0 0 4px rgba(255,152,0,0.6)') : 'none',
-        cursor: handleClick ? 'pointer' : 'default',
-        fontWeight: isHighlighted ? 'bold' : 'normal',
-      }}
-    >
-      {icon}
-    </span>
   )
 }
