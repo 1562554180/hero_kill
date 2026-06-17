@@ -1344,7 +1344,6 @@ export class Game {
    */
   async promptManWu(victim: Player, attacker: Player, damage: number): Promise<boolean> {
     if (!victim.hasSkillOrTreasure('man-wu')) return false
-    if (!victim.useSkill('man-wu')) return false  // 已用本回合
     const hand = victim.getHand()
     // 找可弃的手牌: 红桃始终可用; 黑桃在红妆时也可当红桃用
     const selectableCards = hand.filter(c => c.suit === 'heart' || (victim.hasSkillOrTreasure('hong-zhuang') && c.suit === 'spade'))
