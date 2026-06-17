@@ -1375,8 +1375,8 @@ export class Game {
     const actualDamage = target.takeDamage(damage)
     this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: target.getId(), data: { damage } })
     this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: attacker.getId() } })
-    // 目标摸X张牌, X=受害者损失的血量 (最多maxHp-1, victim alive 时自然满足)
-    const hpLoss = victim.getMaxHp() - victim.getCurrentHp()
+    // 目标摸X张牌, X=目标(被转移者)损失的血量 (target alive 时自然 ≤ maxHp-1)
+    const hpLoss = target.getMaxHp() - target.getCurrentHp()
     if (hpLoss > 0) {
       const drawn = this.cardDeck.draw(hpLoss)
       target.drawCards(drawn)
