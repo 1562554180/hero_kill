@@ -43,10 +43,18 @@ export class DiscardPhase extends Phase {
       }
 
       if (discarded.length > 0) {
+        const suitMap: Record<string, string> = { heart: '♥', diamond: '♦', spade: '♠', club: '♣' }
+        const numMap: Record<number, string> = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' }
+        const cardDescs = discarded.map(c => `${suitMap[c.suit] ?? c.suit}${numMap[c.number] ?? c.number}${c.name}`)
         eventBus.emit({
           type: 'card:discard',
           sourceHeroId: player.getId(),
-          data: { cards: discarded.map(c => c.id) },
+          data: {
+            cards: discarded.map(c => c.id),
+            cardDescs,
+            count: discarded.length,
+            reason: '弃牌阶段',
+          },
         })
         actions.push({ type: 'discard', data: { heroId: player.getId(), cards: discarded.map(c => c.id) } })
       }

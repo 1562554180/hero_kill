@@ -230,7 +230,15 @@ function eventToLog(event: GameEvent, game: Game): string | null {
     }
     case 'equipment:equip': return `${src} 装备了装备`
     case 'card:draw': return null // too noisy
-    case 'card:discard': return null
+    case 'card:discard': {
+      const cardDescs = (event.data as any)?.cardDescs as string[] | undefined
+      const count = (event.data as any)?.count
+      const reason = (event.data as any)?.reason
+      if (cardDescs && cardDescs.length > 0) {
+        return `${src} 弃了 ${count ?? cardDescs.length} 张牌: ${cardDescs.join('、')}${reason ? ` (${reason})` : ''}`
+      }
+      return null
+    }
     case 'card:gain': {
       const cardName = (event.data as any)?.cardName
       const from = (event.data as any)?.from
