@@ -1273,7 +1273,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     // 注: 侠胆不走 pickTreasureCard, 它先选目标再选自己手牌
   },
 
-  pickTreasureTarget: (targetId) => {
+  pickTreasureTarget: async (targetId) => {
     const { treasureSkill, treasureCardIds, treasureTargetIds, game, xiaDanActive } = get()
     if (!treasureSkill && !xiaDanActive) return
     const player = game!.getPlayer()!
@@ -1291,7 +1291,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       if (hasHandWeapon || hasEquippedWeapon) {
         set({ treasureTargetIds: [targetId], phase: 'treasureSelectWeapon', treasurePrompt: '【绝击】选择装备区或手牌里的武器弃置, 或点"受1血"直接执行' })
       } else {
-        game!.playerJueJi(player, null, targetId)
+        await game!.playerJueJi(player, null, targetId)
         set({ treasureSkill: null, treasurePrompt: '', phase: 'playing', gameState: game!.getState(), playerHand: player.getHand() })
       }
     } else if (xiaDanActive) {

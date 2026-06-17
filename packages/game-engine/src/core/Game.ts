@@ -697,7 +697,7 @@ export class Game {
           }
         }
         if (choice) {
-          this.playerJueJi(player, choice.weaponCardId, choice.targetId)
+          await this.playerJueJi(player, choice.weaponCardId, choice.targetId)
           if (!player.isAlive() || this.isOver) return
         }
       }
@@ -2168,7 +2168,7 @@ export class Game {
   }
 
   /** 绝击: 弃1张武器牌 (装备区或手牌) 或受1点伤害, 令攻击范围内1名角色受1点伤害 (每回合限1次) */
-  playerJueJi(player: Player, weaponCardId: string | null, targetId: string): void {
+  async playerJueJi(player: Player, weaponCardId: string | null, targetId: string): Promise<void> {
     if (!player.hasSkillOrTreasure('jue-ji')) return
     if (!player.useSkill('jue-ji')) return
     const target = this.getPlayerById(targetId)
@@ -2196,13 +2196,18 @@ export class Game {
         return
       }
     }
-    target.takeDamage(1)
-    this.eventBus.emit({ type: 'damage:deal', sourceHeroId: player.getId(), targetHeroId: target.getId(), data: { damage: 1 } })
-    this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage: 1, from: player.getId() } })
-    if (!target.isAlive()) {
-      this.eventBus.emit({ type: 'die', sourceHeroId: target.getId(), data: { killedBy: player.getId() } })
+    // 曼舞: 目标有曼舞可转移绝击伤害
+    if (await this.promptManWu(target, player, 1)) {
+      // 伤害已转移
+    } else {
+      target.takeDamage(1)
+      this.eventBus.emit({ type: 'damage:deal', sourceHeroId: player.getId(), targetHeroId: target.getId(), data: { damage: 1 } })
+      this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage: 1, from: player.getId() } })
+      if (!target.isAlive()) {
+        this.eventBus.emit({ type: 'die', sourceHeroId: target.getId(), data: { killedBy: player.getId() } })
+      }
+      this.emitSkillTrigger(player, '绝击', `${target.getName()}受1伤害`)
     }
-    this.emitSkillTrigger(player, '绝击', `${target.getName()}受1伤害`)
   }
 
   /** 判断目标是否在攻击者的攻击范围内 */
