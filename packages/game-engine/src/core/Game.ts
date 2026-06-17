@@ -1330,16 +1330,17 @@ export class Game {
     let cardId: string | null = null
     let targetId: string | null = null
     if (victim.getRole() === 'player') {
-      // 玩家: 先选红桃手牌弃掉
-      if (this.config.manWuPickCardHandler) {
-        cardId = await this.config.manWuPickCardHandler(this, victim)
-      }
-      if (!cardId) return false
-      // 再选转移目标
+      // 玩家: 先选转移目标
       if (this.config.manWuHandler) {
         const candidates = this.getAlivePlayers().filter(p => p.getId() !== victim.getId())
         targetId = await this.config.manWuHandler(this, victim, attacker, damage, candidates)
       }
+      if (!targetId) return false
+      // 再选红桃手牌弃掉
+      if (this.config.manWuPickCardHandler) {
+        cardId = await this.config.manWuPickCardHandler(this, victim)
+      }
+      if (!cardId) return false
     } else {
       // AI: 随机选一张可用牌, 随机选一个目标
       cardId = selectableCards[Math.floor(Math.random() * selectableCards.length)].id

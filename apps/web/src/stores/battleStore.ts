@@ -186,6 +186,8 @@ interface BattleState {
   cancelDieHun: () => void
   // 曼舞: 选择红桃/黑桃手牌
   selectManWuCard: (cardId: string | null) => void
+  // 曼舞: 确认选中的弃牌
+  confirmManWuCard: () => void
   // 曼舞: 选择转移目标
   selectManWuTarget: (targetId: string) => void
   cancelManWu: () => void
@@ -1437,12 +1439,16 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
   // 曼舞: 选择转移目标 / 取消 = 不发动
   selectManWuCard: (cardId: string | null) => {
-    const { resolveManWuPickCard, manWuRedHeartCards } = get()
+    // 标记当前选中的牌, 不 resolve
+    set({ manWuSelectedCardId: cardId })
+  },
+  confirmManWuCard: () => {
+    const { resolveManWuPickCard, manWuSelectedCardId, manWuRedHeartCards } = get()
     if (!resolveManWuPickCard) return
-    if (cardId && !manWuRedHeartCards.some(c => c.id === cardId)) {
+    if (manWuSelectedCardId && !manWuRedHeartCards.some(c => c.id === manWuSelectedCardId)) {
       resolveManWuPickCard(null)
     } else {
-      resolveManWuPickCard(cardId)
+      resolveManWuPickCard(manWuSelectedCardId)
     }
     set({ resolveManWuPickCard: null, manWuRedHeartCards: [], manWuSelectedCardId: null })
   },

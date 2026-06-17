@@ -29,7 +29,7 @@ export function BattleBoard() {
     ciKePrompt, confirmCiKe, cancelCiKe,
     yuRuYiPrompt, confirmYuRuYi, cancelYuRuYi,
     dieHunPrompt, confirmDieHun, cancelDieHun,
-    manWuPrompt, manWuRedHeartCards, selectManWuCard, selectManWuTarget, cancelManWu,
+    manWuPrompt, manWuRedHeartCards, manWuSelectedCardId, selectManWuCard, selectManWuTarget, confirmManWuCard, cancelManWu,
     tianXiangJudgeCard, tianXiangEquipment, selectTianXiangCard,
     lastJudgeResult,
   } = useBattleStore()
@@ -713,7 +713,7 @@ export function BattleBoard() {
             </div>
           )}
 
-          {/* 曼舞: 选择红桃/黑桃手牌弃掉 */}
+          {/* 曼舞: 选择红桃/黑桃手牌弃掉 (先选目标后选牌) */}
           {manWuRedHeartCards.length > 0 && (
             <>
               <div style={{
@@ -724,12 +724,20 @@ export function BattleBoard() {
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
               }}>
                 <span>💃 曼舞 — 点击1张红桃/黑桃手牌弃掉转移伤害 (目标摸X张牌，X为你损失的血量)</span>
-                <button style={{ fontSize: '12px' }} onClick={cancelManWu}>不发动</button>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    className="primary"
+                    style={{ fontSize: '12px' }}
+                    onClick={confirmManWuCard}
+                    disabled={!manWuSelectedCardId}
+                  >确定</button>
+                  <button style={{ fontSize: '12px' }} onClick={cancelManWu}>不发动</button>
+                </div>
               </div>
             </>
           )}
 
-          {/* 曼舞: 选择转移目标 */}
+          {/* 曼舞: 选择转移目标 (先选目标) */}
           {manWuPrompt && (
             <div style={{
               marginBottom: '8px', padding: '8px 12px',
@@ -738,7 +746,8 @@ export function BattleBoard() {
               color: '#ffb6c1', fontSize: '12px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
             }}>
-              <span>💃 曼舞 — 已弃牌，选择转移目标 (摸X张牌，X为你损失的血量)</span>
+              <span>💃 曼舞 — 选择转移目标 (目标将摸X张牌，X为你损失的血量)</span>
+              <button style={{ fontSize: '12px' }} onClick={cancelManWu}>不发动</button>
             </div>
           )}
 
@@ -780,6 +789,7 @@ export function BattleBoard() {
               const isSelectedTreasure = treasureCardIds.includes(card.id)
               const isSelectedYuRen = treasureSkill === 'yu-ren' && yuRenCardIds.includes(card.id)
               const isSelectedDiscard = selectedDiscardCards.includes(card.id)
+              const isSelectedManWu = manWuSelectedCardId === card.id
               return (
                 <div
                   key={card.id}
@@ -800,12 +810,12 @@ export function BattleBoard() {
                       // 天香: 弃这张手牌免判
                       selectTianXiangCard(card.id)
                     } else if (manWuRedHeartCards.length > 0 && manWuRedHeartCards.some(c => c.id === card.id)) {
-                      // 曼舞: 选红桃/黑桃手牌弃掉
-                      selectManWuCard(card.id)
+                      // 曼舞: 标记选中的牌 (需点确定才生效)
+                      selectManWuCard(isSelectedManWu ? null : card.id)
                     }
                   }}
                   style={{
-                    outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard) ? '3px solid #b8860b' : 'none',
+                    outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedManWu) ? '3px solid #b8860b' : 'none',
                     borderRadius: '6px',
                     cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
                   }}
