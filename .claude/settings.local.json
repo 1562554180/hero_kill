@@ -67,7 +67,10 @@
       "Bash(node *)",
       "Bash(TaskStop bit9jdp1k *)",
       "Bash(awk 'NR>=1200 && NR<=1294 && /\\\\\\([^\\)]*\\\\\\):.*[{]|async \\\\w+\\\\\\(/' /d/work/hero-legend/apps/web/src/stores/battleStore.ts)",
-      "Bash(awk 'NR<=1294 && /^[a-zA-Z_]+.*[:=] \\(async \\)?function|^  [a-zA-Z_]+:/ {print NR\": \"$0}' /d/work/hero-legend/apps/web/src/stores/battleStore.ts)"
+      "Bash(awk 'NR<=1294 && /^[a-zA-Z_]+.*[:=] \\(async \\)?function|^  [a-zA-Z_]+:/ {print NR\": \"$0}' /d/work/hero-legend/apps/web/src/stores/battleStore.ts)",
+      "Bash(git config *)",
+      "Read(//c/Users/王威/**)",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__close_page"
     ]
   }
 }
