@@ -1144,11 +1144,16 @@ export class Game {
       if (!result.skipped) {
         const isHeart = this.isEffectivelyHeart(result.suit, victim)
         if (!isHeart) {
-          const dmg = attacker.takeDamage(1)
-          this.emitSkillTrigger(victim, '复仇', `判定非红桃-来源受到1点伤害`)
-          this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
-          if (!attacker.isAlive()) {
-            this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
+          // 曼舞: 反弹的伤害, 受击方(attacker)有曼舞则可转移
+          if (await this.promptManWu(attacker, victim, 1)) {
+            this.emitSkillTrigger(victim, '复仇', '反弹被转移')
+          } else {
+            const dmg = attacker.takeDamage(1)
+            this.emitSkillTrigger(victim, '复仇', `判定非红桃-来源受到1点伤害`)
+            this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
+            if (!attacker.isAlive()) {
+              this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
+            }
           }
         } else {
           this.emitSkillTrigger(victim, '复仇', '判定红桃-失效')
