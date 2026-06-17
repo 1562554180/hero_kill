@@ -672,8 +672,13 @@ export class Game {
         this.removeHandCard(player,card.id)
         const slot = (card as any).slot
         if (slot) {
+          // 同槽位已有装备: 旧装备弃入牌堆, 装备新牌 (走 removeCardFromPlayer 触发乾坤袋)
+          if (player.getEquippedCard(slot as any)) {
+            const old = player.getEquippedCard(slot as any)!
+            this.removeCardFromPlayer(player, old)
+          }
           player.equip(card, slot)
-          this.cardDeck.discard([card])
+          this.eventBus.emit({ type: 'equipment:equip', sourceHeroId: player.getId(), data: { cardId: card.id, slot, cardName: card.name } })
         }
       }
     }
