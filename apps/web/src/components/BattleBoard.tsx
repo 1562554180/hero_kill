@@ -3,6 +3,7 @@ import { useBattleStore } from '../stores/battleStore'
 import { HeroBattleCard } from './HeroBattleCard'
 import { HandCard } from './HandCard'
 import { BattleLog } from './BattleLog'
+import type { Card } from '@hero-legend/shared-types'
 
 export function BattleBoard() {
   const [resultOverlayDismissed, setResultOverlayDismissed] = useState(false)
@@ -20,8 +21,8 @@ export function BattleBoard() {
     wuguCandidates, selectWuguCard, cancelWuguPick,
     fudiTargetInfo, selectFudiTarget, cancelFudiTarget, selectFudiCard, cancelFudiCard,
     faJiaTargetInfo, selectFaJiaCard, cancelFaJiaCard,
-    treasureSkill, treasurePrompt, treasureCardIds, treasureTargetIds, yuRenCardIds,
-    useTreasureSkill, pickTreasureCard, pickTreasureTarget, confirmTreasureTargets, cancelTreasureSkill, confirmYuRenCards,
+    treasureSkill, treasurePrompt, treasureCardIds, treasureTargetIds, qiYiCardMap, yuRenCardIds,
+    useTreasureSkill, pickTreasureCard, pickTreasureTarget, confirmTreasureTargets, cancelTreasureSkill, confirmYuRenCards, pickQiYiCard, confirmQiYiCards,
     xiaDanOpponentCard, xiaDanTargetName, pickXiaDanCard, cancelXiaDanCard, xiaDanActive, cancelXiaDan,
     xiaDanUsedThisTurn, yuRenUsedThisTurn,
     selectedDiscardCards, discardCount, toggleDiscardCard, confirmDiscardCards, cancelDiscardCards,
@@ -127,6 +128,7 @@ export function BattleBoard() {
   const hasZhiYu = hasSkillOrTreasure('zhi-yu')
   const hasFengHuo = hasSkillOrTreasure('feng-huo')
   const hasYuRen = hasSkillOrTreasure('yu-ren')
+  const hasShiQuan = hasSkillOrTreasure('shi-quan')
   const hasJueJi = hasSkillOrTreasure('jue-ji')
   const hasQiYi = hasSkillOrTreasure('qi-yi')
   const hasXiaDan = hasSkillOrTreasure('xia-dan')
@@ -547,6 +549,20 @@ export function BattleBoard() {
                     🎴 驭人{treasureSkill === 'yu-ren' ? ` ·已选${yuRenCardIds.length}张` : (yuRenUsedThisTurn ? ' ·已用' : '')}
                   </button>
                 )}
+                {hasShiQuan && (
+                  <button
+                    onClick={() => useTreasureSkill('shi-quan')}
+                    style={{
+                      ...treasureBtnStyle,
+                      background: treasureSkill === 'shi-quan' ? '#b8860b' : treasureBtnStyle.background,
+                      color: treasureSkill === 'shi-quan' ? '#fff' : treasureBtnStyle.color,
+                      boxShadow: treasureSkill === 'shi-quan' ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
+                    }}
+                    title="释权: 弃1张黑色手牌或装备区任意牌, 当作【釜底抽薪】使用"
+                  >
+                    🏛 释权
+                  </button>
+                )}
                 <button className="primary" style={{ fontSize: '14px' }} onClick={endPlayPhase}>
                   结束出牌
                 </button>
@@ -890,6 +906,73 @@ export function BattleBoard() {
                   受1血
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 起义: 从每个目标手牌中各选1张 */}
+      {phase === 'treasureSelectQiYiCards' && treasureTargetIds.length > 0 && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 95, paddingTop: '10vh',
+        }}>
+          <div style={{
+            background: 'var(--bg-medium)', border: '2px solid #b8860b',
+            borderRadius: '12px', padding: '20px 28px', minWidth: '380px', maxWidth: '720px', maxHeight: '80vh', overflow: 'auto',
+          }}>
+            <h2 style={{ color: 'var(--text-gold)', fontSize: '18px', marginBottom: '12px', textAlign: 'center' }}>
+              ✊ 起义 — 从每个目标手牌中各选1张
+            </h2>
+            {treasureTargetIds.map(tid => {
+              const target = gameState ? (gameState as any).players?.find((p: any) => p.hero.id === tid) : null
+              const targetName = target?.hero?.name ?? tid
+              const hand: Card[] = target?.handCards ?? []
+              const selectedId = qiYiCardMap[tid]
+              return (
+                <div key={tid} style={{ marginBottom: '14px' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>
+                    {targetName} 的手牌 {hand.length > 0 ? `(${hand.length}张)` : '(空)'}
+                    {selectedId && <span style={{ color: '#b8860b', marginLeft: '8px' }}>✓ 已选</span>}
+                  </div>
+                  {hand.length > 0 ? (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {hand.map(card => {
+                        const isSelected = selectedId === card.id
+                        const color = card.suit === 'spade' || card.suit === 'club' ? '♠' : '♥'
+                        const textColor = card.suit === 'spade' || card.suit === 'club' ? '#000' : '#c62828'
+                        return (
+                          <div
+                            key={card.id}
+                            onClick={() => pickQiYiCard(tid, card.id)}
+                            style={{
+                              cursor: 'pointer',
+                              background: isSelected ? 'rgba(184,134,11,0.25)' : 'var(--bg-dark)',
+                              border: `2px solid ${isSelected ? '#b8860b' : '#8b6914'}`,
+                              borderRadius: '6px', padding: '6px 10px', minWidth: '60px',
+                              textAlign: 'center', userSelect: 'none',
+                            }}
+                          >
+                            <div style={{ color: textColor, fontSize: '14px' }}>{color} {card.number}</div>
+                            <div style={{ color: 'var(--text-light)', fontSize: '12px', fontWeight: 'bold' }}>{card.name}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontStyle: 'italic' }}>
+                      该目标无手牌, 将自动跳过
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '12px' }}>
+              <button onClick={cancelTreasureSkill}>取消</button>
+              <button className="primary" onClick={confirmQiYiCards}>
+                确认起义 ({Object.keys(qiYiCardMap).length}/{treasureTargetIds.length})
+              </button>
             </div>
           </div>
         </div>

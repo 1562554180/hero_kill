@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { Game, type GameConfig, type Player } from '@hero-legend/game-engine'
 import type { GameState, BattleResult, Card, GameEvent, GameEventType, HeroInstance, EquipmentSlot } from '@hero-legend/shared-types'
 
-export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang'
+export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang'
 
 interface BattleState {
   game: Game | null
@@ -44,10 +44,12 @@ interface BattleState {
   // 釜底抽薪: 选目标后展示其手牌/判定/装备
   fudiTargetInfo: { id: string; name: string; hand: Card[]; judge: Card[]; equipment: Card[] } | null
   // 主印技能流程
-  treasureSkill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan' | 'yu-ren' | null
+  treasureSkill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan' | 'yu-ren' | 'shi-quan' | null
   treasurePrompt: string
   treasureCardIds: string[]         // 累计已选的卡牌 (用于治愈/绝击)
   treasureTargetIds: string[]       // 累计已选的目标 (用于起义)
+  // 起义: targetId → 要拿的牌ID 映射 (没选则随机)
+  qiYiCardMap: Record<string, string>
   // 侠胆拼点: 目标已选牌后, 玩家自己选牌的状态
   xiaDanOpponentCard: Card | null
   xiaDanTargetName: string | null
@@ -152,10 +154,12 @@ interface BattleState {
   selectFaJiaCard: (cardId: string | null) => void
   cancelFaJiaCard: () => void
   // 宝具技能
-  useTreasureSkill: (skill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan' | 'yu-ren') => void
+  useTreasureSkill: (skill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan' | 'yu-ren' | 'shi-quan') => void
   pickTreasureCard: (cardId: string) => Promise<void> | void
   pickTreasureTarget: (targetId: string) => void
   confirmTreasureTargets: () => void
+  pickQiYiCard: (targetId: string, cardId: string) => void
+  confirmQiYiCards: () => void
   cancelTreasureSkill: () => void
   // 侠胆: 玩家选自己拼点的牌
   pickXiaDanCard: (cardId: string) => void
@@ -333,6 +337,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   treasurePrompt: '',
   treasureCardIds: [],
   treasureTargetIds: [],
+  qiYiCardMap: {},
   xiaDanOpponentCard: null,
   xiaDanTargetName: null,
   resolveXiaDanCard: null,
@@ -391,6 +396,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       treasurePrompt: '',
       treasureCardIds: [],
       treasureTargetIds: [],
+      qiYiCardMap: {},
       resolveAction: null,
       resolveResponse: null,
       resolveJudge: null,
@@ -1222,6 +1228,13 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       set({ phase: 'treasureSelectTarget', treasurePrompt: '【绝击】选择攻击范围内的1名角色 (无武器则自己掉1血)' })
     } else if (skill === 'qi-yi') {
       set({ phase: 'treasureSelectTargets', treasurePrompt: '【起义】选择至多2名其他角色 (各获得1张手牌), 点确认结束' })
+    } else if (skill === 'shi-quan') {
+      // 释权: 黑桃/梅花手牌 或 装备区任意
+      const slots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
+      const hasBlack = playerHand.some(c => c.suit === 'spade' || c.suit === 'club')
+      const hasEquip = slots.some(s => !!player.getEquippedCard(s))
+      if (!hasBlack && !hasEquip) { set({ treasureSkill: null, treasurePrompt: '无黑色手牌或装备可弃' }); return }
+      set({ phase: 'treasureSelectCard', treasurePrompt: '【释权】选择1张黑色手牌或装备区的牌, 当釜底抽薪使用' })
     } else if (skill === 'xia-dan') {
       // 侠胆: 仅内部标记状态, 不弹浮层; 玩家自己点有手牌的角色
       if (playerHand.length === 0) { set({ treasureSkill: null, treasurePrompt: '无手牌' }); return }
@@ -1280,6 +1293,18 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         ? yuRenCardIds.filter(id => id !== cardId)
         : [...yuRenCardIds, cardId]
       set({ yuRenCardIds: next, treasurePrompt: `【驭人】选择要弃置的手牌 (已选 ${next.length}张) — 选好后点"确认驭人"` })
+    } else if (treasureSkill === 'shi-quan') {
+      // 校验: 手牌必须是黑色, 装备区任意
+      const fromHand = playerHand.find((c: Card) => c.id === cardId)
+      const slots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
+      const fromEquip = slots.map(s => player.getEquippedCard(s)).find((c): c is Card => !!c && c.id === cardId)
+      const valid = fromHand
+        ? (fromHand.suit === 'spade' || fromHand.suit === 'club')
+        : !!fromEquip
+      if (!valid) return
+      // 释权: 异步, 引擎内部会走釜底抽薪的fudiTarget/fudiPick handler
+      await game!.playerShiQuan(player, cardId)
+      set({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureCardIds: [], gameState: game!.getState(), playerHand: player.getHand() })
     }
     // 注: 侠胆不走 pickTreasureCard, 它先选目标再选自己手牌
   },
@@ -1330,9 +1355,42 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (!treasureSkill) return
     const player = game!.getPlayer()!
     if (treasureSkill === 'qi-yi') {
-      game!.playerQiYi(player, treasureTargetIds)
-      set({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureTargetIds: [], gameState: game!.getState(), playerHand: player.getHand() })
+      // 起义: 选完目标后进入选牌阶段, 让玩家从每个target手牌里各拿1张
+      set({
+        phase: 'treasureSelectQiYiCards',
+        treasurePrompt: '【起义】从每个目标手牌中各选1张, 选好后点"确认起义"',
+        qiYiCardMap: {},
+      })
     }
+  },
+
+  /** 起义: 选中/取消目标的一张手牌 */
+  pickQiYiCard: (targetId: string, cardId: string) => {
+    const { qiYiCardMap, treasureTargetIds, game } = get()
+    if (!treasureTargetIds.includes(targetId)) return
+    const target = game?.getPlayerById(targetId)
+    if (!target) return
+    // 校验: 该card必须确实在该target的手牌里
+    if (!target.getHand().some(c => c.id === cardId)) return
+    const next = { ...qiYiCardMap }
+    if (next[targetId] === cardId) {
+      delete next[targetId]
+    } else {
+      next[targetId] = cardId
+    }
+    set({ qiYiCardMap: next })
+  },
+
+  /** 起义: 确认选牌, 执行业务 */
+  confirmQiYiCards: () => {
+    const { treasureTargetIds, qiYiCardMap, game } = get()
+    const player = game!.getPlayer()!
+    game!.playerQiYi(player, treasureTargetIds, qiYiCardMap)
+    set({
+      treasureSkill: null, treasurePrompt: '', phase: 'playing',
+      treasureTargetIds: [], qiYiCardMap: {},
+      gameState: game!.getState(), playerHand: player.getHand(),
+    })
   },
 
   confirmYuRenCards: () => {
@@ -1348,6 +1406,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     set({
       treasureSkill: null, treasurePrompt: '', phase: 'playing',
       treasureCardIds: [], treasureTargetIds: [], yuRenCardIds: [],
+      qiYiCardMap: {},
       xiaDanOpponentCard: null, xiaDanTargetName: null, xiaDanActive: false,
     })
     // 若引擎还在 await 侠胆选牌, 也告知取消

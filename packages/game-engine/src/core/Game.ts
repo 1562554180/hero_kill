@@ -1095,10 +1095,17 @@ export class Game {
   private async onDamageReceived(victim: Player, attacker: Player, sourceCard?: Card): Promise<void> {
     // 集权: 获得造成伤害的牌
     if (victim.hasSkillOrTreasure('ji-tian') && sourceCard) {
-      // 简化：摸一张替代（牌已进弃牌堆）
-      const drawn = this.cardDeck.draw(1)
-      victim.drawCards(drawn)
-      this.emitSkillTrigger(victim, '集权', '获得造成伤害的牌')
+      // 从弃牌堆找回那张具体牌
+      const recovered = this.cardDeck.takeFromDiscard(sourceCard.id)
+      if (recovered) {
+        victim.drawCards([recovered])
+        this.emitSkillTrigger(victim, '集权', `获得【${recovered.name}】`)
+      } else {
+        // 找不到(可能已洗回抽牌堆): 退而求其次摸1张
+        const drawn = this.cardDeck.draw(1)
+        victim.drawCards(drawn)
+        this.emitSkillTrigger(victim, '集权', '获得造成伤害的牌(已重洗)')
+      }
     }
 
     // 舍身: 掉血摸两张
@@ -1745,56 +1752,7 @@ export class Game {
       }
       if (pickedId) this.takeCardFromTarget(player, target, pickedId, '探囊取物')
     } else if (card.name === '釜底抽薪') {
-      // 选目标: 如未传targetId, 通过fudiTargetHandler选
-      let target = targetId ? this.players.find(p => p.getId() === targetId) : undefined
-      if (!target && this.config.fudiTargetHandler) {
-        const candidates = this.getEnemies(player).filter(p =>
-          p.isAlive() &&
-          this.canBeSchemeTarget(p, card) &&
-          // 控局: 手牌数<体力上限时免疫釜底抽薪
-          !(p.hasSkillOrTreasure('kong-ju') && p.getHandSize() < p.getMaxHp())
-        )
-        if (candidates.length === 0) {
-          return
-        }
-        const chosenId = await this.config.fudiTargetHandler(this, player, candidates)
-        if (!chosenId) return
-        target = this.players.find(p => p.getId() === chosenId)
-      }
-      if (target && !this.canBeSchemeTarget(target, card)) {
-        this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-釜底抽薪失效`)
-        return
-      }
-      // 控局: 手牌数<体力上限时免疫釜底抽薪
-      if (target && this.isKongJuImmuneTo(target, '釜底抽薪')) {
-        this.emitSkillTrigger(target, '控局', `免疫釜底抽薪`)
-        return
-      }
-      if (target) {
-        // 目标无任何牌: 无法使用
-        const hasAny = target.getHandSize() > 0 || this.collectEquipmentCards(target).length > 0 || target.getJudgeCards().length > 0
-        if (!hasAny) {
-          this.emitSkillTrigger(player, '釜底抽薪', `${target.getName()}无牌可弃`)
-          return
-        }
-        let pickedId: string | null = null
-        if (player.getRole() === 'player' && this.config.fudiPickHandler) {
-          pickedId = await this.config.fudiPickHandler(
-            this, player, target,
-            { hand: target.getHand(), judge: target.getJudgeCards(), equipment: this.collectEquipmentCards(target) },
-          )
-        }
-        if (!pickedId) {
-          // 默认从手牌选第1张
-          if (target.getHandSize() > 0) pickedId = target.getHand()[0].id
-          else {
-            const eqs = this.collectEquipmentCards(target)
-            if (eqs.length > 0) pickedId = eqs[0].id
-            else if (target.getJudgeCards().length > 0) pickedId = target.getJudgeCards()[0].id
-          }
-        }
-        if (pickedId) this.discardCardFromTarget(target, pickedId, '釜底抽薪')
-      }
+      await this.executeFudiChouXin(player, targetId, card)
     } else if (card.name === '借刀杀人') {
       // 借刀: 走 playerPlayJieDao (支持 UI 预选 holder), 这里只是占位
       return
@@ -2117,6 +2075,55 @@ export class Game {
     }
   }
 
+  /** 釜底抽薪: 选1个目标, 让其弃1张牌 (手牌/装备/判定) */
+  private async executeFudiChouXin(player: Player, targetId?: string, srcCard?: Card): Promise<void> {
+    const card: Card = srcCard ?? { id: 'fudi-virtual', suit: 'spade', number: 1, type: 'scheme', name: '釜底抽薪' } as Card
+    let target = targetId ? this.players.find(p => p.getId() === targetId) : undefined
+    if (!target && this.config.fudiTargetHandler) {
+      const candidates = this.getEnemies(player).filter(p =>
+        p.isAlive() &&
+        this.canBeSchemeTarget(p, card) &&
+        // 控局: 手牌数<体力上限时免疫釜底抽薪
+        !(p.hasSkillOrTreasure('kong-ju') && p.getHandSize() < p.getMaxHp())
+      )
+      if (candidates.length === 0) return
+      const chosenId = await this.config.fudiTargetHandler(this, player, candidates)
+      if (!chosenId) return
+      target = this.players.find(p => p.getId() === chosenId)
+    }
+    if (!target) return
+    if (!this.canBeSchemeTarget(target, card)) {
+      this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-釜底抽薪失效`)
+      return
+    }
+    if (this.isKongJuImmuneTo(target, '釜底抽薪')) {
+      this.emitSkillTrigger(target, '控局', `免疫釜底抽薪`)
+      return
+    }
+    // 目标无任何牌: 无法使用
+    const hasAny = target.getHandSize() > 0 || this.collectEquipmentCards(target).length > 0 || target.getJudgeCards().length > 0
+    if (!hasAny) {
+      this.emitSkillTrigger(player, '釜底抽薪', `${target.getName()}无牌可弃`)
+      return
+    }
+    let pickedId: string | null = null
+    if (player.getRole() === 'player' && this.config.fudiPickHandler) {
+      pickedId = await this.config.fudiPickHandler(
+        this, player, target,
+        { hand: target.getHand(), judge: target.getJudgeCards(), equipment: this.collectEquipmentCards(target) },
+      )
+    }
+    if (!pickedId) {
+      if (target.getHandSize() > 0) pickedId = target.getHand()[0].id
+      else {
+        const eqs = this.collectEquipmentCards(target)
+        if (eqs.length > 0) pickedId = eqs[0].id
+        else if (target.getJudgeCards().length > 0) pickedId = target.getJudgeCards()[0].id
+      }
+    }
+    if (pickedId) this.discardCardFromTarget(target, pickedId, '釜底抽薪')
+  }
+
   private async executeFengHuoLangYan(player: Player): Promise<void> {
     let langYanBoost = false
     if (this.rollSubTreasure(player, 'treasure-lang-yan')) langYanBoost = true
@@ -2154,7 +2161,7 @@ export class Game {
   }
 
   /** 起义: 放弃摸牌, 改为从至多2名其他角色各获得1张手牌 */
-  playerQiYi(player: Player, targetIds: string[]): void {
+  playerQiYi(player: Player, targetIds: string[], targetCardIds?: Record<string, string>): void {
     if (!player.hasSkillOrTreasure('qi-yi')) return
     if (!player.useSkill('qi-yi')) return
     if (targetIds.length === 0 || targetIds.length > 2) return
@@ -2164,11 +2171,67 @@ export class Game {
       if (!target || !target.isAlive()) continue
       const hand = target.getHand()
       if (hand.length === 0) continue
-      const stolen = hand[Math.floor(Math.random() * hand.length)]
+      let stolen: Card | undefined
+      // 若指定了cardId, 从该target的手牌里取对应的那张
+      const specifiedId = targetCardIds?.[tid]
+      if (specifiedId) {
+        stolen = hand.find(c => c.id === specifiedId)
+      }
+      if (!stolen) stolen = hand[Math.floor(Math.random() * hand.length)]
       this.removeHandCard(target,stolen.id)
       player.drawCards([stolen])
-      this.emitSkillTrigger(player, '起义', `从${target.getName()}获取一张牌`)
+      this.emitSkillTrigger(player, '起义', `从${target.getName()}获取${stolen.name}`)
     }
+  }
+
+  /** 释权: 将1张黑色手牌或装备区的牌当作【釜底抽薪】使用 */
+  async playerShiQuan(player: Player, cardId: string): Promise<void> {
+    if (!player.hasSkillOrTreasure('shi-quan')) return
+    // 找卡: 手牌(黑色) 或 装备区任意
+    const slots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
+    let card: Card | undefined = player.getHand().find(c => c.id === cardId && isBlackSuit(c.suit))
+    let fromEquipSlot: EquipmentSlot | null = null
+    if (!card) {
+      for (const s of slots) {
+        const eq = player.getEquippedCard(s)
+        if (eq && eq.id === cardId) { card = eq; fromEquipSlot = s; break }
+      }
+    }
+    if (!card) return
+    // 弃牌/卸装备
+    let qianKunDaiLost = false
+    if (fromEquipSlot) {
+      if (card.name === '乾坤袋') qianKunDaiLost = true
+      player.unequip(fromEquipSlot)
+      this.eventBus.emit({ type: 'equipment:unequip', sourceHeroId: player.getId(), data: { cardId, slot: fromEquipSlot } })
+    } else {
+      this.removeHandCard(player, card.id)
+    }
+    this.cardDeck.discard([card])
+    this.emitSkillTrigger(player, '释权', `将${card.name}当釜底抽薪使用`)
+    this.eventBus.emit({
+      type: 'card:play',
+      sourceHeroId: player.getId(),
+      data: { cardId: card.id, cardName: '釜底抽薪', usedAsSkill: '释权' },
+    })
+    await this.executeFudiChouXin(player)
+    // 妙计: 使用锦囊摸1张
+    if (player.hasSkillOrTreasure('miao-ji')) {
+      const drawn = this.cardDeck.draw(1)
+      if (drawn.length > 0) {
+        player.drawCards(drawn)
+        this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
+      }
+    }
+    // 乾坤袋被弃 → 摸1张
+    if (qianKunDaiLost) {
+      const drawn = this.cardDeck.draw(1)
+      if (drawn.length > 0) {
+        player.drawCards(drawn)
+        this.emitSkillTrigger(player, '乾坤袋', '装备丢失-摸1张')
+      }
+    }
+    this.lastPlayedCardName = '釜底抽薪'
   }
 
   /** 绝击: 弃1张武器牌 (装备区或手牌) 或受1点伤害, 令攻击范围内1名角色受1点伤害 (每回合限1次) */

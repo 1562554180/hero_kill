@@ -32,6 +32,13 @@ export class CardDeck {
     this.discardPile.push(...cards)
   }
 
+  /** 从弃牌堆中按 id 拿走一张指定的牌 (集权需要) */
+  takeFromDiscard(cardId: string): Card | null {
+    const idx = this.discardPile.findIndex(c => c.id === cardId)
+    if (idx === -1) return null
+    return this.discardPile.splice(idx, 1)[0]
+  }
+
   discardById(cardIds: string[], hand: Card[]): Card[] {
     const discarded: Card[] = []
     for (const id of cardIds) {
