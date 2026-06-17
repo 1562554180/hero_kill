@@ -160,7 +160,11 @@ export class Game {
     const skipped = await this.promptTianXiang(player, judgeCard)
     if (skipped) return { skipped: true, suit: 'spade', number: 1 }
     const j = await this.judge(player, reason)
-    return { skipped: false, suit: j.suit, number: j.card.number }
+    // 红妆: 黑桃视为红桃 (手捧雷等需要黑桃判定的技能失效)
+    const effectiveSuit: Suit = j.suit === 'spade' && player.hasSkillOrTreasure('hong-zhuang')
+      ? 'heart'
+      : j.suit
+    return { skipped: false, suit: effectiveSuit, number: j.card.number }
   }
 
   constructor(private config: GameConfig) {
