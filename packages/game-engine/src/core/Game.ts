@@ -287,11 +287,16 @@ export class Game {
     if (!attacker.isAlive()) return
     // 伤之仇: 30%几率让伤害来源受到1点伤害
     if (this.rollSubTreasure(victim, 'treasure-shang-zhi-chou')) {
-      const dmg = attacker.takeDamage(1)
-      this.emitSkillTrigger(victim, '伤之仇', '反击1点伤害')
-      this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
-      if (!attacker.isAlive()) {
-        this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
+      // 曼舞: 反弹的伤害，受击方(attacker)有曼舞则可转移
+      if (await this.promptManWu(attacker, victim, 1)) {
+        this.emitSkillTrigger(victim, '伤之仇', '反弹被转移')
+      } else {
+        const dmg = attacker.takeDamage(1)
+        this.emitSkillTrigger(victim, '伤之仇', '反击1点伤害')
+        this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
+        if (!attacker.isAlive()) {
+          this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
+        }
       }
     }
     // 伤之贪: 30%几率摸1张牌
