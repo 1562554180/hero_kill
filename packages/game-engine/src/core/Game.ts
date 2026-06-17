@@ -1978,11 +1978,14 @@ export class Game {
     this.lastPlayedCardName = '驭人'
   }
 
-  /** 奸雄: 打出一张牌当上一张打出的牌 */
+  /** 奸雄: 打出一张牌当上一张打出的基本牌或非延时锦囊 */
   playerJianXiong(player: Player, cardId: string): void {
     if (!player.hasSkillOrTreasure('jian-xiong')) return
     if (!player.useSkill('jian-xiong')) return
     if (!this.lastPlayedCardName) return
+    // 延时锦囊和装备不能被奸雄模仿
+    const invalidNames = ['手捧雷', '画地为牢', '装备', '驭人']
+    if (invalidNames.includes(this.lastPlayedCardName)) return
     const card = player.getHand().find(c => c.id === cardId)
     if (!card) return
     this.removeHandCard(player,card.id)
