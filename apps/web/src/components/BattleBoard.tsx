@@ -723,7 +723,7 @@ export function BattleBoard() {
                 color: '#ffb6c1', fontSize: '12px',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
               }}>
-                <span>💃 曼舞 — 点击1张红桃/黑桃手牌弃掉转移伤害 (目标摸X张牌，X为你损失的血量)</span>
+                <span>💃 曼舞 — 点击1张红桃/黑桃手牌弃掉转移伤害 (目标摸X张牌，X为你受伤后的血量)</span>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button
                     className="primary"
@@ -746,7 +746,7 @@ export function BattleBoard() {
               color: '#ffb6c1', fontSize: '12px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
             }}>
-              <span>💃 曼舞 — 选择转移目标 (目标将摸X张牌，X为你损失的血量)</span>
+              <span>💃 曼舞 — 选择转移目标 (目标将摸X张牌，X为你受伤后的血量)</span>
               <button style={{ fontSize: '12px' }} onClick={cancelManWu}>不发动</button>
             </div>
           )}

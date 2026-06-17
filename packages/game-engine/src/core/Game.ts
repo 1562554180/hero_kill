@@ -129,10 +129,10 @@ export class Game {
     return player.hasSkillOrTreasure('hong-zhuang') && suit === 'spade'
   }
 
-  /** 红妆: 将黑色牌视为红色 (用于玉如意等需要"红色"判定的技能) */
+  /** 红妆: 仅黑桃视作红色 (梅花依旧黑色) — 用于玉如意等需要"红色"判定的技能 */
   isEffectivelyRedForJudge(suit: Suit, player: Player): boolean {
     if (isRedSuit(suit)) return true
-    return player.hasSkillOrTreasure('hong-zhuang') && isBlackSuit(suit)
+    return player.hasSkillOrTreasure('hong-zhuang') && suit === 'spade'
   }
 
   /**
@@ -1358,13 +1358,13 @@ export class Game {
     const actualDamage = target.takeDamage(damage)
     this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: target.getId(), data: { damage } })
     this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: attacker.getId() } })
-    // 目标摸X张牌, X=受害者损失的血量
-    const hpLoss = victim.getMaxHp() - victim.getCurrentHp()
-    if (hpLoss > 0) {
-      const drawn = this.cardDeck.draw(hpLoss)
+    // 目标摸X张牌, X=受害者受伤后的剩余血量
+    const hpRemain = victim.getCurrentHp()
+    if (hpRemain > 0) {
+      const drawn = this.cardDeck.draw(hpRemain)
       target.drawCards(drawn)
     }
-    this.emitSkillTrigger(victim, '曼舞', `转移${damage}点伤害给${target.getName()},摸${hpLoss}张牌`)
+    this.emitSkillTrigger(victim, '曼舞', `转移${damage}点伤害给${target.getName()},摸${hpRemain}张牌`)
     return true
   }
 
