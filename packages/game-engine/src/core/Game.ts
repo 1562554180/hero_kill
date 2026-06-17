@@ -1358,13 +1358,13 @@ export class Game {
     const actualDamage = target.takeDamage(damage)
     this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: target.getId(), data: { damage } })
     this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: attacker.getId() } })
-    // 目标摸X张牌, X=受害者受伤后的剩余血量
-    const hpRemain = victim.getCurrentHp()
-    if (hpRemain > 0) {
-      const drawn = this.cardDeck.draw(hpRemain)
+    // 目标摸X张牌, X=受害者损失的血量 (最多maxHp-1, victim alive 时自然满足)
+    const hpLoss = victim.getMaxHp() - victim.getCurrentHp()
+    if (hpLoss > 0) {
+      const drawn = this.cardDeck.draw(hpLoss)
       target.drawCards(drawn)
     }
-    this.emitSkillTrigger(victim, '曼舞', `转移${damage}点伤害给${target.getName()},摸${hpRemain}张牌`)
+    this.emitSkillTrigger(victim, '曼舞', `转移${damage}点伤害给${target.getName()},摸${hpLoss}张牌`)
     return true
   }
 
@@ -1677,7 +1677,12 @@ export class Game {
       // 选目标: 如未传targetId, 通过tanNangTargetHandler选
       let target = targetId ? this.players.find(p => p.getId() === targetId) : undefined
       if (!target && this.config.tanNangTargetHandler) {
-        const candidates = this.getEnemies(player).filter(p => this.canTanNang(player, p) && this.canBeSchemeTarget(p, card))
+        const candidates = this.getEnemies(player).filter(p =>
+          this.canTanNang(player, p) &&
+          this.canBeSchemeTarget(p, card) &&
+          // 控局: 手牌数<体力上限时免疫探囊取物
+          !(p.hasSkillOrTreasure('kong-ju') && p.getHandSize() < p.getMaxHp())
+        )
         if (candidates.length === 0) {
           this.emitSkillTrigger(player, '探囊取物', '无合法目标-失效')
           return
@@ -1722,7 +1727,12 @@ export class Game {
       // 选目标: 如未传targetId, 通过fudiTargetHandler选
       let target = targetId ? this.players.find(p => p.getId() === targetId) : undefined
       if (!target && this.config.fudiTargetHandler) {
-        const candidates = this.getEnemies(player).filter(p => p.isAlive() && this.canBeSchemeTarget(p, card))
+        const candidates = this.getEnemies(player).filter(p =>
+          p.isAlive() &&
+          this.canBeSchemeTarget(p, card) &&
+          // 控局: 手牌数<体力上限时免疫釜底抽薪
+          !(p.hasSkillOrTreasure('kong-ju') && p.getHandSize() < p.getMaxHp())
+        )
         if (candidates.length === 0) {
           return
         }

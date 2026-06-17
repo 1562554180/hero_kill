@@ -71,11 +71,19 @@ export function BattleBoard() {
       return game.isInAttackRange(attacker, target)
     }
     if (phase === 'selectTarget' && pendingCardType === 'scheme' && pendingSchemeName === '探囊取物') {
-      return game.canTanNang(attacker, target)
+      if (!game.canTanNang(attacker, target)) return false
+      // 控局: 手牌数<体力上限时免疫
+      if (target.hasSkillOrTreasure('kong-ju') && target.getHandSize() < target.getMaxHp()) return false
+      return true
     }
     if (phase === 'selectTarget' && pendingCardType === 'scheme' && pendingSchemeCard) {
       // 洞察: 黑桃锦囊 (排除延时锦囊) 对拥有此技能的目标无效
-      return game.canBeSchemeTarget(target, pendingSchemeCard)
+      if (!game.canBeSchemeTarget(target, pendingSchemeCard)) return false
+      // 控局: 画地为牢免疫条件 = 手牌数>体力上限
+      if (pendingSchemeName === '画地为牢' && target.hasSkillOrTreasure('kong-ju') && target.getHandSize() > target.getMaxHp()) return false
+      // 控局: 釜底抽薪免疫条件 = 手牌数<体力上限
+      if (pendingSchemeName === '釜底抽薪' && target.hasSkillOrTreasure('kong-ju') && target.getHandSize() < target.getMaxHp()) return false
+      return true
     }
     if (phase === 'treasureSelectTarget') {
       // 绝击: 只允许攻击范围内的敌方
@@ -723,7 +731,7 @@ export function BattleBoard() {
                 color: '#ffb6c1', fontSize: '12px',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
               }}>
-                <span>💃 曼舞 — 点击1张红桃/黑桃手牌弃掉转移伤害 (目标摸X张牌，X为你受伤后的血量)</span>
+                <span>💃 曼舞 — 点击1张红桃/黑桃手牌弃掉转移伤害 (目标摸X张牌，X为你损失的血量)</span>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button
                     className="primary"
@@ -746,7 +754,7 @@ export function BattleBoard() {
               color: '#ffb6c1', fontSize: '12px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
             }}>
-              <span>💃 曼舞 — 选择转移目标 (目标将摸X张牌，X为你受伤后的血量)</span>
+              <span>💃 曼舞 — 选择转移目标 (目标将摸X张牌，X为你损失的血量)</span>
               <button style={{ fontSize: '12px' }} onClick={cancelManWu}>不发动</button>
             </div>
           )}
