@@ -123,14 +123,14 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         </span>
       </div>
 
-      {/* 装备区: 跟玩家装备区一致, 显示图标 + 牌名 */}
+      {/* 装备区: 只显示图标, hover 显示名称 */}
       {(() => {
         const p = game?.getPlayerById(hero.hero.id)
-        const slots: { icon: string; title: string; slot: 'weapon' | 'armor' | 'attackMount' | 'defenseMount' }[] = [
-          { icon: '⚔', title: '武器', slot: 'weapon' },
-          { icon: '🛡', title: '防具', slot: 'armor' },
-          { icon: '🐴', title: '进攻马', slot: 'attackMount' },
-          { icon: '🐎', title: '防御马', slot: 'defenseMount' },
+        const slots: { slot: 'weapon' | 'armor' | 'attackMount' | 'defenseMount' }[] = [
+          { slot: 'weapon' },
+          { slot: 'armor' },
+          { slot: 'attackMount' },
+          { slot: 'defenseMount' },
         ]
         return (
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px', fontSize: '10px' }}>
@@ -140,14 +140,17 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
               if (!id) return null
               const card = p?.getEquippedCard(s.slot)
               const name = card?.name ?? '???'
+              const icon = (card as any)?.icon ?? '⚙'
               return (
-                <span key={s.slot} title={s.title} style={{
+                <span key={s.slot} title={name} style={{
                   color: 'var(--text-gold)',
                   background: 'rgba(184,134,11,0.12)',
                   border: '1px solid rgba(184,134,11,0.3)',
                   padding: '1px 5px', borderRadius: '3px',
+                  fontSize: '14px',
+                  lineHeight: '1',
                 }}>
-                  {s.icon}{name}
+                  {icon}
                 </span>
               )
             })}
@@ -205,7 +208,8 @@ function EquipTag({ heroId, slot, fallbackId, aoJianActive, canPlayKill, onUseAs
   const treasureSkill = useBattleStore(s => s.treasureSkill)
   const card = useBattleStore(s => s.equippedCards[heroId]?.[slot])
   const pickTreasureCard = useBattleStore(s => s.pickTreasureCard)
-  const label = card?.name ?? '⚙装备'
+  const icon = (card as any)?.icon ?? '⚙'
+  const name = card?.name ?? '装备'
   const desc = (card as any)?.description ?? ''
   const isRed = card && isRedSuit(card.suit)
   const canActivate = aoJianActive && isRed && canPlayKill
@@ -227,10 +231,10 @@ function EquipTag({ heroId, slot, fallbackId, aoJianActive, canPlayKill, onUseAs
   const isHighlighted = canActivate || isSelectingEquipment || isJueJiWeaponPick
   return (
     <span
-      title={canActivate ? `点击 ${card!.name} 当杀使用` : isYuRen ? `点击 ${card?.name ?? '装备'} 加入驭人弃牌` : isJueJiWeaponPick ? `点击弃置${card!.name}触发绝击` : isSelectingEquipment ? `点击弃置${card?.name ?? '装备'}` : desc}
+      title={canActivate ? `点击 ${name} 当杀使用` : isYuRen ? `点击 ${name} 加入驭人弃牌` : isJueJiWeaponPick ? `点击弃置${name}触发绝击` : isSelectingEquipment ? `点击弃置${name}` : desc}
       onClick={handleClick}
       style={{
-        fontSize: '10px', color,
+        fontSize: '14px', color, lineHeight: '1',
         background: `${color}22`,
         padding: '1px 5px', borderRadius: '3px',
         border: `1px solid ${canActivate ? '#e57373' : isJueJiWeaponPick ? '#ff5722' : isSelectingEquipment ? (isYuRen ? '#b8860b' : '#ff9800') : `${defaultColor}55`}`,
@@ -239,7 +243,7 @@ function EquipTag({ heroId, slot, fallbackId, aoJianActive, canPlayKill, onUseAs
         fontWeight: isHighlighted ? 'bold' : 'normal',
       }}
     >
-      {label}
+      {icon}
     </span>
   )
 }

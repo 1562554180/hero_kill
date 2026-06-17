@@ -1935,7 +1935,7 @@ export class Game {
     }
     this.removeHandCard(player, card.id)
     player.equip(card, slot)
-    this.eventBus.emit({ type: 'equipment:equip', sourceHeroId: player.getId(), data: { cardId: card.id, slot } })
+    this.eventBus.emit({ type: 'equipment:equip', sourceHeroId: player.getId(), data: { cardId: card.id, slot, cardName: card.name } })
     this.lastPlayedCardName = '装备'
   }
 

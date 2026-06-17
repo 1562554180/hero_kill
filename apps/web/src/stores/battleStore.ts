@@ -228,7 +228,10 @@ function eventToLog(event: GameEvent, game: Game): string | null {
       const effect = (event.data as any)?.effect
       return effect ? `【${name}】触发: ${effect}` : `【${name}】触发!`
     }
-    case 'equipment:equip': return `${src} 装备了装备`
+    case 'equipment:equip': {
+      const cardName = (event.data as any)?.cardName ?? '装备'
+      return `${src} 使用了【${cardName}】`
+    }
     case 'card:draw': return null // too noisy
     case 'card:discard': {
       const cardDescs = (event.data as any)?.cardDescs as string[] | undefined

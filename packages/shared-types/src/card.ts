@@ -28,6 +28,7 @@ export interface EquipmentCard extends Card {
   slot: EquipmentSlot
   range?: number        // 武器攻击距离
   description: string
+  icon?: string         // 装备图标
 }
 
 export function isBasicCard(card: Card): card is BasicCard {
