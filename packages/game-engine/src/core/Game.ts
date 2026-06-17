@@ -107,6 +107,14 @@ export class Game {
     return this.killsUsedThisTurn < this.killsMaxThisTurn
   }
 
+  /** 控局: 控局角色对手牌相关锦囊的免疫判定 */
+  isKongJuImmuneTo(player: Player, schemeName: string): boolean {
+    if (!player.hasSkillOrTreasure('kong-ju')) return false
+    if (schemeName === '画地为牢') return player.getHandSize() > player.getMaxHp()
+    if (schemeName === '探囊取物' || schemeName === '釜底抽薪') return player.getHandSize() < player.getMaxHp()
+    return false
+  }
+
   // 傲剑主动模式: UI点击时调用
   activateAoJian(playerId: string): void {
     this.aoJianActive.add(playerId)
@@ -711,7 +719,7 @@ export class Game {
       const tn = player.getHand().find((c: Card) => c.name === '探囊取物')
       if (tn) {
         const target = [...enemies]
-          .filter(e => this.canTanNang(player, e))
+          .filter(e => this.canTanNang(player, e) && !this.isKongJuImmuneTo(e, '探囊取物'))
           .sort((a, b) => enemyCardTotal(b) - enemyCardTotal(a))[0]
         if (target) {
           await this.playerPlayScheme(player, tn.id, target.getId())
@@ -723,7 +731,7 @@ export class Game {
       const fudi = player.getHand().find((c: Card) => c.name === '釜底抽薪')
       if (fudi) {
         const target = [...enemies]
-          .filter(e => e.isAlive() && (
+          .filter(e => e.isAlive() && !this.isKongJuImmuneTo(e, '釜底抽薪') && (
             e.getHandSize() > 0 || this.collectEquipmentCards(e).length > 0 || e.getJudgeCards().length > 0
           ))
           .sort((a, b) => b.getHandSize() - a.getHandSize())[0]
@@ -1646,7 +1654,7 @@ export class Game {
       let target = targetId ? this.players.find(p => p.getId() === targetId) : undefined
       if (!target || !target.isAlive()) return
       // 控局: 手牌数>体力上限时免疫画地为牢
-      if (target.hasSkillOrTreasure('kong-ju') && target.getHandSize() > target.getMaxHp()) {
+      if (this.isKongJuImmuneTo(target, '画地为牢')) {
         this.emitSkillTrigger(target, '控局', '免疫画地为牢')
         return
       }
@@ -1701,7 +1709,7 @@ export class Game {
         return
       }
       // 控局: 手牌数<体力上限时免疫探囊取物
-      if (target.hasSkillOrTreasure('kong-ju') && target.getHandSize() < target.getMaxHp()) {
+      if (this.isKongJuImmuneTo(target, '探囊取物')) {
         this.emitSkillTrigger(target, '控局', `免疫探囊取物`)
         return
       }
@@ -1745,7 +1753,7 @@ export class Game {
         return
       }
       // 控局: 手牌数<体力上限时免疫釜底抽薪
-      if (target && target.hasSkillOrTreasure('kong-ju') && target.getHandSize() < target.getMaxHp()) {
+      if (target && this.isKongJuImmuneTo(target, '釜底抽薪')) {
         this.emitSkillTrigger(target, '控局', `免疫釜底抽薪`)
         return
       }

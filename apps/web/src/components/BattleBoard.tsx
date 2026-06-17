@@ -72,17 +72,12 @@ export function BattleBoard() {
     }
     if (phase === 'selectTarget' && pendingCardType === 'scheme' && pendingSchemeName === '探囊取物') {
       if (!game.canTanNang(attacker, target)) return false
-      // 控局: 手牌数<体力上限时免疫
-      if (target.hasSkillOrTreasure('kong-ju') && target.getHandSize() < target.getMaxHp()) return false
+      if (game.isKongJuImmuneTo(target, '探囊取物')) return false
       return true
     }
     if (phase === 'selectTarget' && pendingCardType === 'scheme' && pendingSchemeCard) {
-      // 洞察: 黑桃锦囊 (排除延时锦囊) 对拥有此技能的目标无效
       if (!game.canBeSchemeTarget(target, pendingSchemeCard)) return false
-      // 控局: 画地为牢免疫条件 = 手牌数>体力上限
-      if (pendingSchemeName === '画地为牢' && target.hasSkillOrTreasure('kong-ju') && target.getHandSize() > target.getMaxHp()) return false
-      // 控局: 釜底抽薪免疫条件 = 手牌数<体力上限
-      if (pendingSchemeName === '釜底抽薪' && target.hasSkillOrTreasure('kong-ju') && target.getHandSize() < target.getMaxHp()) return false
+      if (pendingSchemeName && game.isKongJuImmuneTo(target, pendingSchemeName)) return false
       return true
     }
     if (phase === 'treasureSelectTarget') {
