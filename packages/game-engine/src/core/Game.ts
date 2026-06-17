@@ -1368,6 +1368,11 @@ export class Game {
       damage += 1
       this.zuijiuActive = false
     }
+    // 曼舞: 转移伤害
+    if (await this.promptManWu(loser, source, damage)) {
+      // 伤害已转移
+      return
+    }
     const actual = loser.takeDamage(damage)
     this.eventBus.emit({ type: 'damage:deal', sourceHeroId: source.getId(), targetHeroId: loser.getId(), data: { damage } })
     this.eventBus.emit({ type: 'damage:receive', sourceHeroId: loser.getId(), data: { damage, from: source.getId() } })

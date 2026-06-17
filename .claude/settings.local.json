@@ -61,7 +61,11 @@
       "Bash(python3 -c ' *)",
       "Bash(xxd packages/game-engine/src/core/Game.ts)",
       "Bash(python3)",
-      "Bash(xxd)"
+      "Bash(xxd)",
+      "Bash(netstat -ano)",
+      "Bash(timeout 10 node dist/main.js)",
+      "Bash(node *)",
+      "Bash(TaskStop bit9jdp1k *)"
     ]
   }
 }
