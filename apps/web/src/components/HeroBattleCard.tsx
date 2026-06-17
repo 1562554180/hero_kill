@@ -123,13 +123,37 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginTop: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>
-        <span>手牌: {hero.handCards.length}</span>
-        {hero.equipment.weapon && <span title="武器">⚔</span>}
-        {hero.equipment.armor && <span title="防具">🛡</span>}
-        {hero.equipment.attackMount && <span title="进攻马">🐴</span>}
-        {hero.equipment.defenseMount && <span title="防御马">🐎</span>}
-      </div>
+      {/* 装备区: 跟玩家装备区一致, 显示图标 + 牌名 */}
+      {(() => {
+        const p = game?.getPlayerById(hero.hero.id)
+        const slots: { icon: string; title: string; slot: 'weapon' | 'armor' | 'attackMount' | 'defenseMount' }[] = [
+          { icon: '⚔', title: '武器', slot: 'weapon' },
+          { icon: '🛡', title: '防具', slot: 'armor' },
+          { icon: '🐴', title: '进攻马', slot: 'attackMount' },
+          { icon: '🐎', title: '防御马', slot: 'defenseMount' },
+        ]
+        return (
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px', fontSize: '10px' }}>
+            <span style={{ color: 'var(--text-muted)' }}>手牌: {hero.handCards.length}</span>
+            {slots.map(s => {
+              const id = hero.equipment[s.slot]
+              if (!id) return null
+              const card = p?.getEquippedCard(s.slot)
+              const name = card?.name ?? '???'
+              return (
+                <span key={s.slot} title={s.title} style={{
+                  color: 'var(--text-gold)',
+                  background: 'rgba(184,134,11,0.12)',
+                  border: '1px solid rgba(184,134,11,0.3)',
+                  padding: '1px 5px', borderRadius: '3px',
+                }}>
+                  {s.icon}{name}
+                </span>
+              )
+            })}
+          </div>
+        )
+      })()}
       {/* 判定区标记: 画地为牢/手捧雷 */}
       {hero.judgeCards.length > 0 && game && (
         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '3px' }}>
