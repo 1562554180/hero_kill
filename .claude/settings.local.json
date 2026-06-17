@@ -56,7 +56,12 @@
       "Bash(git status *)",
       "Bash(grep *)",
       "Read(//tmp/**)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(node -e ' *)",
+      "Bash(python3 -c ' *)",
+      "Bash(xxd packages/game-engine/src/core/Game.ts)",
+      "Bash(python3)",
+      "Bash(xxd)"
     ]
   }
 }

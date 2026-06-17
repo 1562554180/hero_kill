@@ -1800,11 +1800,16 @@ export class Game {
           let damage = 1
           if (langYanBoost) damage += 1
           if (this.zuijiuActive) { damage += 1; this.zuijiuActive = false }
-          target.takeDamage(damage)
-          this.eventBus.emit({ type: 'damage:deal', sourceHeroId: player.getId(), targetHeroId: target.getId(), data: { damage } })
-          this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: player.getId() } })
-          if (!target.isAlive()) {
-            this.eventBus.emit({ type: 'die', sourceHeroId: target.getId(), data: { killedBy: player.getId() } })
+          // 曼舞: 转移伤害
+          if (await this.promptManWu(target, player, damage)) {
+            // 伤害已转移
+          } else {
+            target.takeDamage(damage)
+            this.eventBus.emit({ type: 'damage:deal', sourceHeroId: player.getId(), targetHeroId: target.getId(), data: { damage } })
+            this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: player.getId() } })
+            if (!target.isAlive()) {
+              this.eventBus.emit({ type: 'die', sourceHeroId: target.getId(), data: { killedBy: player.getId() } })
+            }
           }
         }
       }
@@ -1840,11 +1845,16 @@ export class Game {
           let damage = 1
           if (wanJianBoost) damage += 1
           if (this.zuijiuActive) { damage += 1; this.zuijiuActive = false }
-          target.takeDamage(damage)
-          this.eventBus.emit({ type: 'damage:deal', sourceHeroId: player.getId(), targetHeroId: target.getId(), data: { damage } })
-          this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: player.getId() } })
-          if (!target.isAlive()) {
-            this.eventBus.emit({ type: 'die', sourceHeroId: target.getId(), data: { killedBy: player.getId() } })
+          // 曼舞: 转移伤害
+          if (await this.promptManWu(target, player, damage)) {
+            // 伤害已转移
+          } else {
+            target.takeDamage(damage)
+            this.eventBus.emit({ type: 'damage:deal', sourceHeroId: player.getId(), targetHeroId: target.getId(), data: { damage } })
+            this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: player.getId() } })
+            if (!target.isAlive()) {
+              this.eventBus.emit({ type: 'die', sourceHeroId: target.getId(), data: { killedBy: player.getId() } })
+            }
           }
         }
       }
