@@ -29,7 +29,7 @@ export function BattleBoard() {
     ciKePrompt, confirmCiKe, cancelCiKe,
     yuRuYiPrompt, confirmYuRuYi, cancelYuRuYi,
     dieHunPrompt, confirmDieHun, cancelDieHun,
-    manWuPrompt, selectManWuTarget, cancelManWu,
+    manWuPrompt, manWuRedHeartCards, selectManWuCard, selectManWuTarget, cancelManWu,
     tianXiangJudgeCard, tianXiangEquipment, selectTianXiangCard,
     lastJudgeResult,
   } = useBattleStore()
@@ -713,7 +713,23 @@ export function BattleBoard() {
             </div>
           )}
 
-          {/* 曼舞提示: 选择转移伤害目标 */}
+          {/* 曼舞: 选择红桃/黑桃手牌弃掉 */}
+          {manWuRedHeartCards.length > 0 && (
+            <>
+              <div style={{
+                marginBottom: '8px', padding: '8px 12px',
+                background: 'rgba(255,182,193,0.12)', borderRadius: '4px',
+                border: '1px solid rgba(255,182,193,0.3)',
+                color: '#ffb6c1', fontSize: '12px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+              }}>
+                <span>💃 曼舞 — 点击1张红桃/黑桃手牌弃掉转移伤害 (目标摸X张牌，X为你损失的血量)</span>
+                <button style={{ fontSize: '12px' }} onClick={cancelManWu}>不发动</button>
+              </div>
+            </>
+          )}
+
+          {/* 曼舞: 选择转移目标 */}
           {manWuPrompt && (
             <div style={{
               marginBottom: '8px', padding: '8px 12px',
@@ -722,8 +738,7 @@ export function BattleBoard() {
               color: '#ffb6c1', fontSize: '12px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
             }}>
-              <span>💃 曼舞 — 受到{manWuPrompt.attackerName}的{manWuPrompt.damage}点伤害，是否弃1张红桃手牌转移给其他角色? (目标摸X张牌，X为你损失的血量)</span>
-              <button style={{ fontSize: '12px' }} onClick={cancelManWu}>不发动</button>
+              <span>💃 曼舞 — 已弃牌，选择转移目标 (摸X张牌，X为你损失的血量)</span>
             </div>
           )}
 
@@ -784,12 +799,15 @@ export function BattleBoard() {
                     } else if (phase === 'tianXiang') {
                       // 天香: 弃这张手牌免判
                       selectTianXiangCard(card.id)
+                    } else if (manWuRedHeartCards.length > 0 && manWuRedHeartCards.some(c => c.id === card.id)) {
+                      // 曼舞: 选红桃/黑桃手牌弃掉
+                      selectManWuCard(card.id)
                     }
                   }}
                   style={{
                     outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard) ? '3px solid #b8860b' : 'none',
                     borderRadius: '6px',
-                    cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang') ? 'pointer' : undefined,
+                    cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
                   }}
                 >
                   <HandCard

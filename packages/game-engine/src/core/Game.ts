@@ -62,7 +62,9 @@ export interface GameConfig {
   dieHunHandler?: (game: Game, target: Player, schemeName: string) => Promise<boolean>
   /** 天香: 判定开始前是否发动 (返回cardId=弃1张手牌免判; null=不发动, 正常判定) */
   tianXiangHandler?: (game: Game, player: Player, judgeCard: Card) => Promise<string | null>
-  /** 曼舞: 受伤时是否发动伤害转移 (返回targetId=转移目标; null=不发动) */
+  /** 曼舞: 受伤时选择弃哪张红桃/黑桃手牌 (返回cardId; null=取消/不发动) */
+  manWuPickCardHandler?: (game: Game, victim: Player) => Promise<string | null>
+  /** 曼舞: 受伤时选择转移目标 (返回targetId; null=不发动) */
   manWuHandler?: (game: Game, victim: Player, attacker: Player, damage: number, candidates: Player[]) => Promise<string | null>
   /** 绝击: AI/玩家 是否发动以及选 (弃武器/null=受1血) + 目标. 返回null=不发动 */
   jueJiHandler?: (game: Game, attacker: Player, inRangeEnemies: Player[]) => Promise<{ weaponCardId: string | null; targetId: string } | null>
@@ -121,10 +123,16 @@ export class Game {
     return player.hasSkillOrTreasure('hong-zhuang') && isBlackSuit(card.suit)
   }
 
-  /** 红妆: 将黑桃花色视为红桃 (用于判定结果) */
+  /** 红妆: 将黑桃花色视为红桃 (用于判定结果). 注意: 方块本就是红色, 由 isRedSuit 判定 */
   isEffectivelyHeart(suit: Suit, player: Player): boolean {
     if (suit === 'heart') return true
     return player.hasSkillOrTreasure('hong-zhuang') && suit === 'spade'
+  }
+
+  /** 红妆: 将黑色牌视为红色 (用于玉如意等需要"红色"判定的技能) */
+  isEffectivelyRedForJudge(suit: Suit, player: Player): boolean {
+    if (isRedSuit(suit)) return true
+    return player.hasSkillOrTreasure('hong-zhuang') && isBlackSuit(suit)
   }
 
   /**
@@ -1249,7 +1257,8 @@ export class Game {
     }
     const result = await this.judgeWithSkills(defender, '玉如意')
     if (result.skipped) return false
-    const isRed = this.isEffectivelyHeart(result.suit, defender)
+    // 玉如意: 红色(红桃/方块/黑桃+红妆)视为闪
+    const isRed = this.isEffectivelyRedForJudge(result.suit, defender)
     if (isRed) {
       this.emitSkillTrigger(defender, srcName, '玉如意判定-视为闪')
       return true
@@ -1310,17 +1319,25 @@ export class Game {
     if (!victim.hasSkillOrTreasure('man-wu')) return false
     if (!victim.useSkill('man-wu')) return false  // 已用本回合
     const hand = victim.getHand()
-    // 找红桃手牌
-    const redHeartCards = hand.filter(c => c.suit === 'heart')
-    if (redHeartCards.length === 0) return false  // 无红桃可弃
+    // 找可弃的手牌: 红桃始终可用; 黑桃在红妆时也可当红桃用
+    const selectableCards = hand.filter(c => c.suit === 'heart' || (victim.hasSkillOrTreasure('hong-zhuang') && c.suit === 'spade'))
+    if (selectableCards.length === 0) return false  // 无可弃的牌
     let cardId: string | null = null
     let targetId: string | null = null
-    if (victim.getRole() === 'player' && this.config.manWuHandler) {
-      const candidates = this.getAlivePlayers().filter(p => p.getId() !== victim.getId())
-      targetId = await this.config.manWuHandler(this, victim, attacker, damage, candidates)
-    } else if (victim.getRole() !== 'player') {
-      // AI: 随机选一张红桃牌, 随机选一个目标
-      cardId = redHeartCards[0].id
+    if (victim.getRole() === 'player') {
+      // 玩家: 先选红桃手牌弃掉
+      if (this.config.manWuPickCardHandler) {
+        cardId = await this.config.manWuPickCardHandler(this, victim)
+      }
+      if (!cardId) return false
+      // 再选转移目标
+      if (this.config.manWuHandler) {
+        const candidates = this.getAlivePlayers().filter(p => p.getId() !== victim.getId())
+        targetId = await this.config.manWuHandler(this, victim, attacker, damage, candidates)
+      }
+    } else {
+      // AI: 随机选一张可用牌, 随机选一个目标
+      cardId = selectableCards[Math.floor(Math.random() * selectableCards.length)].id
       const candidates = this.getAlivePlayers().filter(p => p.getId() !== victim.getId())
       targetId = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)].getId() : null
     }

@@ -88,6 +88,9 @@ interface BattleState {
   resolveDieHun: ((use: boolean) => void) | null
   // 曼舞: 受伤时转移伤害
   manWuPrompt: { attackerName: string; damage: number; candidates: { id: string; name: string }[] } | null
+  manWuRedHeartCards: Card[]  // 可选的红桃手牌
+  manWuSelectedCardId: string | null  // 已选的红桃牌ID
+  resolveManWuPickCard: ((cardId: string | null) => void) | null  // 等待选牌阶段
   resolveManWu: ((targetId: string | null) => void) | null
   // 天香: 判定前是否弃1张手牌或装备免判
   tianXiangJudgeCard: { name: string; suit: string; number: number } | null
@@ -181,6 +184,8 @@ interface BattleState {
   // 蝶魂
   confirmDieHun: () => void
   cancelDieHun: () => void
+  // 曼舞: 选择红桃/黑桃手牌
+  selectManWuCard: (cardId: string | null) => void
   // 曼舞: 选择转移目标
   selectManWuTarget: (targetId: string) => void
   cancelManWu: () => void
@@ -330,6 +335,9 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   dieHunPrompt: null,
   resolveDieHun: null,
   manWuPrompt: null,
+  manWuRedHeartCards: [],
+  manWuSelectedCardId: null,
+  resolveManWuPickCard: null,
   resolveManWu: null,
   tianXiangJudgeCard: null,
   tianXiangEquipment: [],
@@ -401,6 +409,9 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       dieHunPrompt: null,
       resolveDieHun: null,
       manWuPrompt: null,
+      manWuRedHeartCards: [],
+      manWuSelectedCardId: null,
+      resolveManWuPickCard: null,
       resolveManWu: null,
       tianXiangJudgeCard: null,
       tianXiangEquipment: [],
@@ -646,9 +657,20 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           set({ resolveDieHun: resolve })
         })
       },
+      manWuPickCardHandler: async (game: Game, victim: Player) => {
+        // 找可弃的手牌: 红桃始终可用; 黑桃在红妆时也可当红桃用
+        const hasHongZhuang = victim.hasSkillOrTreasure('hong-zhuang')
+        const selectableCards = victim.getHand().filter((c: Card) => c.suit === 'heart' || (hasHongZhuang && c.suit === 'spade'))
+        if (selectableCards.length === 0) return null
+        set({
+          manWuRedHeartCards: selectableCards,
+          manWuSelectedCardId: null,
+        })
+        return new Promise<string | null>(resolve => {
+          set({ resolveManWuPickCard: resolve })
+        })
+      },
       manWuHandler: async (game: Game, victim: Player, attacker: Player, damage: number, candidates: Player[]) => {
-        const redHeartCards = victim.getHand().filter((c: Card) => c.suit === 'heart')
-        if (redHeartCards.length === 0) return null
         set({
           manWuPrompt: {
             attackerName: attacker.getName(),
@@ -1414,6 +1436,16 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   // 曼舞: 选择转移目标 / 取消 = 不发动
+  selectManWuCard: (cardId: string | null) => {
+    const { resolveManWuPickCard, manWuRedHeartCards } = get()
+    if (!resolveManWuPickCard) return
+    if (cardId && !manWuRedHeartCards.some(c => c.id === cardId)) {
+      resolveManWuPickCard(null)
+    } else {
+      resolveManWuPickCard(cardId)
+    }
+    set({ resolveManWuPickCard: null, manWuRedHeartCards: [], manWuSelectedCardId: null })
+  },
   selectManWuTarget: (targetId: string) => {
     const { resolveManWu } = get()
     if (!resolveManWu) return
@@ -1421,10 +1453,14 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     set({ resolveManWu: null, manWuPrompt: null })
   },
   cancelManWu: () => {
-    const { resolveManWu } = get()
-    if (!resolveManWu) return
-    resolveManWu(null)
-    set({ resolveManWu: null, manWuPrompt: null })
+    const { resolveManWuPickCard, resolveManWu } = get()
+    if (resolveManWuPickCard) {
+      resolveManWuPickCard(null)
+      set({ resolveManWuPickCard: null, manWuRedHeartCards: [], manWuSelectedCardId: null })
+    } else if (resolveManWu) {
+      resolveManWu(null)
+      set({ resolveManWu: null, manWuPrompt: null })
+    }
   },
 
   // 天香: 选1张手牌弃掉免判 / 取消 = 不发动
