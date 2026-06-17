@@ -20,9 +20,9 @@ export const equipmentCards: EquipmentCard[] = [
   eq('diamond', 5, '进攻马', 'attackMount', undefined, '攻击距离+1', '🐎'),
   eq('club', 5, '进攻马', 'attackMount', undefined, '攻击距离+1', '🐎'),
   eq('heart', 7, '进攻马', 'attackMount', undefined, '攻击距离+1', '🐎'),
-  eq('heart', 5, '防御马', 'defenseMount', undefined, '对方攻击距离-1', '🛡'),
-  eq('diamond', 6, '防御马', 'defenseMount', undefined, '对方攻击距离-1', '🛡'),
-  eq('club', 8, '防御马', 'defenseMount', undefined, '对方攻击距离-1', '🛡'),
+  eq('heart', 5, '防御马', 'defenseMount', undefined, '对方攻击距离-1', '🐴'),
+  eq('diamond', 6, '防御马', 'defenseMount', undefined, '对方攻击距离-1', '🐴'),
+  eq('club', 8, '防御马', 'defenseMount', undefined, '对方攻击距离-1', '🐴'),
   // 防具 (4张)
   eq('diamond', 2, '玉如意', 'armor', undefined, '被杀时判定，红色视为闪', '💎'),
   eq('diamond', 12, '玉如意', 'armor', undefined, '被杀时判定，红色视为闪', '💎'),

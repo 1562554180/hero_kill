@@ -137,9 +137,12 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
         const isJueJiWeaponPick = treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon'
         return (
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px', fontSize: '10px' }}>
-            <span style={{ color: 'var(--text-muted)' }}>手牌: {hero.handCards.length}</span>
-            {slots.map(s => {
+          <>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              手牌: {hero.handCards.length}
+            </div>
+            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px', fontSize: '10px' }}>
+              {slots.map(s => {
               const id = hero.equipment[s.slot]
               if (!id) return null
               const card = p?.getEquippedCard(s.slot)
@@ -198,7 +201,8 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
                 </span>
               )
             })}
-          </div>
+            </div>
+          </>
         )
       })()}
       {/* 判定区标记: 画地为牢/手捧雷 */}
