@@ -56,7 +56,7 @@ export const heroes: Hero[] = [
     id: 'cao-cao', name: '曹操', faction: '君', starLevel: 4, baseHp: 4,
     description: '乱世奸雄，治世之能臣',
     skills: [
-      { id: 'jian-xiong', name: '奸雄', type: 'active', description: '出牌阶段限一次，你可以将一张手牌或装备牌当作本回合内前一张使用过的基本牌或非延时锦囊使用', maxUsesPerTurn: 1 },
+      { id: 'jian-xiong', name: '奸雄', type: 'active', description: '出牌阶段限一次，你可以将一张手牌或装备牌当作本回合内前一张使用过的任意牌使用', maxUsesPerTurn: 1 },
     ],
   },
   {
