@@ -58,9 +58,10 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   const canRespond = isResponse && onRespondWithCard && (canUseAsKill || isWuXie || isDodge)
 
   // 主动可用性 (用于加阴影): 闪/无懈可击 永远不是主动可用; 药满血不可用; 手捧雷在自己判定区已有雷时不可用
+  // 傲剑激活 + 红色闪 → 可当杀, 此时闪不应有阴影
   const isShadowedByRule = shadowed || (
     !isResponse && (
-      isDodge ||
+      (isDodge && !(aoJianActive && effectiveIsRed && canUseAsKill)) ||
       isWuXie ||
       (isHeal && isFullHp) ||
       (isLei && hasLeiInJudge)
