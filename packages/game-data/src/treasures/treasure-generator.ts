@@ -28,6 +28,7 @@ export function generateTreasureDrop(
     },
     triggerRate,
     starLevel: def.starLevel,
+    count: 1,
   }
 
   return treasure
@@ -126,32 +127,31 @@ export function generateInitialTreasures(): Treasure[] {
   const mainDefs = treasureDefinitions.filter(d => d.type === 'main')
   const subDefs = treasureDefinitions.filter(d => d.type === 'sub')
 
+  // 每个宝具定义生成 1 个带 count=50 的堆叠条目
   for (const def of mainDefs) {
-    for (let i = 0; i < 2; i++) {
-      treasures.push({
-        id: `t-init-${def.id}-${i}`,
-        name: def.name,
-        type: 'main',
-        sourceHeroId: def.sourceHeroId ?? undefined,
-        skill: { id: def.sourceSkillId ?? def.id, name: def.name, type: 'passive', description: def.description },
-        triggerRate: 1.0,
-        starLevel: def.starLevel,
-      })
-    }
+    treasures.push({
+      id: `t-init-${def.id}`,
+      name: def.name,
+      type: 'main',
+      sourceHeroId: def.sourceHeroId ?? undefined,
+      skill: { id: def.sourceSkillId ?? def.id, name: def.name, type: 'passive', description: def.description },
+      triggerRate: 1.0,
+      starLevel: def.starLevel,
+      count: 50,
+    })
   }
 
   for (const def of subDefs) {
-    for (let i = 0; i < 2; i++) {
-      treasures.push({
-        id: `t-init-${def.id}-${i}`,
-        name: def.name,
-        type: 'sub',
-        sourceHeroId: def.sourceHeroId ?? undefined,
-        skill: { id: def.sourceSkillId ?? def.id, name: def.name, type: 'passive', description: def.description },
-        triggerRate: def.baseTriggerRate,
-        starLevel: def.starLevel,
-      })
-    }
+    treasures.push({
+      id: `t-init-${def.id}`,
+      name: def.name,
+      type: 'sub',
+      sourceHeroId: def.sourceHeroId ?? undefined,
+      skill: { id: def.sourceSkillId ?? def.id, name: def.name, type: 'passive', description: def.description },
+      triggerRate: def.baseTriggerRate,
+      starLevel: def.starLevel,
+      count: 50,
+    })
   }
 
   return treasures

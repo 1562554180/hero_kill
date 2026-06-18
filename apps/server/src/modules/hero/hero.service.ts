@@ -1,7 +1,25 @@
 import { Injectable } from '@nestjs/common'
 import { SaveService } from '../save/save.service'
 import { heroes } from '@hero-legend/game-data'
-import { getTreasureSlots } from '@hero-legend/shared-types'
+import { getTreasureSlots, type Treasure } from '@hero-legend/shared-types'
+
+/** 比较两个宝具是否同一类 (按 name+type+starLevel+triggerRate), 用于合并堆叠 */
+function isSameTreasureKind(a: Treasure, b: Partial<Treasure>): boolean {
+  return a.name === b.name
+    && a.type === b.type
+    && a.starLevel === b.starLevel
+    && a.triggerRate === b.triggerRate
+}
+
+/** 合并新宝具到背包: 找到同类则 count++, 否则 push. 返回更新后的 treasures 数组 */
+function pushToInventory(treasures: Treasure[], incoming: Treasure): Treasure[] {
+  const existing = treasures.find(t => isSameTreasureKind(t, incoming))
+  if (existing) {
+    existing.count = (existing.count ?? 1) + (incoming.count ?? 1)
+    return treasures
+  }
+  return [...treasures, incoming]
+}
 
 @Injectable()
 export class HeroService {
@@ -75,16 +93,23 @@ export class HeroService {
     const slots = heroInstance.treasures[slotType]
     if (slotIndex < 0 || slotIndex >= slots.length) return { error: '槽位不存在' }
 
-    const treasure = save.treasures.find((t: any) => t.id === treasureId)
-    if (!treasure) return { error: '宝具不存在' }
+    const stackIdx = save.treasures.findIndex((t: any) => t.id === treasureId)
+    if (stackIdx < 0) return { error: '宝具不存在' }
+    const stack: Treasure = save.treasures[stackIdx]
 
-    // 卸下旧宝具
+    // 卸下旧宝具 (合并到背包堆叠)
     if (slots[slotIndex]) {
-      save.treasures.push(slots[slotIndex])
+      save.treasures = pushToInventory(save.treasures, slots[slotIndex] as Treasure)
     }
 
-    slots[slotIndex] = treasure
-    save.treasures = save.treasures.filter((t: any) => t.id !== treasureId)
+    // 从堆叠中扣 1 件 (count 减 1, 装备槽中只放 1 件无 count 的副本)
+    const { count, id: _id, ...equippedTreasure } = stack
+    slots[slotIndex] = { ...equippedTreasure, count: undefined } as Treasure
+    if ((count ?? 1) > 1) {
+      save.treasures[stackIdx] = { ...stack, count: (count ?? 1) - 1 }
+    } else {
+      save.treasures.splice(stackIdx, 1)
+    }
 
     await this.saveService.updateSave(userId, { heroes: save.heroes, treasures: save.treasures })
     return { success: true }
@@ -100,12 +125,12 @@ export class HeroService {
     const slots = heroInstance.treasures[slotType]
     if (slotIndex < 0 || slotIndex >= slots.length) return { error: '槽位不存在' }
 
-    const treasure = slots[slotIndex]
+    const treasure = slots[slotIndex] as Treasure | null
     if (!treasure) return { error: '该槽位没有宝具' }
 
-    // Move treasure back to inventory
+    // Move treasure back to inventory (merge into existing stack)
     slots[slotIndex] = null
-    save.treasures.push(treasure)
+    save.treasures = pushToInventory(save.treasures, { ...treasure, count: 1 })
 
     await this.saveService.updateSave(userId, { heroes: save.heroes, treasures: save.treasures })
     return { success: true }

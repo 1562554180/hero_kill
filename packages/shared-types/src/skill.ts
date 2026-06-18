@@ -17,4 +17,6 @@ export interface Treasure {
   skill: Skill
   triggerRate: number            // 辅印触发率（主印固定100）
   starLevel: number              // 宝具星级
+  /** 数量 (背包中堆叠). 装备槽中始终为 undefined. 默认 1. */
+  count?: number
 }

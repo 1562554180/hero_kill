@@ -255,26 +255,29 @@ export function HeroPage() {
                       可镶嵌的{activeSlot.slotType === 'main' ? '主印' : '辅印'}：
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {candidates.map(t => (
-                        <div key={t.id}
-                          onDoubleClick={() => equipTreasure(selectedInstance.heroId, activeSlot.slotType, activeSlot.slotIndex, t.id)}
-                          style={{
-                            background: 'var(--bg-medium)', border: '1px solid var(--border-wood)',
-                            borderRadius: '4px', padding: '6px 10px', fontSize: '12px',
-                            cursor: 'pointer', userSelect: 'none',
-                          }}
-                        >
-                          <div style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)' }}>
-                            {t.name}
+                      {candidates.map(t => {
+                        const n = t.count ?? 1
+                        return (
+                          <div key={t.id}
+                            onDoubleClick={() => equipTreasure(selectedInstance.heroId, activeSlot.slotType, activeSlot.slotIndex, t.id)}
+                            style={{
+                              background: 'var(--bg-medium)', border: '1px solid var(--border-wood)',
+                              borderRadius: '4px', padding: '6px 10px', fontSize: '12px',
+                              cursor: 'pointer', userSelect: 'none',
+                            }}
+                          >
+                            <div style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)' }}>
+                              {t.name} * {n}
+                            </div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                              {'★'.repeat(t.starLevel)} | 触发: {Math.round(t.triggerRate * 100)}%
+                            </div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                              {t.skill.description}
+                            </div>
                           </div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                            {'★'.repeat(t.starLevel)} | 触发: {Math.round(t.triggerRate * 100)}%
-                          </div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                            {t.skill.description}
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 ) : (

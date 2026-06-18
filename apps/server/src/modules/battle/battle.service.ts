@@ -74,7 +74,18 @@ export class BattleService {
       const isBoss = stage.battles[battleIdx]?.isBoss ?? false
       droppedTreasure = generateTreasureDrop(stage.rewards, isBoss)
       if (droppedTreasure) {
-        save.treasures.push(droppedTreasure)
+        // 合并到背包堆叠: 找到同类则 count++, 否则 push
+        const existing = save.treasures.find((t: any) =>
+          t.name === droppedTreasure!.name
+          && t.type === droppedTreasure!.type
+          && t.starLevel === droppedTreasure!.starLevel
+          && t.triggerRate === droppedTreasure!.triggerRate,
+        )
+        if (existing) {
+          existing.count = (existing.count ?? 1) + (droppedTreasure.count ?? 1)
+        } else {
+          save.treasures.push(droppedTreasure)
+        }
       }
     }
 
