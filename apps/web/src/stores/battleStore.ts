@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { Game, type GameConfig, type Player } from '@hero-legend/game-engine'
 import type { GameState, BattleResult, Card, GameEvent, GameEventType, HeroInstance, EquipmentSlot } from '@hero-legend/shared-types'
 
-export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm'
+export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm' | 'selectFuChouDiscard'
 
 interface BattleState {
   game: Game | null
@@ -113,6 +113,15 @@ interface BattleState {
   // 三板斧: 程咬金出杀时确认
   sanBanFuPrompt: { targetName: string } | null
   resolveSanBanFu: ((use: boolean) => void) | null
+  // 复仇: 受伤后是否发动判定 (玩家专用)
+  fuChouTriggerPrompt: { attackerName: string } | null
+  resolveFuChouTrigger: ((use: boolean) => void) | null
+  // 复仇: 来源(玩家)选 弃2张手牌 / 掉1血
+  fuChouChoosePrompt: { attackerId: string; attackerName: string; handCount: number } | null
+  resolveFuChouChoose: ((choice: 'discard' | 'damage') => void) | null
+  // 复仇: 来源(玩家)选弃哪2张手牌
+  fuChouPickPrompt: { attackerId: string; attackerName: string; hand: Card[]; pickedIds: string[] } | null
+  resolveFuChouPick: ((cardIds: string[]) => void) | null
   judgeCard: Card | null
   // 最近一次判定结果 (含来源名/牌名, 供中央显示; 显示2.5秒后自动清空)
   lastJudgeResult: { judgeHeroName: string; judgeCardName: string; resultCard: { suit: string; number: number; name: string } } | null
@@ -228,6 +237,12 @@ interface BattleState {
   // 三板斧
   confirmSanBanFu: () => void
   cancelSanBanFu: () => void
+  // 复仇
+  confirmFuChouTrigger: () => void
+  cancelFuChouTrigger: () => void
+  confirmFuChouChoose: (choice: 'discard' | 'damage') => void
+  toggleFuChouPick: (cardId: string) => void
+  confirmFuChouPick: () => void
 }
 
 const heroNames: Record<string, string> = {}
@@ -399,6 +414,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveBuDao: null,
   sanBanFuPrompt: null,
   resolveSanBanFu: null,
+  fuChouTriggerPrompt: null,
+  resolveFuChouTrigger: null,
+  fuChouChoosePrompt: null,
+  resolveFuChouChoose: null,
+  fuChouPickPrompt: null,
+  resolveFuChouPick: null,
   xiaDanActive: false,
   xiaDanUsedThisTurn: false,
   yuRenCardIds: [],
@@ -484,6 +505,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveBuDao: null,
       sanBanFuPrompt: null,
       resolveSanBanFu: null,
+      fuChouTriggerPrompt: null,
+      resolveFuChouTrigger: null,
+      fuChouChoosePrompt: null,
+      resolveFuChouChoose: null,
+      fuChouPickPrompt: null,
+      resolveFuChouPick: null,
     })
 
     const wrappedConfig: GameConfig = {
@@ -724,6 +751,29 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         return new Promise<boolean>(resolve => {
           set({ resolveDieHun: resolve })
         })
+      },
+      fuChouTriggerHandler: async (game: Game, victim: Player, attacker: Player) => {
+        set({ fuChouTriggerPrompt: { attackerName: attacker.getName() } })
+        return new Promise<boolean>(resolve => {
+          set({ resolveFuChouTrigger: resolve })
+        })
+      },
+      fuChouChooseHandler: async (game: Game, attacker: Player, handCards: Card[]) => {
+        set({ fuChouChoosePrompt: { attackerId: attacker.getId(), attackerName: attacker.getName(), handCount: handCards.length } })
+        return new Promise<'discard' | 'damage'>(resolve => {
+          set({ resolveFuChouChoose: resolve })
+        })
+      },
+      fuChouPickHandler: async (game: Game, attacker: Player, handCards: Card[]) => {
+        set({
+          phase: 'selectFuChouDiscard',
+          fuChouPickPrompt: { attackerId: attacker.getId(), attackerName: attacker.getName(), hand: [...handCards], pickedIds: [] },
+        })
+        const picked = await new Promise<string[]>(resolve => {
+          set({ resolveFuChouPick: resolve })
+        })
+        set({ resolveFuChouPick: null, fuChouPickPrompt: null, phase: 'playing' })
+        return picked
       },
       manWuPickCardHandler: async (game: Game, victim: Player) => {
         // 找可弃的手牌: 红桃始终可用; 黑桃在红妆时也可当红桃用
@@ -1712,5 +1762,43 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (!resolveSanBanFu) return
     resolveSanBanFu(false)
     set({ resolveSanBanFu: null, sanBanFuPrompt: null, phase: 'waiting' })
+  },
+
+  // 复仇: 发动 / 不发动
+  confirmFuChouTrigger: () => {
+    const { resolveFuChouTrigger } = get()
+    if (!resolveFuChouTrigger) return
+    resolveFuChouTrigger(true)
+    set({ resolveFuChouTrigger: null, fuChouTriggerPrompt: null, phase: 'waiting' })
+  },
+  cancelFuChouTrigger: () => {
+    const { resolveFuChouTrigger } = get()
+    if (!resolveFuChouTrigger) return
+    resolveFuChouTrigger(false)
+    set({ resolveFuChouTrigger: null, fuChouTriggerPrompt: null, phase: 'waiting' })
+  },
+  // 复仇: 来源选 弃2牌 / 掉1血
+  confirmFuChouChoose: (choice: 'discard' | 'damage') => {
+    const { resolveFuChouChoose } = get()
+    if (!resolveFuChouChoose) return
+    resolveFuChouChoose(choice)
+    set({ resolveFuChouChoose: null, fuChouChoosePrompt: null, phase: 'waiting' })
+  },
+  // 复仇: 来源选弃哪2张手牌
+  toggleFuChouPick: (cardId: string) => {
+    const { fuChouPickPrompt, resolveFuChouPick } = get()
+    if (!fuChouPickPrompt || !resolveFuChouPick) return
+    const picked = fuChouPickPrompt.pickedIds
+    if (picked.includes(cardId)) {
+      set({ fuChouPickPrompt: { ...fuChouPickPrompt, pickedIds: picked.filter(id => id !== cardId) } })
+    } else if (picked.length < 2) {
+      set({ fuChouPickPrompt: { ...fuChouPickPrompt, pickedIds: [...picked, cardId] } })
+    }
+  },
+  confirmFuChouPick: () => {
+    const { fuChouPickPrompt, resolveFuChouPick } = get()
+    if (!fuChouPickPrompt || !resolveFuChouPick) return
+    if (fuChouPickPrompt.pickedIds.length < 2) return
+    resolveFuChouPick(fuChouPickPrompt.pickedIds)
   },
 }))

@@ -82,6 +82,12 @@ export interface GameConfig {
   jueBieHandler?: (game: Game, yuJi: Player, candidates: Player[]) => Promise<string | null>
   /** 补刀: 关羽是否对目标补杀 (null=不补) */
   buDaoHandler?: (game: Game, guanYu: Player, victim: Player) => Promise<string | null>
+  /** 复仇: 受伤后是否发动判定 (true=发动; false=不发动) */
+  fuChouTriggerHandler?: (game: Game, victim: Player, attacker: Player) => Promise<boolean>
+  /** 复仇: 判定成功后, 来源选 (弃2张手牌 / 掉1血). 返回 'discard' | 'damage'; 手牌<2时引擎直接掉血不询问 */
+  fuChouChooseHandler?: (game: Game, attacker: Player, handCards: Card[]) => Promise<'discard' | 'damage'>
+  /** 复仇: 来源选弃2张手牌时, 选哪2张 (返回2个cardId, 至少2个; 不足时引擎补齐) */
+  fuChouPickHandler?: (game: Game, attacker: Player, handCards: Card[]) => Promise<string[]>
 }
 
 export class Game {
@@ -1302,27 +1308,9 @@ export class Game {
       }
     }
 
-    // 复仇: 判定，非红桃则来源受1伤或弃2牌
+    // 复仇: 受伤后可发动, 判定成功后来源弃2牌或掉1血
     if (victim.hasSkillOrTreasure('fu-chou') && attacker.isAlive()) {
-      const result = await this.judgeWithSkills(victim, '复仇')
-      if (!result.skipped) {
-        const isHeart = this.isEffectivelyHeart(result.suit, victim)
-        if (!isHeart) {
-          // 曼舞: 反弹的伤害, 受击方(attacker)有曼舞则可转移
-          if (await this.promptManWu(attacker, victim, 1)) {
-            this.emitSkillTrigger(victim, '复仇', '反弹被转移')
-          } else {
-            const dmg = attacker.takeDamage(1)
-            this.emitSkillTrigger(victim, '复仇', `判定非红桃-来源受到1点伤害`)
-            this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
-            if (!attacker.isAlive()) {
-              this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
-            }
-          }
-        } else {
-          this.emitSkillTrigger(victim, '复仇', '判定红桃-失效')
-        }
-      }
+      await this.promptFuChou(victim, attacker)
     }
 
     // 妙计: 使用锦囊牌摸一张 (sourceCard为锦囊时)
@@ -1558,6 +1546,99 @@ export class Game {
     }
     this.emitSkillTrigger(victim, '曼舞', `转移${damage}点伤害给${target.getName()},摸${hpLoss}张牌`)
     return true
+  }
+
+  /**
+   * 复仇: 受伤后可发动, 判定非红桃则来源弃2张手牌或掉1血 (来源自选, 非随机)
+   * - 玩家: 先询问 victim 是否发动, 判定成功后再让 attacker 选 (弃牌/掉血), 弃牌时再让 attacker 选哪2张
+   * - AI: 默认发动; 来源手牌≥2时弃牌 (避免掉血), 否则掉血; 弃牌时随机丢前2张
+   * - 若 attacker 手牌<2张, 引擎直接掉血 (不询问)
+   */
+  async promptFuChou(victim: Player, attacker: Player): Promise<void> {
+    if (!attacker.isAlive()) return
+
+    // 1. 询问 victim 是否发动
+    let triggered = false
+    if (victim.getRole() === 'player') {
+      if (this.config.fuChouTriggerHandler) {
+        triggered = await this.config.fuChouTriggerHandler(this, victim, attacker)
+      }
+    } else {
+      triggered = true
+    }
+    if (!triggered) {
+      this.emitSkillTrigger(victim, '复仇', '选择不发动')
+      return
+    }
+
+    // 2. 判定 (天香可跳过; 红妆黑桃视红桃)
+    const result = await this.judgeWithSkills(victim, '复仇')
+    if (result.skipped) return
+    const isHeart = this.isEffectivelyHeart(result.suit, victim)
+    if (isHeart) {
+      this.emitSkillTrigger(victim, '复仇', '判定红桃-失效')
+      return
+    }
+
+    // 3. 来源手牌<2直接掉血
+    const hand = attacker.getHand()
+    if (hand.length < 2) {
+      this.emitSkillTrigger(victim, '复仇', '来源手牌<2-直接掉1血')
+      await this.applyFuChouDamage(victim, attacker)
+      return
+    }
+
+    // 4. 来源选 (弃2张手牌 / 掉1血)
+    let choice: 'discard' | 'damage'
+    if (attacker.getRole() === 'player') {
+      if (!this.config.fuChouChooseHandler) {
+        choice = 'damage'
+      } else {
+        choice = await this.config.fuChouChooseHandler(this, attacker, hand)
+      }
+    } else {
+      // AI: 优先弃2张手牌保命
+      choice = 'discard'
+    }
+
+    if (choice === 'damage') {
+      this.emitSkillTrigger(victim, '复仇', '来源选择掉1血')
+      await this.applyFuChouDamage(victim, attacker)
+      return
+    }
+
+    // 5. 弃牌: 玩家选2张, AI 随机
+    let pickedIds: string[]
+    if (attacker.getRole() === 'player') {
+      if (this.config.fuChouPickHandler) {
+        pickedIds = await this.config.fuChouPickHandler(this, attacker, hand)
+      } else {
+        pickedIds = hand.slice(0, 2).map(c => c.id)
+      }
+    } else {
+      pickedIds = hand.slice(0, 2).map(c => c.id)
+    }
+    if (pickedIds.length < 2) pickedIds = hand.slice(0, 2).map(c => c.id)
+    const removed: Card[] = []
+    for (const id of pickedIds.slice(0, 2)) {
+      const c = this.removeHandCard(attacker, id)
+      if (c) removed.push(c)
+    }
+    if (removed.length > 0) this.cardDeck.discard(removed)
+    this.emitSkillTrigger(victim, '复仇', `来源弃${removed.length}张手牌`)
+  }
+
+  private async applyFuChouDamage(victim: Player, attacker: Player): Promise<void> {
+    // 曼舞: 反弹的伤害, attacker 有曼舞可转移
+    if (await this.promptManWu(attacker, victim, 1)) {
+      this.emitSkillTrigger(victim, '复仇', '反弹被转移')
+      return
+    }
+    const dmg = attacker.takeDamage(1)
+    this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
+    if (!attacker.isAlive()) {
+      this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
+    }
   }
 
   private async dealDuelDamage(loser: Player, source: Player): Promise<void> {
