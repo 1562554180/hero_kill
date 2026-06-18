@@ -160,11 +160,15 @@ export function BattlePage() {
   const isBattleActive = phase !== 'idle'
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h2 style={{ textAlign: 'center', color: 'var(--text-gold)', marginBottom: '12px' }}>
-        {stage.name} - 第 {battleIdx + 1} 战
-        {currentBattle.isBoss && ' (BOSS)'}
-      </h2>
+    <div style={isBattleActive
+      ? { position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg-dark, #1a1a1a)' }
+      : { padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+      {!isBattleActive && (
+        <h2 style={{ textAlign: 'center', color: 'var(--text-gold)', marginBottom: '12px' }}>
+          {stage.name} - 第 {battleIdx + 1} 战
+          {currentBattle.isBoss && ' (BOSS)'}
+        </h2>
+      )}
 
       {!isBattleActive && (
         <div style={{ marginBottom: '12px', padding: '12px', background: 'var(--bg-medium)', borderRadius: '4px' }}>
@@ -277,7 +281,9 @@ export function BattlePage() {
       )}
 
       {isBattleActive ? (
-        <BattleBoard />
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <BattleBoard />
+        </div>
       ) : (
         <div style={{ textAlign: 'center', marginTop: '20px' }}>
           <button
