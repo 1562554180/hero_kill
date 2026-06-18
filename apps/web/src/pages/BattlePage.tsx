@@ -14,6 +14,7 @@ export function BattlePage() {
   const [save, setSave] = useState<any>(null)
   const [starting, setStarting] = useState(false)
   const [selectedHeroIdx, setSelectedHeroIdx] = useState(0)
+  const [selectedAllyIdx, setSelectedAllyIdx] = useState(-1)  // -1 = 不带友军
   const [allHeroes, setAllHeroes] = useState<any[]>([])
 
   const { phase, result, startBattle } = useBattleStore()
@@ -75,7 +76,8 @@ export function BattlePage() {
     const config: GameConfig = {
       playerHeroId: heroInstance.heroId,
       playerInstance: heroInstance,
-      allyHeroIds: currentBattle.allies ?? [],
+      allyHeroIds: [],
+      allyInstances: selectedAllyIdx >= 0 ? [save.heroes[selectedAllyIdx]] : [],
       enemyHeroIds: currentBattle.enemies,
     }
 
@@ -107,6 +109,7 @@ export function BattlePage() {
   const handleNext = () => {
     if (battleIdx < stage.battles.length - 1) {
       setBattleIdx(battleIdx + 1)
+      setSelectedAllyIdx(-1)
       // 完整重置所有状态, 防止上一场战斗残留导致新战斗回合卡住
       useBattleStore.setState({
         game: null,
@@ -167,7 +170,9 @@ export function BattlePage() {
         <div style={{ marginBottom: '12px', padding: '12px', background: 'var(--bg-medium)', borderRadius: '4px' }}>
           <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
             敌方: {currentBattle.enemies.join(', ')}
-            {currentBattle.allies?.length > 0 && ` | 友军: ${currentBattle.allies.join(', ')}`}
+            {selectedAllyIdx >= 0 && save.heroes?.[selectedAllyIdx]
+              ? ` | 友军: ${allHeroes.find((h: any) => h.id === save.heroes[selectedAllyIdx].heroId)?.name ?? save.heroes[selectedAllyIdx].heroId}`
+              : ' | 友军: 无'}
           </p>
           {save.heroes?.length > 0 && (
             <div style={{ marginTop: '8px' }}>
@@ -209,6 +214,59 @@ export function BattlePage() {
                           敌方
                         </div>
                       )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 友军选择 (可选, 最多1个) */}
+          {availableHeroes.length > 1 && (
+            <div style={{ marginTop: '12px' }}>
+              <p style={{ color: 'var(--text-light)', fontSize: '13px', marginBottom: '6px' }}>
+                选择友军 (可选, 不会出战):
+              </p>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div
+                  onClick={() => setSelectedAllyIdx(-1)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    border: selectedAllyIdx === -1 ? '2px solid var(--text-gold)' : '2px solid var(--bg-dark)',
+                    background: selectedAllyIdx === -1 ? 'var(--bg-dark)' : 'var(--bg-medium)',
+                    color: selectedAllyIdx === -1 ? 'var(--text-gold)' : 'var(--text-muted)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ fontSize: '14px', fontWeight: 'bold' }}>无友军</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>单独出战</div>
+                </div>
+                {save.heroes.map((hero: any, idx: number) => {
+                  // 不能选自己, 不能选敌人
+                  if (idx === selectedHeroIdx) return null
+                  if (forbiddenHeroIds.has(hero.heroId)) return null
+                  const heroDef = allHeroes.find((h: any) => h.id === hero.heroId)
+                  const selected = idx === selectedAllyIdx
+                  return (
+                    <div
+                      key={`ally-${hero.heroId}-${idx}`}
+                      onClick={() => setSelectedAllyIdx(idx)}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        border: selected ? '2px solid #90caf9' : '2px solid var(--bg-dark)',
+                        background: selected ? 'var(--bg-dark)' : 'var(--bg-medium)',
+                        color: selected ? '#90caf9' : 'var(--text-light)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{heroDef?.name ?? hero.heroId}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        {'★'.repeat(hero.starLevel)} Lv.{hero.level}
+                      </div>
                     </div>
                   )
                 })}

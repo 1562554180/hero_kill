@@ -12,6 +12,8 @@ export interface GameConfig {
   playerHeroId: string
   playerInstance: HeroInstance
   allyHeroIds: string[]
+  /** 玩家自选友军(优先于 allyHeroIds). 携带玩家的完整 HeroInstance (等级/星级/宝具) */
+  allyInstances?: HeroInstance[]
   enemyHeroIds: string[]
   playerActionHandler?: (game: Game, player: Player) => Promise<GameAction | null>
   /** 变法/判定交互：返回要替换的手牌ID，null表示不替换 */
@@ -190,10 +192,18 @@ export class Game {
     const playerHero = getHeroById(config.playerHeroId)!
     this.players.push(new Player(playerHero, config.playerInstance, 'player'))
 
-    for (const allyId of config.allyHeroIds) {
-      const hero = getHeroById(allyId)
-      if (hero) {
-        this.players.push(new Player(hero, { heroId: allyId, level: 1, growthValue: 0, starLevel: hero.starLevel, treasures: { main: [], sub: [] } }, 'ally'))
+    // 友军: 玩家自选 (allyInstances) 优先, 否则回退到 allyHeroIds + 空 stub
+    if (config.allyInstances && config.allyInstances.length > 0) {
+      for (const inst of config.allyInstances) {
+        const hero = getHeroById(inst.heroId)
+        if (hero) this.players.push(new Player(hero, inst, 'ally'))
+      }
+    } else {
+      for (const allyId of config.allyHeroIds) {
+        const hero = getHeroById(allyId)
+        if (hero) {
+          this.players.push(new Player(hero, { heroId: allyId, level: 1, growthValue: 0, starLevel: hero.starLevel, treasures: { main: [], sub: [] } }, 'ally'))
+        }
       }
     }
 
