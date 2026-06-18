@@ -91,10 +91,11 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
           {currentHp}
         </span>
         <div style={{
-          display: 'flex', flex: 1, height: '14px',
+          display: 'flex', flex: 1, height: '12px',
           background: '#0a0a0a', borderRadius: '2px',
           overflow: 'hidden',
           border: '1px solid #0a0a0a',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.08)',
         }}>
           {Array.from({ length: maxHp }).map((_, i) => (
             <div key={i} style={{
