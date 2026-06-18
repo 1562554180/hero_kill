@@ -9,7 +9,6 @@ import type { Card } from '@hero-legend/shared-types'
 
 export function BattleBoard() {
   const [resultOverlayDismissed, setResultOverlayDismissed] = useState(false)
-  const [lastClickedHandCardId, setLastClickedHandCardId] = useState<string | null>(null)
   const {
     gameState, phase, playerHand, actionLog, result, equippedCards, pendingCardId, pendingCardType, selectedTargetId,
     playKill, playScheme, playSchemeSelf, confirmTarget, confirmPlay, cancelPlay, playHeal, equipCard, endPlayPhase, cancelSelection, game,
@@ -968,7 +967,6 @@ export function BattleBoard() {
                 <div
                   key={card.id}
                   onClick={() => {
-                    setLastClickedHandCardId(card.id)
                     if (phase === 'selectDualCards') toggleDualCard(card.id)
                     else if (phase === 'selectDiscardCards') toggleDiscardCard(card.id)
                     else if (phase === 'selectFuChouDiscard') toggleFuChouPick(card.id)
@@ -1010,7 +1008,7 @@ export function BattleBoard() {
                     isResponse={phase === 'awaitingResponse'}
                     isJudgeReplace={phase === 'judgeReplace'}
                     isPending={pendingCardId === card.id}
-                    isLifted={lastClickedHandCardId === card.id}
+                    isLifted={pendingCardId === card.id}
                     treasureSelectMode={phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'xiaDanPickCard'}
                     selectDualMode={phase === 'selectDualCards'}
                     selectDiscardMode={phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard'}
