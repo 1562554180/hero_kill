@@ -244,7 +244,13 @@ export function BattleBoard() {
   })()
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%', padding: '8px 12px', boxSizing: 'border-box' }}>
+    <div style={{ display: 'flex', gap: '8px', height: '100%', padding: '8px 12px', boxSizing: 'border-box' }}>
+      {/* 左侧: 战斗信息 (战报) */}
+      <div style={{ flex: '0 0 220px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <BattleLog logs={actionLog} />
+      </div>
+      {/* 右侧: 战场 + 玩家区域 */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, minHeight: 0 }}>
       {/* Battle field: 顶部战场, 其他角色按逆时针分布在玩家周围 */}
       <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative', background: 'var(--bg-dark)', border: '1px solid var(--border-wood)', borderRadius: '8px', padding: '8px', overflow: 'hidden' }}>
         {/* 顶部提示 (悬浮在战场上方, 不阻挡角色) */}
@@ -336,7 +342,7 @@ export function BattleBoard() {
           flex: '0 0 auto',
           overflow: 'hidden',
         }}>
-          {/* 布局: 操作按钮(左侧) | 玩家卡 + 提示 + 手牌 | 战报(右侧) */}
+          {/* 布局: 操作按钮(左侧) | 玩家卡 + 提示 + 手牌 */}
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
             {/* 左侧: 操作按钮 (垂直) */}
             <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '120px', maxWidth: '180px' }}>
@@ -1044,10 +1050,6 @@ export function BattleBoard() {
           </div>
             </div>
 
-            {/* 右侧: 战报 */}
-            <div style={{ flex: '0 0 auto', width: '260px', maxHeight: '320px', overflow: 'hidden' }}>
-              <BattleLog logs={actionLog} />
-            </div>
           </div>
         </div>
       )}
@@ -1591,6 +1593,7 @@ export function BattleBoard() {
           100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
       `}</style>
+      </div>
     </div>
   )
 }
