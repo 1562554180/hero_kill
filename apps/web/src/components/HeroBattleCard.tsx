@@ -14,7 +14,7 @@ interface Props {
   hasHongZhuang?: boolean
 }
 
-const SLOT_SIZE = '28px'
+const SLOT_SIZE = '26px'
 
 export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang }: Props) {
   const game = useBattleStore(s => s.game)
@@ -78,22 +78,19 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         )}
       </div>
 
-      {/* HP区: 红心 + 数字 */}
+      {/* HP区: 当前血量 + 进度条 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
-        <div style={{ display: 'flex', gap: '2px' }}>
-          {Array.from({ length: maxHp }).map((_, i) => (
-            <span key={i} style={{
-              color: i < currentHp ? (isDanger ? '#e57373' : '#e53935') : '#3a2a2a',
-              fontSize: '14px',
-              lineHeight: 1,
-              textShadow: i < currentHp ? '0 0 4px rgba(229,57,53,0.6)' : 'none',
-              opacity: i < currentHp ? 1 : 0.5,
-            }}>♥</span>
-          ))}
-        </div>
-        <span style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap', marginLeft: '2px' }}>
-          {currentHp}/{maxHp}
+        <span style={{ color: isDanger ? '#e57373' : 'var(--text-light)', fontSize: '11px', fontWeight: 'bold', minWidth: '14px' }}>
+          {currentHp}
         </span>
+        <div style={{ flex: 1, height: '6px', background: '#1a1a1a', borderRadius: '3px', overflow: 'hidden' }}>
+          <div style={{
+            width: `${hpPercent}%`, height: '100%',
+            background: isDanger ? '#e57373' : hpPercent > 60 ? '#4caf50' : '#ff9800',
+            borderRadius: '3px',
+            transition: 'width 0.3s',
+          }} />
+        </div>
       </div>
 
       {/* 凹槽区: 永远显示4个 (主印1/2 + 辅印1/2), 未开启的显示锁定 — 手牌数量 */}
@@ -104,8 +101,8 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         {[0, 1].map(i => (
           <TreasureSlot key={`s-${i}`} treasure={subTreasures[i]} type="sub" locked={i >= slotConfig.sub} />
         ))}
-        <span style={{ color: 'var(--text-muted)', fontSize: '10px', marginLeft: '4px' }}>
-          手牌: {hero.handCards.length}
+        <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: '4px', fontWeight: 'bold' }}>
+          {hero.handCards.length}
         </span>
       </div>
 
