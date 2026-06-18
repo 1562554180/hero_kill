@@ -32,6 +32,11 @@ export function BattleBoard() {
     dieHunPrompt, confirmDieHun, cancelDieHun,
     manWuPrompt, manWuRedHeartCards, manWuSelectedCardId, selectManWuCard, selectManWuTarget, confirmManWuCard, cancelManWu,
     tianXiangJudgeCard, tianXiangEquipment, selectTianXiangCard,
+    menShenCandidates, selectMenShenTarget, cancelMenShenTarget,
+    jueBieCandidates, selectJueBieTarget, cancelJueBieTarget,
+    zhenShaPrompt, confirmZhenSha, cancelZhenSha,
+    buDaoPrompt, selectBuDaoCard,
+    sanBanFuPrompt, confirmSanBanFu, cancelSanBanFu,
     lastJudgeResult,
   } = useBattleStore()
 
@@ -801,6 +806,95 @@ export function BattleBoard() {
             </div>
           )}
 
+          {/* 门神: 秦琼回合结束选择保护目标 */}
+          {phase === 'menShenTarget' && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(99,179,237,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(99,179,237,0.3)',
+              color: '#90caf9', fontSize: '12px',
+            }}>
+              <div style={{ marginBottom: '6px' }}>🚪 门神 — 回合结束可指定1个目标，到下回合开始前对其的【杀】/【决斗】将转移给你</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {menShenCandidates.map(c => (
+                  <button key={c.id} style={treasureBtnStyle} onClick={() => selectMenShenTarget(c.id)}>
+                    {c.name} ({c.currentHp}/{c.maxHp})
+                  </button>
+                ))}
+                <button style={treasureBtnStyle} onClick={cancelMenShenTarget}>不发动</button>
+              </div>
+            </div>
+          )}
+
+          {/* 诀别: 虞姬濒死选择男性 */}
+          {phase === 'jueBieTarget' && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(244,143,177,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(244,143,177,0.3)',
+              color: '#f48fb1', fontSize: '12px',
+            }}>
+              <div style={{ marginBottom: '6px' }}>💔 诀别 — 选择1名男性角色，阵亡后所有手牌和装备归他</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {jueBieCandidates.map(c => (
+                  <button key={c.id} style={treasureBtnStyle} onClick={() => selectJueBieTarget(c.id)}>
+                    {c.name} ({c.currentHp}/{c.maxHp})
+                  </button>
+                ))}
+                <button style={treasureBtnStyle} onClick={cancelJueBieTarget}>不发动 (失效)</button>
+              </div>
+            </div>
+          )}
+
+          {/* 鸩杀: 吕雉对濒死目标是否使用【药】 */}
+          {zhenShaPrompt && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(171,71,71,0.18)', borderRadius: '4px',
+              border: '1px solid rgba(171,71,71,0.4)',
+              color: '#ff8a8a', fontSize: '12px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+            }}>
+              <span>☠️ 鸩杀 — {zhenShaPrompt.targetName} 濒死，是否弃1张【药】使其立即阵亡？</span>
+              <span>
+                <button style={treasureBtnStyle} onClick={confirmZhenSha}>使用【药】</button>
+                <button style={{ ...treasureBtnStyle, marginLeft: '6px' }} onClick={cancelZhenSha}>不发动</button>
+              </span>
+            </div>
+          )}
+
+          {/* 三板斧: 程咬金出杀确认 */}
+          {sanBanFuPrompt && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(255,152,0,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(255,152,0,0.3)',
+              color: '#ffb74d', fontSize: '12px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+            }}>
+              <span>🪓 三板斧 — 对 {sanBanFuPrompt.targetName} 出【杀】，是否发动三板斧？(0闪：目标-2血+你弃1张；1闪：双方各-1血；2闪：你-1血)</span>
+              <span>
+                <button style={treasureBtnStyle} onClick={confirmSanBanFu}>发动</button>
+                <button style={{ ...treasureBtnStyle, marginLeft: '6px' }} onClick={cancelSanBanFu}>普通【杀】</button>
+              </span>
+            </div>
+          )}
+
+          {/* 补刀: 关羽回合外对受害角色补杀 */}
+          {phase === 'buDaoKill' && buDaoPrompt && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(99,179,237,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(99,179,237,0.3)',
+              color: '#90caf9', fontSize: '12px',
+            }}>
+              <div style={{ marginBottom: '6px' }}>⚔️ 补刀 — {buDaoPrompt.victimName} 攻击范围内被掉血，是否出【杀】？不消耗出杀次数</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <button style={treasureBtnStyle} onClick={() => selectBuDaoCard(null)}>不补</button>
+              </div>
+            </div>
+          )}
+
           {/* Hand cards */}
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {playerHand.map(card => {
@@ -831,17 +925,20 @@ export function BattleBoard() {
                     } else if (manWuRedHeartCards.length > 0 && manWuRedHeartCards.some(c => c.id === card.id)) {
                       // 曼舞: 标记选中的牌 (需点确定才生效)
                       selectManWuCard(isSelectedManWu ? null : card.id)
+                    } else if (phase === 'buDaoKill' && game?.canPlayerUseAsKill(card.id)) {
+                      // 补刀: 点击可当杀的牌直接补杀
+                      selectBuDaoCard(card.id)
                     }
                   }}
                   style={{
                     outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedManWu) ? '3px solid #b8860b' : 'none',
                     borderRadius: '6px',
-                    cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
+                    cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
                   }}
                 >
                   <HandCard
                     card={card}
-                    disabled={!(isPlayerTurn || phase === 'judgeReplace' || phase === 'awaitingResponse' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang') || phase === 'selectTarget'}
+                    disabled={!(isPlayerTurn || phase === 'judgeReplace' || phase === 'awaitingResponse' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill') || phase === 'selectTarget'}
                     canPlayKill={canPlayKill}
                     isFullHp={isFullHp}
                     aoJianActive={aoJianActive}

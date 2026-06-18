@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { Game, type GameConfig, type Player } from '@hero-legend/game-engine'
 import type { GameState, BattleResult, Card, GameEvent, GameEventType, HeroInstance, EquipmentSlot } from '@hero-legend/shared-types'
 
-export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang'
+export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm'
 
 interface BattleState {
   game: Game | null
@@ -98,6 +98,21 @@ interface BattleState {
   tianXiangJudgeCard: { name: string; suit: string; number: number } | null
   tianXiangEquipment: Card[]
   resolveTianXiang: ((cardId: string | null) => void) | null
+  // 门神: 秦琼回合结束选择保护目标
+  menShenCandidates: { id: string; name: string; currentHp: number; maxHp: number }[]
+  resolveMenShenTarget: ((targetId: string | null) => void) | null
+  // 诀别: 虞姬濒死选择男性
+  jueBieCandidates: { id: string; name: string; currentHp: number; maxHp: number }[]
+  resolveJueBieTarget: ((targetId: string | null) => void) | null
+  // 鸩杀: 吕雉被询问是否对濒死目标使用【药】
+  zhenShaPrompt: { targetName: string } | null
+  resolveZhenSha: ((use: boolean) => void) | null
+  // 补刀: 关羽对受害角色出杀
+  buDaoPrompt: { victimId: string; victimName: string } | null
+  resolveBuDao: ((cardId: string | null) => void) | null
+  // 三板斧: 程咬金出杀时确认
+  sanBanFuPrompt: { targetName: string } | null
+  resolveSanBanFu: ((use: boolean) => void) | null
   judgeCard: Card | null
   // 最近一次判定结果 (含来源名/牌名, 供中央显示; 显示2.5秒后自动清空)
   lastJudgeResult: { judgeHeroName: string; judgeCardName: string; resultCard: { suit: string; number: number; name: string } } | null
@@ -199,6 +214,20 @@ interface BattleState {
   selectTianXiangCard: (cardId: string | null) => void
   // 驭人: 确认弃牌
   confirmYuRenCards: () => void
+  // 门神
+  selectMenShenTarget: (targetId: string) => void
+  cancelMenShenTarget: () => void
+  // 诀别
+  selectJueBieTarget: (targetId: string) => void
+  cancelJueBieTarget: () => void
+  // 鸩杀
+  confirmZhenSha: () => void
+  cancelZhenSha: () => void
+  // 补刀
+  selectBuDaoCard: (cardId: string | null) => void
+  // 三板斧
+  confirmSanBanFu: () => void
+  cancelSanBanFu: () => void
 }
 
 const heroNames: Record<string, string> = {}
@@ -360,6 +389,16 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   tianXiangJudgeCard: null,
   tianXiangEquipment: [],
   resolveTianXiang: null,
+  menShenCandidates: [],
+  resolveMenShenTarget: null,
+  jueBieCandidates: [],
+  resolveJueBieTarget: null,
+  zhenShaPrompt: null,
+  resolveZhenSha: null,
+  buDaoPrompt: null,
+  resolveBuDao: null,
+  sanBanFuPrompt: null,
+  resolveSanBanFu: null,
   xiaDanActive: false,
   xiaDanUsedThisTurn: false,
   yuRenCardIds: [],
@@ -435,6 +474,16 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       tianXiangJudgeCard: null,
       tianXiangEquipment: [],
       resolveTianXiang: null,
+      menShenCandidates: [],
+      resolveMenShenTarget: null,
+      jueBieCandidates: [],
+      resolveJueBieTarget: null,
+      zhenShaPrompt: null,
+      resolveZhenSha: null,
+      buDaoPrompt: null,
+      resolveBuDao: null,
+      sanBanFuPrompt: null,
+      resolveSanBanFu: null,
     })
 
     const wrappedConfig: GameConfig = {
@@ -711,6 +760,46 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         })
         return new Promise<string | null>(resolve => {
           set({ resolveTianXiang: resolve })
+        })
+      },
+      menShenTargetHandler: async (game: Game, qinQiong: Player, candidates: Player[]) => {
+        set({
+          phase: 'menShenTarget',
+          menShenCandidates: candidates.map(p => ({ id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() })),
+        })
+        return new Promise<string | null>(resolve => {
+          set({ resolveMenShenTarget: resolve })
+        })
+      },
+      jueBieHandler: async (game: Game, yuJi: Player, candidates: Player[]) => {
+        set({
+          phase: 'jueBieTarget',
+          jueBieCandidates: candidates.map(p => ({ id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() })),
+        })
+        return new Promise<string | null>(resolve => {
+          set({ resolveJueBieTarget: resolve })
+        })
+      },
+      zhenShaHandler: async (game: Game, lvZhi: Player, dyingTarget: Player) => {
+        set({ zhenShaPrompt: { targetName: dyingTarget.getName() } })
+        return new Promise<boolean>(resolve => {
+          set({ resolveZhenSha: resolve })
+        })
+      },
+      buDaoHandler: async (game: Game, guanYu: Player, victim: Player) => {
+        set({
+          phase: 'buDaoKill',
+          buDaoPrompt: { victimId: victim.getId(), victimName: victim.getName() },
+          playerHand: guanYu.getHand(),
+        })
+        return new Promise<string | null>(resolve => {
+          set({ resolveBuDao: resolve })
+        })
+      },
+      sanBanFuHandler: async (game: Game, attacker: Player, defender: Player) => {
+        set({ sanBanFuPrompt: { targetName: defender.getName() } })
+        return new Promise<boolean>(resolve => {
+          set({ resolveSanBanFu: resolve })
         })
       },
       playerActionHandler: async (game: Game, player: any) => {
@@ -1550,5 +1639,78 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveTianXiang(cardId)
     }
     set({ resolveTianXiang: null, tianXiangJudgeCard: null, tianXiangEquipment: [], phase: 'waiting' })
+  },
+
+  // 门神: 选保护目标 / 取消 = 不发动
+  selectMenShenTarget: (targetId: string) => {
+    const { resolveMenShenTarget } = get()
+    if (!resolveMenShenTarget) return
+    resolveMenShenTarget(targetId)
+    set({ resolveMenShenTarget: null, menShenCandidates: [], phase: 'waiting' })
+  },
+  cancelMenShenTarget: () => {
+    const { resolveMenShenTarget } = get()
+    if (!resolveMenShenTarget) return
+    resolveMenShenTarget(null)
+    set({ resolveMenShenTarget: null, menShenCandidates: [], phase: 'waiting' })
+  },
+
+  // 诀别: 选男性候选 / 取消 = 失效
+  selectJueBieTarget: (targetId: string) => {
+    const { resolveJueBieTarget } = get()
+    if (!resolveJueBieTarget) return
+    resolveJueBieTarget(targetId)
+    set({ resolveJueBieTarget: null, jueBieCandidates: [], phase: 'waiting' })
+  },
+  cancelJueBieTarget: () => {
+    const { resolveJueBieTarget } = get()
+    if (!resolveJueBieTarget) return
+    resolveJueBieTarget(null)
+    set({ resolveJueBieTarget: null, jueBieCandidates: [], phase: 'waiting' })
+  },
+
+  // 鸩杀: 发动 / 不发动
+  confirmZhenSha: () => {
+    const { resolveZhenSha } = get()
+    if (!resolveZhenSha) return
+    resolveZhenSha(true)
+    set({ resolveZhenSha: null, zhenShaPrompt: null, phase: 'waiting' })
+  },
+  cancelZhenSha: () => {
+    const { resolveZhenSha } = get()
+    if (!resolveZhenSha) return
+    resolveZhenSha(false)
+    set({ resolveZhenSha: null, zhenShaPrompt: null, phase: 'waiting' })
+  },
+
+  // 补刀: 选杀/装备当杀 / 取消 = 不补
+  selectBuDaoCard: (cardId: string | null) => {
+    const { resolveBuDao, playerHand, game, buDaoPrompt } = get()
+    if (!resolveBuDao || !game || !buDaoPrompt) return
+    // 校验: 必须是手牌中可当杀的牌
+    if (cardId) {
+      if (!game.canPlayerUseAsKill(cardId)) {
+        // 无效牌 → 当作不补
+        resolveBuDao(null)
+        set({ resolveBuDao: null, buDaoPrompt: null, phase: 'waiting' })
+        return
+      }
+    }
+    resolveBuDao(cardId)
+    set({ resolveBuDao: null, buDaoPrompt: null, phase: 'waiting' })
+  },
+
+  // 三板斧: 发动 / 不用
+  confirmSanBanFu: () => {
+    const { resolveSanBanFu } = get()
+    if (!resolveSanBanFu) return
+    resolveSanBanFu(true)
+    set({ resolveSanBanFu: null, sanBanFuPrompt: null, phase: 'waiting' })
+  },
+  cancelSanBanFu: () => {
+    const { resolveSanBanFu } = get()
+    if (!resolveSanBanFu) return
+    resolveSanBanFu(false)
+    set({ resolveSanBanFu: null, sanBanFuPrompt: null, phase: 'waiting' })
   },
 }))

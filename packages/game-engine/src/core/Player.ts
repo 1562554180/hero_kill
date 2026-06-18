@@ -164,6 +164,12 @@ export class Player {
     return allTreasures.some(t => t?.skill.id === skillId || t?.skill.id === `treasure-${skillId}`)
   }
 
+  /** 武则天/吕雉/虞姬/李师师/小乔 视为女性英雄 (无性别字段, 硬编码) */
+  isFemale(): boolean {
+    const femaleHeroes = ['wu-ze-tian', 'lv-zhi', 'yu-ji', 'li-shi-shi', 'xiao-qiao']
+    return femaleHeroes.includes(this.hero.hero.id)
+  }
+
   getSkillMaxUses(skillId: string): number | undefined {
     const skill = this.hero.hero.skills.find(s => s.id === skillId)
     return skill?.maxUsesPerTurn

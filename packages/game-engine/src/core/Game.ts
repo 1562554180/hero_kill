@@ -68,6 +68,16 @@ export interface GameConfig {
   manWuHandler?: (game: Game, victim: Player, attacker: Player, damage: number, candidates: Player[]) => Promise<string | null>
   /** 绝击: AI/玩家 是否发动以及选 (弃武器/null=受1血) + 目标. 返回null=不发动 */
   jueJiHandler?: (game: Game, attacker: Player, inRangeEnemies: Player[]) => Promise<{ weaponCardId: string | null; targetId: string } | null>
+  /** 门神: 秦琼回合结束选择保护目标 */
+  menShenTargetHandler?: (game: Game, qinQiong: Player, candidates: Player[]) => Promise<string | null>
+  /** 三板斧: 程咬金出杀时是否发动 */
+  sanBanFuHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
+  /** 鸩杀: 吕雉是否对濒死目标使用【药】 */
+  zhenShaHandler?: (game: Game, lvZhi: Player, dyingTarget: Player) => Promise<boolean>
+  /** 诀别: 虞姬濒死时是否指定男性英雄 (null=不指定) */
+  jueBieHandler?: (game: Game, yuJi: Player, candidates: Player[]) => Promise<string | null>
+  /** 补刀: 关羽是否对目标补杀 (null=不补) */
+  buDaoHandler?: (game: Game, guanYu: Player, victim: Player) => Promise<string | null>
 }
 
 export class Game {
@@ -94,6 +104,10 @@ export class Game {
   private xiaDanLossThisTurn = new Set<string>()             // 输了侠胆的玩家集合
   private xiaDanUsedThisTurn = new Set<string>()             // 本回合已尝试拼点的玩家 (限1次)
   private skipDrawThisTurn = false                            // 起义: 跳过本回合摸牌
+  // 门神: 秦琼 → 受保护的目标ID (回合结束指定, 下回合开始失效)
+  private menShenMap = new Map<string, string>()              // qinQiongId → protectedTargetId
+  // 诀别: 虞姬濒死时指定的男性英雄ID; 阵亡后牌归其
+  private jueBieTarget: string | null = null
   /** 五谷丰登剩余玩家延续函数 (玩家出牌后继续) */
   pendingWuguContinuation: (() => Promise<void>) | null = null
 
@@ -503,9 +517,21 @@ export class Game {
       if (c) allCards.push(c)
     })
     if (allCards.length > 0) {
+      // 诀别: 虞姬阵亡后所有牌归入指定男性
+      if (this.jueBieTarget && victim.hero.hero.id === 'yu-ji') {
+        const target = this.getPlayerById(this.jueBieTarget)
+        if (target && target.isAlive() && !target.isFemale()) {
+          target.drawCards(allCards)
+          this.eventBus.emit({ type: 'card:gain', sourceHeroId: target.getId(), data: { count: allCards.length, reason: '诀别', from: victim.getId() } })
+          this.emitSkillTrigger(victim, '诀别', `所有牌归入${target.getName()}`)
+          this.jueBieTarget = null
+          return
+        }
+      }
       this.cardDeck.discard(allCards)
       this.eventBus.emit({ type: 'card:discard', sourceHeroId: victimId, data: { count: allCards.length, reason: 'death' } })
     }
+    this.jueBieTarget = null
   }
 
   private async executeTurn(): Promise<void> {
@@ -533,6 +559,8 @@ export class Game {
     this.lastPlayedCardName = null
     this.zuijiuActive = false
     this.aoJianActive.clear()  // 傲剑主动模式: 每个玩家回合开始时清空
+    // 门神: 秦琼的下回合开始时清除自己上回合指定的保护
+    this.menShenMap.delete(player.getId())
     // 侠胆: 每个玩家回合开始时重置
     this.xiaDanWinKillsLeft.delete(player.getId())
     this.xiaDanWinTargetsPerKill.delete(player.getId())
@@ -607,8 +635,93 @@ export class Game {
       const cards = this.cardDeck.draw(3)
       player.drawCards(cards)
       this.skipNextTurnPlayerId = player.getId()
-      this.emitSkillTrigger(player, '蓄谋', '摸3张，跳过下回合')
+      this.emitSkillTrigger(player, '蓄谋', '摸3张，跳下回合')
     }
+    // 门神: 秦琼回合结束可指定1目标, 到下回合开始前对该目标的【杀】/【决斗】视为对秦琼打出
+    if (player.hasSkillOrTreasure('men-shen')) {
+      void this.promptMenShenTarget(player)
+    }
+  }
+
+  private async promptMenShenTarget(qinQiong: Player): Promise<void> {
+    const candidates = this.getAlivePlayers().filter(p => p.getId() !== qinQiong.getId())
+    if (candidates.length === 0) return
+    let chosenId: string | null = null
+    if (qinQiong.getRole() === 'player' && this.config.menShenTargetHandler) {
+      chosenId = await this.config.menShenTargetHandler(this, qinQiong, candidates)
+    } else {
+      // AI: 选血量最低的敌人优先
+      const enemies = candidates.filter(p => p.getRole() !== qinQiong.getRole())
+      const target = (enemies.length > 0 ? enemies : candidates)
+        .sort((a, b) => a.getCurrentHp() - b.getCurrentHp())[0]
+      chosenId = target?.getId() ?? null
+    }
+    if (chosenId) {
+      this.menShenMap.set(qinQiong.getId(), chosenId)
+      const target = this.getPlayerById(chosenId)
+      this.emitSkillTrigger(qinQiong, '门神', `指定${target?.getName() ?? '?'}为目标`)
+    }
+  }
+
+  /** 门神重定向: 若defender是秦琼保护的目标, 则把defender替换为秦琼 */
+  private redirectIfMenShen(attacker: Player, defender: Player): Player {
+    for (const [qinId, protectedId] of this.menShenMap) {
+      if (protectedId === defender.getId()) {
+        const qinQiong = this.getPlayerById(qinId)
+        if (qinQiong && qinQiong.isAlive() && qinQiong.getId() !== attacker.getId()) {
+          this.emitSkillTrigger(qinQiong, '门神', `${attacker.getName()}的杀/决斗→自己`)
+          return qinQiong
+        }
+      }
+    }
+    return defender
+  }
+
+  /** 诀别: 虞姬濒死时选择一名男性英雄 */
+  private async promptJueBieTarget(yuJi: Player): Promise<void> {
+    const candidates = this.getAlivePlayers().filter(p =>
+      p.getId() !== yuJi.getId() && !p.isFemale()
+    )
+    if (candidates.length === 0) {
+      this.emitSkillTrigger(yuJi, '诀别', '无男性候选-失效')
+      return
+    }
+    let chosenId: string | null = null
+    if (yuJi.getRole() === 'player' && this.config.jueBieHandler) {
+      chosenId = await this.config.jueBieHandler(this, yuJi, candidates)
+    } else {
+      // AI: 选血量最高的友军男性
+      const allies = candidates.filter(p => p.getRole() === yuJi.getRole())
+      const pool = allies.length > 0 ? allies : candidates
+      const target = pool.sort((a, b) => b.getCurrentHp() - a.getCurrentHp())[0]
+      chosenId = target?.getId() ?? null
+    }
+    if (chosenId) {
+      this.jueBieTarget = chosenId
+      const target = this.getPlayerById(chosenId)
+      this.emitSkillTrigger(yuJi, '诀别', `指定${target?.getName() ?? '?'}继承所有牌`)
+    }
+  }
+
+  /** 鸩杀: 吕雉对濒死目标使用【药】使其阵亡 */
+  private async promptZhenSha(dyingTarget: Player): Promise<void> {
+    const lvZhi = this.players.find(p => p.hero.hero.id === 'lv-zhi' && p.isAlive())
+    if (!lvZhi) return
+    if (!lvZhi.getHand().some(c => c.name === '药')) return
+    let trigger = false
+    if (lvZhi.getRole() === 'player' && this.config.zhenShaHandler) {
+      trigger = await this.config.zhenShaHandler(this, lvZhi, dyingTarget)
+    } else {
+      // AI: 濒死目标是敌人就发动
+      trigger = lvZhi.getRole() !== dyingTarget.getRole()
+    }
+    if (!trigger) return
+    // 找一张药弃掉 (吕雉手牌)
+    const yao = lvZhi.getHand().find(c => c.name === '药')
+    if (!yao) return
+    this.removeHandCard(lvZhi, yao.id)
+    this.cardDeck.discard([yao])
+    this.emitSkillTrigger(lvZhi, '鸩杀', `对${dyingTarget.getName()}使用【药】使阵亡`)
   }
 
   private async autoPlayPhase(player: Player): Promise<void> {
@@ -794,6 +907,9 @@ export class Game {
   // --- Kill execution ---
 
   async executeKill(attacker: Player, defender: Player, killCard: Card, opts?: { forceNoDodge?: boolean }): Promise<void> {
+    // 门神: 若defender被秦琼保护, 重定向到秦琼
+    defender = this.redirectIfMenShen(attacker, defender)
+    if (!attacker.isAlive() || !defender.isAlive()) return
     this.removeCardFromPlayer(attacker, killCard)
     // killsUsedThisTurn 由 caller 累加 (playerPlayKill / playerPlayKillMulti / AI 流程)
 
@@ -1093,6 +1209,26 @@ export class Game {
 
   /** 受伤后的被动技能触发 */
   private async onDamageReceived(victim: Player, attacker: Player, sourceCard?: Card): Promise<void> {
+    // 补刀: 关羽回合外, 攻击范围内的角色被【杀】掉血后, 可对该角色补杀, 造成伤害则继续
+    if (sourceCard?.name === '杀' && victim.isAlive()) {
+      const guanYu = this.players.find(p => p.hero.hero.id === 'guan-yu' && p.isAlive())
+      const currentPlayer = this.players[this.currentPlayerIndex]
+      if (guanYu && currentPlayer && guanYu.getId() !== currentPlayer.getId() &&
+          guanYu.getId() !== victim.getId() &&
+          this.isInAttackRange(guanYu, victim) &&
+          guanYu.getHand().some(c => this.canUseAsKill(c, guanYu))) {
+        await this.executeBuDao(guanYu, victim)
+      }
+    }
+    // 诀别: 虞姬进入濒死(HP=0)时, 可指定一名男性英雄, 阵亡后所有牌归其
+    if (victim.hero.hero.id === 'yu-ji' && victim.getCurrentHp() <= 0 && !this.jueBieTarget) {
+      await this.promptJueBieTarget(victim)
+    }
+    // 鸩杀: 吕雉有药时, 可对濒死目标使用【药】使其立即阵亡
+    if (victim.getCurrentHp() <= 0 && victim.hero.hero.id !== 'lv-zhi') {
+      await this.promptZhenSha(victim)
+    }
+
     // 集权: 获得造成伤害的牌
     if (victim.hasSkillOrTreasure('ji-tian') && sourceCard) {
       // 从弃牌堆找回那张具体牌
@@ -1184,11 +1320,23 @@ export class Game {
   async executeDuel(initiator: Player, target: Player): Promise<void> {
     if (!target.isAlive() || !initiator.isAlive()) return
 
+    // 门神: 决斗目标若被秦琼保护, 重定向到秦琼
+    target = this.redirectIfMenShen(initiator, target)
+    if (!target.isAlive()) return
+
+    // 女权: 男性对女性出【决斗】无效
+    if (target.isFemale() && !initiator.isFemale()) {
+      this.emitSkillTrigger(target, '女权', `${initiator.getName()}的【决斗】无效`)
+      return
+    }
+    // 女权: 女性对男性出【决斗】, 对方需出2张【杀】
+    const femaleVsMale = initiator.isFemale() && !target.isFemale()
+
     // 交替出杀, target 先. 输方掉1血
     let current = target
     let other = initiator
     let lastKiller: Player | null = null  // 上一轮出杀的人
-    let needCount = 1  // 本轮需要出几张杀(霸王影响)
+    let needCount = femaleVsMale ? 2 : 1  // 本轮需要出几张杀(霸王/女权影响)
 
     while (current.isAlive()) {
       // 找杀(傲剑: 红色牌当杀, 武穆: 闪当杀, 排除药)
@@ -1581,11 +1729,131 @@ export class Game {
     const target = this.players.find(p => p.getId() === targetId)
     if (!target || !target.isAlive()) return
     if (!this.isInAttackRange(player, target)) return
+    // 三板斧: 程咬金出杀时询问是否发动 (主动技, 限1次/回合)
+    if (player.hasSkillOrTreasure('san-ban-fu') && player.getSkillUseCount('san-ban-fu') === 0) {
+      let useSanBanFu = true
+      if (player.getRole() === 'player' && this.config.sanBanFuHandler) {
+        useSanBanFu = await this.config.sanBanFuHandler(this, player, target)
+      }
+      if (useSanBanFu && player.useSkill('san-ban-fu')) {
+        await this.executeSanBanFuKill(player, target, killCard)
+        if (!this.hasUnlimitedKill(player)) {
+          this.killsUsedThisTurn++
+          this.killUsedThisTurn = true
+          player.setUsedKillThisTurn(true)
+        }
+        return
+      }
+    }
     await this.executeKill(player, target, killCard)
     if (!this.hasUnlimitedKill(player)) {
       this.killsUsedThisTurn++
       this.killUsedThisTurn = true
       player.setUsedKillThisTurn(true)
+    }
+  }
+
+  /**
+   * 三板斧: 程咬金对其他角色出【杀】特殊结算
+   * - 目标出0闪: 目标掉2血, 程咬金弃1张手牌
+   * - 目标出1闪: 双方各掉1血
+   * - 目标出2闪: 程咬金自己掉1血
+   */
+  private async executeSanBanFuKill(attacker: Player, defender: Player, killCard: Card): Promise<void> {
+    if (!attacker.isAlive() || !defender.isAlive()) return
+    this.removeCardFromPlayer(attacker, killCard)
+    this.eventBus.emit({
+      type: 'card:play',
+      sourceHeroId: attacker.getId(),
+      targetHeroId: defender.getId(),
+      data: { cardId: killCard.id, cardName: '杀', usedAsSkill: '三板斧' },
+    })
+    this.emitSkillTrigger(attacker, '三板斧', `对${defender.getName()}出杀`)
+    this.lastPlayedCardName = '杀'
+
+    // 让defender打0-2张闪 (自愿)
+    let dodgeCount = 0
+    for (let i = 0; i < 2; i++) {
+      const dodgeCard = await this.promptResponseDodge(defender, attacker.getId(), '三板斧')
+      if (!dodgeCard) break
+      this.removeHandCard(defender, dodgeCard.id)
+      this.cardDeck.discard([dodgeCard])
+      this.eventBus.emit({ type: 'damage:prevent', sourceHeroId: defender.getId(), data: { cardId: dodgeCard.id } })
+      if (defender.hasSkillOrTreasure('tu-qiang')) {
+        const drawn = this.cardDeck.draw(1)
+        defender.drawCards(drawn)
+        this.emitSkillTrigger(defender, '图强', '打出闪摸一张')
+      }
+      if (this.rollSubTreasure(defender, 'treasure-qing-ling')) {
+        const drawn = this.cardDeck.draw(1)
+        defender.drawCards(drawn)
+        this.emitSkillTrigger(defender, '轻灵', '出闪后摸1张')
+      }
+      dodgeCount++
+    }
+
+    if (dodgeCount === 0) {
+      // 目标掉2血, 程咬金弃1张手牌
+      await this.applyDamageWithManWu(defender, attacker, 2, killCard)
+      if (attacker.isAlive() && attacker.getHand().length > 0) {
+        let discardId: string | null = null
+        if (attacker.getRole() === 'player' && this.config.discardPickHandler) {
+          const picks = await this.config.discardPickHandler(this, attacker, attacker.getHand(), 1)
+          discardId = picks?.[0] ?? null
+        }
+        if (!discardId) discardId = attacker.getHand()[0].id
+        const discarded = this.removeHandCard(attacker, discardId)
+        if (discarded) {
+          this.cardDeck.discard([discarded])
+          this.eventBus.emit({ type: 'card:discard', sourceHeroId: attacker.getId(), data: { cards: [discarded.id], reason: '三板斧' } })
+        }
+      }
+    } else if (dodgeCount === 1) {
+      // 双方各掉1血
+      await this.applyDamageWithManWu(defender, attacker, 1, killCard)
+      if (defender.isAlive() && attacker.isAlive()) {
+        await this.applyDamageWithManWu(attacker, defender, 1, killCard)
+      }
+    } else {
+      // 2闪: 程咬金自己掉1血
+      await this.applyDamageWithManWu(attacker, defender, 1, killCard)
+    }
+  }
+
+  /** 应用伤害并触发受击效果 (含曼舞) */
+  private async applyDamageWithManWu(victim: Player, attacker: Player, damage: number, sourceCard?: Card): Promise<void> {
+    if (this.zuijiuActive) { damage += 1; this.zuijiuActive = false }
+    if (await this.promptManWu(victim, attacker, damage)) return
+    const actual = victim.takeDamage(damage)
+    if (actual <= 0) return
+    this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: victim.getId(), data: { damage } })
+    this.eventBus.emit({ type: 'damage:receive', sourceHeroId: victim.getId(), data: { damage, from: attacker.getId() } })
+    await this.onDamageReceived(victim, attacker, sourceCard)
+  }
+
+  /**
+   * 补刀: 关羽对受害角色出杀, 若造成伤害则继续出杀
+   * 不消耗回合杀次数, 但每张杀会单独走executeKill完整流程
+   */
+  private async executeBuDao(guanYu: Player, victim: Player): Promise<void> {
+    let continueKill = true
+    while (continueKill && guanYu.isAlive() && victim.isAlive()) {
+      if (!this.isInAttackRange(guanYu, victim)) break
+      // 玩家: 询问是否补刀 + 选卡; AI: 自动
+      let killCardId: string | null = null
+      if (guanYu.getRole() === 'player' && this.config.buDaoHandler) {
+        killCardId = await this.config.buDaoHandler(this, guanYu, victim)
+      } else if (guanYu.getRole() !== 'player') {
+        // AI: 自动找一张可当杀的卡
+        const c = guanYu.getHand().find(card => this.canUseAsKill(card, guanYu))
+        killCardId = c?.id ?? null
+      }
+      if (!killCardId) break
+      const beforeHp = victim.getCurrentHp()
+      await this.executeKill(guanYu, victim, killCardId as any)
+      // 造成伤害则继续
+      const afterHp = victim.getCurrentHp()
+      if (afterHp >= beforeHp) break
     }
   }
 
