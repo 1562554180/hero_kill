@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useBattleStore } from '../stores/battleStore'
 import { BattleBoard } from '../components/BattleBoard'
 import type { GameConfig } from '@hero-legend/game-engine'
+import { generateEnemyInstances } from '@hero-legend/game-data'
 
 const API = '/api'
 
@@ -79,6 +80,14 @@ export function BattlePage() {
       allyHeroIds: [],
       allyInstances: selectedAllyIdx >= 0 ? [save.heroes[selectedAllyIdx]] : [],
       enemyHeroIds: currentBattle.enemies,
+      // 根据关卡难度生成敌人 (星级 + 主印 + 辅印)
+      enemyInstances: generateEnemyInstances({
+        stageOrder: stage.order,
+        battleIdx,
+        totalBattles: stage.battles.length,
+        isBoss: currentBattle.isBoss,
+        enemyHeroIds: currentBattle.enemies,
+      }),
     }
 
     try {

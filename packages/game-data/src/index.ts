@@ -1,5 +1,5 @@
 export { createFullDeck, basicCards, schemeCards, equipmentCards } from './cards/index.js'
 export { heroes, bossHeroes, getHeroById } from './heroes/index.js'
 export { stages, getStageById } from './stages/index.js'
-export { treasureDefinitions, getTreasureDefinitionById, generateTreasureDrop, generateInitialTreasures } from './treasures/index.js'
-export type { TreasureDefinition } from './treasures/index.js'
+export { treasureDefinitions, getTreasureDefinitionById, generateTreasureDrop, generateInitialTreasures, generateEnemyInstances } from './treasures/index.js'
+export type { TreasureDefinition, EnemySpawnConfig } from './treasures/index.js'

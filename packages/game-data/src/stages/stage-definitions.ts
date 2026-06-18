@@ -1,5 +1,7 @@
 import type { Stage } from '@hero-legend/shared-types'
 
+// 关卡敌人最低 3 人, 越往后星级越高, BOSS 固定 5★ + 满配宝具
+// 详细难度梯度由 generateEnemyInstances 计算, 此处只定义英雄ID
 export const stages: Stage[] = [
   {
     id: 'xu-zhou',
@@ -7,11 +9,12 @@ export const stages: Stage[] = [
     description: '群雄逐鹿之地，刘邦故里',
     order: 1,
     battles: [
-      { id: 'xz-1', enemies: ['han-xin'], allies: [], isBoss: false },
-      { id: 'xz-2', enemies: ['han-xin', 'lv-zhi'], allies: [], isBoss: false },
-      { id: 'xz-3', enemies: ['han-xin', 'lv-zhi', 'liu-bang'], allies: [], isBoss: false },
-      { id: 'xz-4', enemies: ['han-xin', 'lv-zhi', 'liu-bang', 'yu-ji'], allies: [], isBoss: false },
-      { id: 'xz-boss', enemies: ['wu-san-gui', 'han-xin', 'lv-zhi'], allies: ['xiao-tai-hou', 'lan-ling-wang'], isBoss: true },
+      // 1-3★ 敌人, 培养新手感觉
+      { id: 'xz-1', enemies: ['chen-sheng', 'song-jiang', 'li-kui'], allies: [], isBoss: false },
+      { id: 'xz-2', enemies: ['chen-sheng', 'song-jiang', 'xiao-qiao', 'cheng-yao-jin'], allies: [], isBoss: false },
+      { id: 'xz-3', enemies: ['lv-zhi', 'qin-qiong', 'chen-sheng', 'xiao-qiao'], allies: [], isBoss: false },
+      { id: 'xz-4', enemies: ['lv-zhi', 'qin-qiong', 'yu-ji', 'wu-song'], allies: [], isBoss: false },
+      { id: 'xz-boss', enemies: ['wu-san-gui', 'han-xin', 'lv-zhi'], allies: [], isBoss: true },
     ],
     rewards: {
       gold: 500,
@@ -27,11 +30,12 @@ export const stages: Stage[] = [
     description: '隋末乱世，瓦岗英雄',
     order: 2,
     battles: [
-      { id: 'yz-1', enemies: ['cheng-yao-jin'], allies: [], isBoss: false },
-      { id: 'yz-2', enemies: ['cheng-yao-jin', 'qin-qiong'], allies: [], isBoss: false },
-      { id: 'yz-3', enemies: ['cheng-yao-jin', 'qin-qiong', 'song-jiang'], allies: [], isBoss: false },
-      { id: 'yz-4', enemies: ['cheng-yao-jin', 'qin-qiong', 'song-jiang', 'li-shi-shi'], allies: [], isBoss: false },
-      { id: 'yz-boss', enemies: ['yu-wen-hua-ji', 'zhao-kuang-yin', 'qin-qiong'], allies: ['xiao-tai-hou', 'lan-ling-wang'], isBoss: true },
+      // 2-4★ 敌人, 中等难度
+      { id: 'yz-1', enemies: ['qin-qiong', 'song-jiang', 'chen-sheng', 'li-kui'], allies: [], isBoss: false },
+      { id: 'yz-2', enemies: ['zhao-kuang-yin', 'qin-qiong', 'yu-ji', 'xiao-qiao'], allies: [], isBoss: false },
+      { id: 'yz-3', enemies: ['han-xin', 'qin-qiong', 'lv-zhi', 'zhao-kuang-yin'], allies: [], isBoss: false },
+      { id: 'yz-4', enemies: ['han-xin', 'xiang-yu', 'wu-song', 'yu-ji'], allies: [], isBoss: false },
+      { id: 'yz-boss', enemies: ['yu-wen-hua-ji', 'zhao-kuang-yin', 'han-xin', 'qin-qiong'], allies: [], isBoss: true },
     ],
     rewards: {
       gold: 800,
@@ -47,11 +51,12 @@ export const stages: Stage[] = [
     description: '天府之国，三国鼎立',
     order: 3,
     battles: [
-      { id: 'yzh-1', enemies: ['xiao-qiao'], allies: [], isBoss: false },
-      { id: 'yzh-2', enemies: ['xiao-qiao', 'guan-yu'], allies: [], isBoss: false },
-      { id: 'yzh-3', enemies: ['xiao-qiao', 'guan-yu', 'cao-cao'], allies: [], isBoss: false },
-      { id: 'yzh-4', enemies: ['xiao-qiao', 'guan-yu', 'cao-cao', 'zhuge-liang'], allies: [], isBoss: false },
-      { id: 'yzh-boss', enemies: ['meng-huo', 'guan-yu', 'cao-cao'], allies: ['xiao-tai-hou', 'lan-ling-wang'], isBoss: true },
+      // 3-5★ 敌人, 后期高难度
+      { id: 'yzh-1', enemies: ['xiang-yu', 'han-xin', 'qin-qiong', 'cao-cao'], allies: [], isBoss: false },
+      { id: 'yzh-2', enemies: ['xiang-yu', 'cao-cao', 'wu-ze-tian', 'yue-fei'], allies: [], isBoss: false },
+      { id: 'yzh-3', enemies: ['li-shi-min', 'han-xin', 'wu-ze-tian', 'tie-mu-zhen'], allies: [], isBoss: false },
+      { id: 'yzh-4', enemies: ['ying-zheng', 'han-xin', 'xiang-yu', 'cao-cao'], allies: [], isBoss: false },
+      { id: 'yzh-boss', enemies: ['meng-huo', 'guan-yu', 'zhuge-liang', 'cao-cao'], allies: [], isBoss: true },
     ],
     rewards: {
       gold: 1200,

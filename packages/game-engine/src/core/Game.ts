@@ -15,6 +15,8 @@ export interface GameConfig {
   /** 玩家自选友军(优先于 allyHeroIds). 携带玩家的完整 HeroInstance (等级/星级/宝具) */
   allyInstances?: HeroInstance[]
   enemyHeroIds: string[]
+  /** 敌方实例(优先于 enemyHeroIds 的空stub). 由前端根据关卡难度生成, 含星级+宝具. */
+  enemyInstances?: HeroInstance[]
   playerActionHandler?: (game: Game, player: Player) => Promise<GameAction | null>
   /** 变法/判定交互：返回要替换的手牌ID，null表示不替换 */
   judgeActionHandler?: (game: Game, player: Player, judgeCard: Card) => Promise<string | null>
@@ -207,10 +209,14 @@ export class Game {
       }
     }
 
-    for (const enemyId of config.enemyHeroIds) {
+    for (let i = 0; i < config.enemyHeroIds.length; i++) {
+      const enemyId = config.enemyHeroIds[i]
       const hero = getHeroById(enemyId)
       if (hero) {
-        this.players.push(new Player(hero, { heroId: enemyId, level: 1, growthValue: 0, starLevel: hero.starLevel, treasures: { main: [], sub: [] } }, 'enemy'))
+        // 优先用 enemyInstances (含星级+宝具), 否则退回到空 stub
+        const inst = config.enemyInstances?.[i]
+          ?? { heroId: enemyId, level: 1, growthValue: 0, starLevel: hero.starLevel, treasures: { main: [], sub: [] } }
+        this.players.push(new Player(hero, inst, 'enemy'))
       }
     }
 
