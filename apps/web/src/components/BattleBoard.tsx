@@ -288,69 +288,6 @@ export function BattleBoard() {
       </div>
       {/* 右侧: 战场 + 玩家区域 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, minHeight: 0 }}>
-      {/* Pending出牌提示横幅 — 固定位置, 位于玩家信息栏上方 */}
-      {phase === 'playing' && pendingCardId && pendingCardType && (() => {
-        const pendingCard = playerHand.find(c => c.id === pendingCardId)
-        if (!pendingCard) return null
-        const descMap: Record<string, string> = {
-          '杀': '对攻击范围内的1名其他角色使用, 造成1点伤害',
-          '药': '立即回复1点体力 (满血时不可使用)',
-          '闪': '响应【杀】时使用, 抵消伤害',
-          '无懈可击': '抵消1张【杀】或锦囊对其目标的效果',
-          '无中生有': '立即从牌堆摸2张牌',
-          '决斗': '与1名其他角色拼点, 输的一方受到1点伤害',
-          '万箭齐发': '除你以外的所有其他角色须各打出1张【闪】, 否则受到你1点伤害',
-          '烽火狼烟': '除你以外的所有其他角色须各打出1张【杀】, 否则受到你1点伤害',
-          '五谷丰登': '亮出牌堆顶8张牌, 所有角色依次拿取其中1张',
-          '探囊取物': '获得攻击范围内1名其他角色的1张手牌/判定/装备',
-          '釜底抽薪': '弃攻击范围内1名其他角色的1张手牌/判定/装备',
-          '借刀杀人': '选择1名装备武器的其他角色, 该角色需对其攻击范围内的另一名角色使用【杀】',
-          '手捧雷': '延时锦囊, 判定非♠2-9则目标受到2点雷电伤害',
-          '画地为牢': '延时锦囊, 判定非♥则目标跳过下回合出牌阶段',
-          '休养生息': '立即回复1点体力',
-        }
-        const desc = descMap[pendingCard.name] ?? (pendingCard as any).description ?? '该牌的特殊效果'
-        const needTarget = pendingCardType === 'kill' || pendingCardType === 'scheme'
-        const selectedTargetName = selectedTargetId ? (gameState?.heroes.find(h => h.hero.id === selectedTargetId)?.hero.name ?? '') : ''
-        const canConfirm = !needTarget || !!selectedTargetId
-        const confirmLabel = needTarget
-          ? (selectedTargetId ? `确定 → ${selectedTargetName}` : '请先选择目标')
-          : `确定使用【${pendingCard.name}】`
-        const suitColor = pendingCard.suit === 'heart' || pendingCard.suit === 'diamond' ? '#e57373' : 'var(--text-light)'
-        return (
-          <div style={{
-            padding: '10px 16px',
-            background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
-            borderRadius: '6px',
-            border: '2px solid #ffd54f',
-            color: '#ffd54f', fontSize: '13px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
-            boxShadow: '0 2px 12px rgba(255,213,79,0.4)',
-            flex: '0 0 auto',
-          }}>
-            <span style={{ flex: 1 }}>
-              🎯 <b style={{ color: suitColor, fontSize: '14px' }}>【{pendingCard.name}】</b> {desc}
-              {needTarget && (
-                <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>
-                  {selectedTargetId ? `(已选目标: ${selectedTargetName})` : '(请点击场上角色选择目标)'}
-                </span>
-              )}
-            </span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button style={treasureBtnStyle} onClick={cancelPlay}>取消</button>
-              <button
-                className="primary"
-                style={{ ...treasureBtnStyle, opacity: canConfirm ? 1 : 0.5 }}
-                disabled={!canConfirm}
-                onClick={confirmPlay}
-              >
-                {confirmLabel}
-              </button>
-            </div>
-          </div>
-        )
-      })()}
-
       {/* Battle field: 顶部战场, 其他角色按逆时针分布在玩家周围 */}
       <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative', background: 'var(--bg-dark)', border: '1px solid var(--border-wood)', borderRadius: '8px', padding: '8px', overflow: 'hidden' }}>
         {/* 顶部提示 (悬浮在战场上方, 不阻挡角色) */}
@@ -435,8 +372,76 @@ export function BattleBoard() {
           padding: '12px',
           flex: '0 0 auto',
           minHeight: '140px',
-          overflow: 'hidden',
+          overflow: 'visible',
         }}>
+          {/* Pending出牌提示横幅 — 绝对定位浮在玩家操作栏上方 */}
+          {phase === 'playing' && pendingCardId && pendingCardType && (() => {
+            const pendingCard = playerHand.find(c => c.id === pendingCardId)
+            if (!pendingCard) return null
+            const descMap: Record<string, string> = {
+              '杀': '对攻击范围内的1名其他角色使用, 造成1点伤害',
+              '药': '立即回复1点体力 (满血时不可使用)',
+              '闪': '响应【杀】时使用, 抵消伤害',
+              '无懈可击': '抵消1张【杀】或锦囊对其目标的效果',
+              '无中生有': '立即从牌堆摸2张牌',
+              '决斗': '与1名其他角色拼点, 输的一方受到1点伤害',
+              '万箭齐发': '除你以外的所有其他角色须各打出1张【闪】, 否则受到你1点伤害',
+              '烽火狼烟': '除你以外的所有其他角色须各打出1张【杀】, 否则受到你1点伤害',
+              '五谷丰登': '亮出牌堆顶8张牌, 所有角色依次拿取其中1张',
+              '探囊取物': '获得攻击范围内1名其他角色的1张手牌/判定/装备',
+              '釜底抽薪': '弃攻击范围内1名其他角色的1张手牌/判定/装备',
+              '借刀杀人': '选择1名装备武器的其他角色, 该角色需对其攻击范围内的另一名角色使用【杀】',
+              '手捧雷': '延时锦囊, 判定非♠2-9则目标受到2点雷电伤害',
+              '画地为牢': '延时锦囊, 判定非♥则目标跳过下回合出牌阶段',
+              '休养生息': '立即回复1点体力',
+            }
+            const desc = descMap[pendingCard.name] ?? (pendingCard as any).description ?? '该牌的特殊效果'
+            const needTarget = pendingCardType === 'kill' || pendingCardType === 'scheme'
+            const selectedTargetName = selectedTargetId ? (gameState?.heroes.find(h => h.hero.id === selectedTargetId)?.hero.name ?? '') : ''
+            const canConfirm = !needTarget || !!selectedTargetId
+            const confirmLabel = needTarget
+              ? (selectedTargetId ? `确定 → ${selectedTargetName}` : '请先选择目标')
+              : `确定使用【${pendingCard.name}】`
+            const suitColor = pendingCard.suit === 'heart' || pendingCard.suit === 'diamond' ? '#e57373' : 'var(--text-light)'
+            return (
+              <div style={{
+                position: 'absolute',
+                bottom: '100%',
+                left: 0,
+                right: 0,
+                marginBottom: '8px',
+                padding: '10px 16px',
+                background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
+                borderRadius: '6px',
+                border: '2px solid #ffd54f',
+                color: '#ffd54f', fontSize: '13px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                boxShadow: '0 2px 12px rgba(255,213,79,0.4)',
+                zIndex: 10,
+              }}>
+                <span style={{ flex: 1 }}>
+                  🎯 <b style={{ color: suitColor, fontSize: '14px' }}>【{pendingCard.name}】</b> {desc}
+                  {needTarget && (
+                    <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>
+                      {selectedTargetId ? `(已选目标: ${selectedTargetName})` : '(请点击场上角色选择目标)'}
+                    </span>
+                  )}
+                </span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button style={treasureBtnStyle} onClick={cancelPlay}>取消</button>
+                  <button
+                    className="primary"
+                    style={{ ...treasureBtnStyle, opacity: canConfirm ? 1 : 0.5 }}
+                    disabled={!canConfirm}
+                    onClick={confirmPlay}
+                  >
+                    {confirmLabel}
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
+
           {/* 布局: 玩家卡(左侧上下占满) | 提示 + 手牌 + 技能按钮行 */}
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'stretch' }}>
             {/* 左侧: 玩家卡 (上下占满) */}
