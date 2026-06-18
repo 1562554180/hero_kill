@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useBattleStore } from '../stores/battleStore'
+
 import { HeroBattleCard } from './HeroBattleCard'
 import { HandCard } from './HandCard'
 import { BattleLog } from './BattleLog'
@@ -8,9 +9,10 @@ import type { Card } from '@hero-legend/shared-types'
 
 export function BattleBoard() {
   const [resultOverlayDismissed, setResultOverlayDismissed] = useState(false)
+  const [lastClickedHandCardId, setLastClickedHandCardId] = useState<string | null>(null)
   const {
-    gameState, phase, playerHand, actionLog, result, equippedCards, pendingCardId, pendingCardType,
-    playKill, playScheme, playSchemeSelf, confirmTarget, playHeal, equipCard, endPlayPhase, cancelSelection, game,
+    gameState, phase, playerHand, actionLog, result, equippedCards, pendingCardId, pendingCardType, selectedTargetId,
+    playKill, playScheme, playSchemeSelf, confirmTarget, confirmPlay, cancelPlay, playHeal, equipCard, endPlayPhase, cancelSelection, game,
     judgeReplace, judgeCard, responsePrompt, toggleAoJian, respondWithCard,
     multiTargetCandidates, selectedTargets, toggleTarget, confirmMultiTarget, cancelMultiTarget,
     killMultiMax, killMultiRemaining, toggleKillMultiTarget, confirmKillMultiTarget, cancelKillMultiTarget,
@@ -40,7 +42,11 @@ export function BattleBoard() {
     sanBanFuPrompt, confirmSanBanFu, cancelSanBanFu,
     fuChouTriggerPrompt, confirmFuChouTrigger, cancelFuChouTrigger,
     fuChouChoosePrompt, confirmFuChouChoose,
-    fuChouPickPrompt, toggleFuChouPick, confirmFuChouPick,
+    fuChouPickSelected, toggleFuChouPick, confirmFuChouPick,
+    dyingRescuePrompt, dyingRescueSelected, toggleDyingRescueCard, confirmDyingRescue, cancelDyingRescue,
+    chaoTuoPrompt, selectChaoTuoCard,
+    houZhuPrompt, selectHouZhuTarget,
+    huiChunHeal,
     lastJudgeResult,
   } = useBattleStore()
 
@@ -60,45 +66,46 @@ export function BattleBoard() {
   const allies = gameState.heroes.filter(h => h.role === 'ally')
   const player = gameState.heroes.find(h => h.role === 'player')
 
-  // 角色排布: 玩家在底部中央, 其他角色按"以玩家为中心逆时针"放在周围
-  // - 友军AI位置随机 (但不在玩家正后方)
-  // - 出牌顺序 = 视觉上从玩家右手边开始逆时针绕一圈
-  // 6个逆时针位置 (从玩家右手边开始, 5点→3点→1点→11点→9点→7点)
-  const ccwPositions: { name: string; style: CSSProperties }[] = [
-    { name: 'rb', style: { right: '30px',  bottom: '20px' } },   // 5点 (玩家右下方)
-    { name: 'r',  style: { right: '30px',  top: '40%' } },       // 3点 (右侧)
-    { name: 'rt', style: { right: '180px', top: '20px' } },      // 1点 (右上方)
-    { name: 'lt', style: { left:  '180px', top: '20px' } },      // 11点 (左上方)
-    { name: 'l',  style: { left:  '30px',  top: '40%' } },       // 9点 (左侧)
-    { name: 'lb', style: { left:  '30px',  bottom: '20px' } },   // 7点 (玩家左下方)
-  ]
-  // 7号位: 玩家正后方 (12点) — 友军AI绝不出现在这里
-  const centerTopPos: { name: string; style: CSSProperties } = {
-    name: 'ct', style: { left: '50%', top: '20px', transform: 'translateX(-50%)' },
-  }
+  // 角色排布 (与引擎座位顺序一致 [player, allies..., enemies...], 距离按座位计算):
+  // - 玩家在左下 (在下方独立面板里, 由外层 div 控制)
+  // - others = [...allies, ...enemies] — 与引擎 seating 顺序一致
+  // - others[0] = 玩家右侧邻位 (seating idx 1, 距离1)
+  //   others[others.length-1] = 玩家左侧邻位 (seating idx n-1, 距离1)
+  // - 排布规则:
+  //   - 1个: 顶部居中
+  //   - 2个: 中部左右 (都是距离1)
+  //   - ≥3个: 中部左 + 顶部 (N-2) 水平均布 + 中部右
+  const others = [...allies, ...enemies]
 
-  // 随机洗牌 (友军AI 不在玩家正后方)
-  const othersRaw = [...enemies, ...allies]
-  const others = (() => {
-    const arr = [...othersRaw]
-    // Fisher-Yates shuffle
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  const otherPositions: CSSProperties[] = (() => {
+    const n = others.length
+    if (n === 1) {
+      return [{ left: '50%', top: '20px', transform: 'translateX(-50%)' }]
     }
-    return arr
+    if (n === 2) {
+      // 2个都是距离1: 都放中部
+      return [
+        { left: '30px', top: '50%' },
+        { right: '30px', top: '50%' },
+      ]
+    }
+    // n >= 3
+    const topCount = n - 2
+    const positions: CSSProperties[] = [
+      { left: '30px', top: '50%' },       // others[0]: 中部左 (seating idx 1, 距离1)
+    ]
+    for (let i = 0; i < topCount; i++) {
+      const leftPct = 5 + (i + 0.5) * (90 / topCount)
+      positions.push({ left: `${leftPct}%`, top: '20px' })   // others[1..N-2]: 顶部
+    }
+    positions.push({ right: '30px', top: '50%' })            // others[N-1]: 中部右 (seating idx n-1, 距离1)
+    return positions
   })()
-  // 7+其他时, 正后方位置留给非友军
-  const useCenterTop = others.length > ccwPositions.length
-  const visibleOthers = useCenterTop ? others.slice(0, ccwPositions.length + 1) : others
-  // 若中心顶位被友军占据, 与其他位置的非友军互换
-  if (useCenterTop && visibleOthers[ccwPositions.length]?.role === 'ally') {
-    const swapIdx = visibleOthers.findIndex((h, i) => i < ccwPositions.length && h.role !== 'ally')
-    if (swapIdx >= 0) {
-      ;[visibleOthers[swapIdx], visibleOthers[ccwPositions.length]] =
-        [visibleOthers[ccwPositions.length], visibleOthers[swapIdx]]
-    }
-  }
+
+  // pending 状态下, 杀/锦囊目标可选 (但不直接commit, 仅高亮)
+  const isPendingTargeting = phase === 'playing' && pendingCardId !== null && (pendingCardType === 'kill' || pendingCardType === 'scheme')
+  // pending 状态下, 其他目标应加阴影显示 (dimInvalidTargets)
+  const shouldDimInvalidTargets = isPendingTargeting
 
   // 渲染一个非玩家英雄卡 (敌方/友方通用, 含可点击/选中/AI回合高亮)
   const renderOtherHeroCard = (h: typeof others[0], dimInvalidTargets?: boolean) => (
@@ -110,6 +117,7 @@ export function BattleBoard() {
         (h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)) &&
         (
           (phase === 'selectTarget' && isValidTarget(h.hero.id)) ||
+          (isPendingTargeting && isValidTarget(h.hero.id)) ||
           (phase === 'selectMultiTargets') ||
           (phase === 'selectKillMultiTargets') ||
           (phase === 'selectJieDaoHolder' && jieDaoHolders.some(jh => jh.id === h.hero.id)) ||
@@ -120,8 +128,13 @@ export function BattleBoard() {
           (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id))
         )
       }
-      dimmed={!!dimInvalidTargets && !isValidTarget(h.hero.id)}
+      isSelected={selectedTargetId === h.hero.id}
+      dimmed={(!!dimInvalidTargets && !isValidTarget(h.hero.id)) || (shouldDimInvalidTargets && !isValidTarget(h.hero.id))}
       onClick={() => {
+        if (isPendingTargeting) {
+          if (isValidTarget(h.hero.id)) confirmTarget(h.hero.id)
+          return
+        }
         if (phase === 'selectTarget') confirmTarget(h.hero.id)
         else if (phase === 'selectMultiTargets') toggleTarget(h.hero.id)
         else if (phase === 'selectKillMultiTargets') toggleKillMultiTarget(h.hero.id)
@@ -163,6 +176,22 @@ export function BattleBoard() {
     const attacker = game.getPlayer()
     const target = game.getPlayerById(heroId)
     if (!attacker || !target) return true
+    // pending 状态: 杀/锦囊的目标校验 (phase='playing' + pendingCardId)
+    const inPendingSelect = phase === 'playing' && pendingCardId !== null
+    if (inPendingSelect && pendingCardType === 'kill') {
+      return game.isInAttackRange(attacker, target)
+    }
+    if (inPendingSelect && pendingCardType === 'scheme' && pendingSchemeName === '探囊取物') {
+      if (!game.canTanNang(attacker, target)) return false
+      if (game.isKongJuImmuneTo(target, '探囊取物')) return false
+      return true
+    }
+    if (inPendingSelect && pendingCardType === 'scheme' && pendingSchemeCard) {
+      if (!game.canBeSchemeTarget(target, pendingSchemeCard)) return false
+      if (pendingSchemeName && game.isKongJuImmuneTo(target, pendingSchemeName)) return false
+      return true
+    }
+    // 兼容旧 phase='selectTarget' (用于其他选择)
     if (phase === 'selectTarget' && pendingCardType === 'kill') {
       return game.isInAttackRange(attacker, target)
     }
@@ -210,6 +239,11 @@ export function BattleBoard() {
 
   const playerHero = player?.instance
   const allSkills = player?.hero.skills ?? []
+  // 玩家判定区是否有手捧雷 — 该雷存在时手捧雷不可主动使用
+  const hasLeiInJudge = player?.judgeCards?.some(cid => {
+    const c = game?.getPlayerById(player.hero.id)?.getJudgeCards()?.find((x: Card) => x.id === cid)
+    return c?.name === '手捧雷'
+  }) ?? false
   const allTreasures = [
     ...(playerHero?.treasures?.main ?? []),
     ...(playerHero?.treasures?.sub ?? []),
@@ -227,6 +261,9 @@ export function BattleBoard() {
   const hasJueJi = hasSkillOrTreasure('jue-ji')
   const hasQiYi = hasSkillOrTreasure('qi-yi')
   const hasXiaDan = hasSkillOrTreasure('xia-dan')
+  const hasHuiChun = hasSkillOrTreasure('hui-chun')
+  // 回春: 扁鹊回合外, 红桃手牌/装备当药, 仅自己不满血时可用
+  const huiChunAvailable = hasHuiChun && !isPlayerTurn && !isFullHp
   // 当前玩家装备的武器名
   const playerWeaponName = (() => {
     const weaponId = player?.equipment?.weapon
@@ -317,18 +354,12 @@ export function BattleBoard() {
           </div>
         )}
 
-        {/* 其他角色: 逆时针分布在玩家周围 (5点→3点→1点→11点→9点→7点) */}
-        {visibleOthers.slice(0, ccwPositions.length).map((h, i) => (
-          <div key={h.hero.id} style={{ position: 'absolute', zIndex: 2, ...ccwPositions[i].style }}>
-            {renderOtherHeroCard(h, dimInvalidTargets)}
+        {/* 其他角色: 按数量排布 (顶部 + 中部左右) */}
+        {others.map((h, i) => (
+          <div key={h.hero.id} style={{ position: 'absolute', zIndex: 2, ...otherPositions[i] }}>
+            {renderOtherHeroCard(h, isPendingTargeting || dimInvalidTargets)}
           </div>
         ))}
-        {/* 7号位 (正后方) — 仅在7+其他时使用, 且必为非友军 */}
-        {useCenterTop && (
-          <div key={visibleOthers[ccwPositions.length]?.hero.id} style={{ position: 'absolute', zIndex: 2, ...centerTopPos.style }}>
-            {renderOtherHeroCard(visibleOthers[ccwPositions.length], dimInvalidTargets)}
-          </div>
-        )}
       </div>
 
       {/* Player area (玩家本人永远在左下角) */}
@@ -340,263 +371,32 @@ export function BattleBoard() {
           borderRadius: '8px',
           padding: '12px',
           flex: '0 0 auto',
+          minHeight: '140px',
           overflow: 'hidden',
         }}>
-          {/* 布局: 操作按钮(左侧) | 玩家卡 + 提示 + 手牌 */}
-          <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-            {/* 左侧: 操作按钮 (垂直) */}
-            <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '120px', maxWidth: '180px' }}>
-              {phase === 'selectTarget' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ color: '#ff6b6b', fontSize: '13px', fontWeight: 'bold' }}>
-                    {useBattleStore.getState().pendingCardType === 'scheme' ? '选择锦囊目标' : '选择攻击目标'}
-                  </span>
-                  <button style={{ fontSize: '12px' }} onClick={cancelSelection}>取消</button>
-                </div>
-              ) : phase === 'selectLuYeQiangTarget' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ color: '#ff6b6b', fontSize: '13px', fontWeight: 'bold' }}>
-                    芦叶枪 — 选择杀的目标
-                  </span>
-                  <button style={{ fontSize: '12px' }} onClick={cancelLuYeQiangTarget}>取消</button>
-                </div>
-              ) : phase === 'judgeReplace' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ color: '#64b5f6', fontSize: '13px', fontWeight: 'bold' }}>
-                    变法 — 点击手牌替换判定牌
-                  </span>
-                  <button style={{ fontSize: '12px' }} onClick={() => judgeReplace(null)}>跳过</button>
-                </div>
-              ) : phase === 'awaitingResponse' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ color: '#ff9800', fontSize: '13px', fontWeight: 'bold' }}>
-                    {responsePrompt || '请响应'}
-                  </span>
-                  {hasAoJian && (
-                    <button
-                      onClick={toggleAoJian}
-                      style={{
-                        fontSize: '12px',
-                        padding: '4px 10px',
-                        background: aoJianActive ? '#e57373' : 'var(--bg-dark)',
-                        color: aoJianActive ? '#fff' : 'var(--text-light)',
-                        border: aoJianActive ? '1px solid #e57373' : '1px solid var(--border-wood)',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontWeight: aoJianActive ? 'bold' : 'normal',
-                      }}
-                      title="傲剑: 红色牌当杀(包括药)"
-                    >
-                      {aoJianActive ? '⚔ 傲剑·激活' : '⚔ 傲剑'}
-                    </button>
-                  )}
-                  <button style={{ fontSize: '12px' }} onClick={() => respondWithCard(null)}>放弃</button>
-                </div>
-              ) : phase === 'selectDualCards' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ color: '#64b5f6', fontSize: '13px', fontWeight: 'bold' }}>
-                    🎋 芦叶枪 — 选择2张手牌当杀 (已选 {selectedDualCards.length}/2)
-                  </span>
-                  <button style={{ fontSize: '12px' }} onClick={cancelDualCards}>取消</button>
-                  <button
-                    className="primary"
-                    style={{ fontSize: '12px' }}
-                    disabled={selectedDualCards.length !== 2}
-                    onClick={confirmDualCards}
-                  >
-                    出杀
-                  </button>
-                </div>
-              ) : phase === 'selectDiscardCards' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ color: '#ff9800', fontSize: '13px', fontWeight: 'bold' }}>
-                    弃牌阶段: 选择 {discardCount} 张手牌 (已选 {selectedDiscardCards.length})
-                  </span>
-                  <button className="primary" style={{ fontSize: '12px' }} disabled={selectedDiscardCards.length < discardCount} onClick={confirmDiscardCards}>确认弃牌</button>
-                  <button style={{ fontSize: '12px' }} onClick={cancelDiscardCards}>取消</button>
-                </div>
-              ) : phase === 'selectBaWangMount' && baWangOptions ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ color: '#ff9800', fontSize: '13px', fontWeight: 'bold' }}>霸王弓: 选择拆哪匹马</span>
-                  {baWangOptions.attackMount && (
-                    <button style={{ fontSize: '12px', padding: '4px 10px', background: 'var(--bg-dark)', color: 'var(--text-light)', border: '1px solid var(--border-wood)', borderRadius: '4px', cursor: 'pointer' }} onClick={() => selectBaWangMount('attackMount')}>
-                      拆{baWangOptions.attackMount.name}
-                    </button>
-                  )}
-                  {baWangOptions.defenseMount && (
-                    <button style={{ fontSize: '12px', padding: '4px 10px', background: 'var(--bg-dark)', color: 'var(--text-light)', border: '1px solid var(--border-wood)', borderRadius: '4px', cursor: 'pointer' }} onClick={() => selectBaWangMount('defenseMount')}>
-                      拆{baWangOptions.defenseMount.name}
-                    </button>
-                  )}
-                </div>
-              ) : isPlayerTurn ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ color: 'var(--text-gold)', fontSize: '12px', fontWeight: 'bold' }}>你的回合</span>
-                  {hasAoJian && (
-                    <button
-                      onClick={toggleAoJian}
-                      style={{
-                        fontSize: '12px',
-                        padding: '4px 10px',
-                        background: aoJianActive ? '#e57373' : 'var(--bg-dark)',
-                        color: aoJianActive ? '#fff' : 'var(--text-light)',
-                        border: aoJianActive ? '1px solid #e57373' : '1px solid var(--border-wood)',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontWeight: aoJianActive ? 'bold' : 'normal',
-                      }}
-                      title="傲剑: 红色牌当杀(包括药)"
-                    >
-                      {aoJianActive ? '⚔ 傲剑·激活' : '⚔ 傲剑'}
-                    </button>
-                  )}
-                  {playerWeaponName === '芦叶枪' && canPlayKill && playerHand.length >= 2 && !useBattleStore.getState().pendingCardId && (
-                    <button
-                      onClick={() => {
-                        const { resolveAction } = useBattleStore.getState()
-                        if (resolveAction) {
-                          resolveAction('luYeQiang:')
-                          useBattleStore.setState({ resolveAction: null })
-                        }
-                      }}
-                      style={{
-                        fontSize: '12px',
-                        padding: '4px 10px',
-                        background: 'var(--bg-dark)',
-                        color: 'var(--text-light)',
-                        border: '1px solid var(--border-wood)',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                      }}
-                      title="芦叶枪: 选择2张手牌当杀"
-                    >
-                      🎋 芦叶枪
-                    </button>
-                  )}
-                  {/* 主印宝具技能按钮 */}
-                  {hasLiaoShang && (
-                    <button onClick={() => useTreasureSkill('liao-shang')} style={treasureBtnStyle} title="疗伤: 弃1张手牌令1名角色回复1血">
-                      💊 疗伤
-                    </button>
-                  )}
-                  {hasZhiYu && (
-                    <button onClick={() => useTreasureSkill('zhi-yu')} style={treasureBtnStyle} title="治愈: 弃2张手牌令1名角色回复1血">
-                      💊 治愈
-                    </button>
-                  )}
-                  {hasFengHuo && (
-                    <button
-                      onClick={() => useTreasureSkill('feng-huo')}
-                      style={{
-                        ...treasureBtnStyle,
-                        background: treasureSkill === 'feng-huo' ? '#b8860b' : treasureBtnStyle.background,
-                        color: treasureSkill === 'feng-huo' ? '#fff' : treasureBtnStyle.color,
-                        boxShadow: treasureSkill === 'feng-huo' ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
-                      }}
-                      title="烽火: 弃1张装备视为烽火狼烟"
-                    >
-                      🔥 烽火{treasureSkill === 'feng-huo' ? ' ·选装备' : ''}
-                    </button>
-                  )}
-                  {hasJueJi && (
-                    <button
-                      onClick={() => useTreasureSkill('jue-ji')}
-                      disabled={jueJiUsedThisTurn > 0}
-                      style={{
-                        ...treasureBtnStyle,
-                        background: jueJiUsedThisTurn > 0 ? '#444' : (treasureSkill === 'jue-ji' ? '#b8860b' : treasureBtnStyle.background),
-                        color: jueJiUsedThisTurn > 0 ? '#888' : (treasureSkill === 'jue-ji' ? '#fff' : treasureBtnStyle.color),
-                        cursor: jueJiUsedThisTurn > 0 ? 'not-allowed' : 'pointer',
-                        opacity: jueJiUsedThisTurn > 0 ? 0.5 : 1,
-                      }}
-                      title={jueJiUsedThisTurn > 0 ? '绝击: 本回合已用' : '绝击: 弃装备区或手牌武器, 或受1伤, 令攻击范围内1名角色受1伤 (每回合限1次)'}
-                    >
-                      ⚔ 绝击{jueJiUsedThisTurn > 0 ? ' ·已用' : ''}
-                    </button>
-                  )}
-                  {hasQiYi && (
-                    <button onClick={() => useTreasureSkill('qi-yi')} style={treasureBtnStyle} title="起义: 放弃摸牌, 改为从至多2名角色各拿1张手牌">
-                      ✊ 起义
-                    </button>
-                  )}
-                  {hasXiaDan && (
-                    <button
-                      onClick={() => useTreasureSkill('xia-dan')}
-                      disabled={xiaDanUsedThisTurn}
-                      style={{
-                        ...treasureBtnStyle,
-                        background: xiaDanActive ? '#b8860b' : (xiaDanUsedThisTurn ? '#444' : treasureBtnStyle.background),
-                        color: xiaDanActive ? '#fff' : (xiaDanUsedThisTurn ? '#888' : treasureBtnStyle.color),
-                        boxShadow: xiaDanActive ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
-                        cursor: xiaDanUsedThisTurn ? 'not-allowed' : 'pointer',
-                        opacity: xiaDanUsedThisTurn ? 0.5 : 1,
-                      }}
-                      title={xiaDanUsedThisTurn ? '侠胆: 本回合已使用' : '侠胆: 点击进入待选状态, 再点1名有手牌的角色拼点, 胜→杀次数=2(每张最多2目标), 负→本回合不能出杀'}
-                    >
-                      🗡 侠胆{xiaDanActive ? ' ·待选' : (xiaDanUsedThisTurn ? ' ·已用' : '')}
-                    </button>
-                  )}
-                  {hasYuRen && (
-                    <button
-                      onClick={() => useTreasureSkill('yu-ren')}
-                      disabled={yuRenUsedThisTurn}
-                      style={{
-                        ...treasureBtnStyle,
-                        background: treasureSkill === 'yu-ren' ? '#b8860b' : (yuRenUsedThisTurn ? '#444' : treasureBtnStyle.background),
-                        color: treasureSkill === 'yu-ren' ? '#fff' : (yuRenUsedThisTurn ? '#888' : treasureBtnStyle.color),
-                        boxShadow: treasureSkill === 'yu-ren' ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
-                        cursor: yuRenUsedThisTurn ? 'not-allowed' : 'pointer',
-                        opacity: yuRenUsedThisTurn ? 0.5 : 1,
-                      }}
-                      title={yuRenUsedThisTurn ? '驭人: 本回合已使用' : '驭人: 弃任意张手牌或装备, 然后摸等量牌'}
-                    >
-                      🎴 驭人{treasureSkill === 'yu-ren' ? ` ·已选${yuRenCardIds.length}张` : (yuRenUsedThisTurn ? ' ·已用' : '')}
-                    </button>
-                  )}
-                  {hasShiQuan && (
-                    <button
-                      onClick={() => useTreasureSkill('shi-quan')}
-                      style={{
-                        ...treasureBtnStyle,
-                        background: treasureSkill === 'shi-quan' ? '#b8860b' : treasureBtnStyle.background,
-                        color: treasureSkill === 'shi-quan' ? '#fff' : treasureBtnStyle.color,
-                        boxShadow: treasureSkill === 'shi-quan' ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
-                      }}
-                      title="释权: 弃1张黑色手牌或装备区任意牌, 当作【釜底抽薪】使用"
-                    >
-                      🏛 释权
-                    </button>
-                  )}
-                  <button className="primary" style={{ fontSize: '14px', padding: '6px 12px' }} onClick={endPlayPhase}>
-                    结束出牌
-                  </button>
-                </div>
-              ) : (
-                <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>等待中...</span>
-              )}
+          {/* 布局: 玩家卡(左侧上下占满) | 提示 + 手牌 + 技能按钮行 */}
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'stretch' }}>
+            {/* 左侧: 玩家卡 (上下占满) */}
+            <div style={{ flex: '0 0 auto', display: 'flex' }}>
+              <HeroBattleCard
+                hero={player}
+                isCurrentTurn={isPlayerTurn}
+                isSelectable={phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === player.hero.id)}
+                onClick={() => {
+                  if (phase === 'selectJieDaoTarget') selectJieDaoTarget(player.hero.id)
+                }}
+                aoJianActive={aoJianActive}
+                canPlayKill={canPlayKill && (isPlayerTurn || phase === 'awaitingResponse')}
+                hasHongZhuang={hasHongZhuang}
+                onEquipAsKill={(cardId: string) => {
+                  if (phase === 'playing') playKill(cardId)
+                  else if (phase === 'awaitingResponse') respondWithCard(cardId)
+                }}
+              />
             </div>
 
-            {/* 中: 玩家卡 + 提示 + 手牌 */}
+            {/* 右侧: 提示 + 手牌 + 技能按钮行 */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, gap: '6px' }}>
-              {/* 玩家本人卡 */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                <HeroBattleCard
-                  hero={player}
-                  isCurrentTurn={isPlayerTurn}
-                  isSelectable={phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === player.hero.id)}
-                  onClick={() => {
-                    if (phase === 'selectJieDaoTarget') selectJieDaoTarget(player.hero.id)
-                  }}
-                  aoJianActive={aoJianActive}
-                  canPlayKill={canPlayKill && (isPlayerTurn || phase === 'awaitingResponse')}
-                  hasHongZhuang={hasHongZhuang}
-                  onEquipAsKill={(cardId: string) => {
-                    if (phase === 'playing') playKill(cardId)
-                    else if (phase === 'awaitingResponse') respondWithCard(cardId)
-                  }}
-                />
-              </div>
-
           {/* Judge replace info */}
           {phase === 'judgeReplace' && judgeCard && (
             <div style={{
@@ -607,6 +407,20 @@ export function BattleBoard() {
             }}>
               判定牌: {judgeCard.name} ({judgeCard.suit === 'heart' ? '♥' : judgeCard.suit === 'diamond' ? '♦' : judgeCard.suit === 'spade' ? '♠' : '♣'}{judgeCard.number === 1 ? 'A' : judgeCard.number > 10 ? ['J','Q','K'][judgeCard.number - 11] : judgeCard.number})
               {' — '}弃一张手牌可替换此判定牌
+            </div>
+          )}
+
+          {/* 响应提示: 决斗/南蛮/万箭/烽火/杀/闪 等待响应 */}
+          {phase === 'awaitingResponse' && responsePrompt && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(255,152,0,0.18)', borderRadius: '4px',
+              border: '1px solid rgba(255,152,0,0.4)',
+              color: '#ffb74d', fontSize: '12px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+            }}>
+              <span>⚡ {responsePrompt}</span>
+              <button style={treasureBtnStyle} onClick={() => respondWithCard(null)}>放弃</button>
             </div>
           )}
 
@@ -802,7 +616,7 @@ export function BattleBoard() {
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
                 {tianXiangEquipment.map(card => (
                   <div key={card.id} onClick={() => selectTianXiangCard(card.id)} style={{ cursor: 'pointer' }}>
-                    <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                    <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
                   </div>
                 ))}
               </div>
@@ -934,35 +748,24 @@ export function BattleBoard() {
             </div>
           )}
 
-          {/* 复仇: 被复仇者(玩家)选弃哪2张手牌 */}
-          {fuChouPickPrompt && (
+          {/* 复仇弃牌: 不再独立弹框, 直接点击手牌选2张 (选满后需点确定) */}
+          {phase === 'selectFuChouDiscard' && (
             <div style={{
               marginBottom: '8px', padding: '8px 12px',
               background: 'rgba(244,67,54,0.12)', borderRadius: '4px',
               border: '1px solid rgba(244,67,54,0.3)',
               color: '#ef9a9a', fontSize: '12px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
             }}>
-              <div style={{ marginBottom: '6px' }}>🗡️ 复仇弃牌 — 请选2张手牌弃掉 (已选 {fuChouPickPrompt.pickedIds.length}/2)</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {fuChouPickPrompt.hand.map(c => {
-                  const picked = fuChouPickPrompt.pickedIds.includes(c.id)
-                  return (
-                    <button key={c.id} onClick={() => toggleFuChouPick(c.id)} style={{
-                      padding: '4px 8px', fontSize: '11px',
-                      background: picked ? 'rgba(244,67,54,0.35)' : 'var(--bg-medium)',
-                      border: picked ? '1px solid #ef9a9a' : '1px solid var(--border-wood)',
-                      color: 'var(--text-light)', borderRadius: '3px', cursor: 'pointer',
-                    }}>
-                      {c.name}{c.suit ? `(${c.suit})` : ''}
-                    </button>
-                  )
-                })}
-              </div>
-              <div style={{ marginTop: '6px' }}>
-                <button style={treasureBtnStyle} className="primary" disabled={fuChouPickPrompt.pickedIds.length < 2} onClick={confirmFuChouPick}>
-                  确认弃{fuChouPickPrompt.pickedIds.length}张
-                </button>
-              </div>
+              <span>🗡️ 复仇弃牌 — 请从手牌中选2张弃掉 (已选 {fuChouPickSelected.length}/2)</span>
+              <button
+                style={treasureBtnStyle}
+                className="primary"
+                disabled={fuChouPickSelected.length < 2}
+                onClick={confirmFuChouPick}
+              >
+                确认弃{fuChouPickSelected.length}张
+              </button>
             </div>
           )}
 
@@ -981,20 +784,187 @@ export function BattleBoard() {
             </div>
           )}
 
+          {/* 超脱: 李煜判定时用黑色牌替换 */}
+          {phase === 'chaoTuoPick' && chaoTuoPrompt && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(171,71,188,0.18)', borderRadius: '4px',
+              border: '1px solid rgba(171,71,188,0.4)',
+              color: '#ce93d8', fontSize: '12px',
+            }}>
+              <div style={{ marginBottom: '6px' }}>🌌 超脱 — 判定【{chaoTuoPrompt.judgeCardName}】, 可用黑色手牌或装备替换</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {chaoTuoPrompt.blackHandIds.map(id => {
+                  const c = playerHand.find(x => x.id === id)
+                  if (!c) return null
+                  return (
+                    <button key={id} onClick={() => selectChaoTuoCard(id)} style={{
+                      padding: '4px 8px', fontSize: '11px',
+                      background: 'var(--bg-medium)', border: '1px solid #ce93d8',
+                      color: 'var(--text-light)', borderRadius: '3px', cursor: 'pointer',
+                    }}>
+                      【{c.name}】{c.suit}{c.number}
+                    </button>
+                  )
+                })}
+                {chaoTuoPrompt.blackEquipment.map(({ cardId, slot, name }) => (
+                  <button key={cardId} onClick={() => selectChaoTuoCard(cardId)} style={{
+                    padding: '4px 8px', fontSize: '11px',
+                    background: 'var(--bg-medium)', border: '1px solid #ce93d8',
+                    color: 'var(--text-light)', borderRadius: '3px', cursor: 'pointer',
+                  }}>
+                    【{name}】({slot})
+                  </button>
+                ))}
+                <button style={{ ...treasureBtnStyle, marginLeft: '6px' }} onClick={() => selectChaoTuoCard(null)}>不替换</button>
+              </div>
+            </div>
+          )}
+
+          {/* 后主: 李煜用闪后选目标 */}
+          {phase === 'houZhuTarget' && houZhuPrompt && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(244,143,177,0.12)', borderRadius: '4px',
+              border: '1px solid rgba(244,143,177,0.3)',
+              color: '#f48fb1', fontSize: '12px',
+            }}>
+              <div style={{ marginBottom: '6px' }}>👑 后主 — 选一名其他角色进行判定 (黑桃则掉2血)</div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {houZhuPrompt.candidates.map(c => (
+                  <button key={c.id} style={treasureBtnStyle} onClick={() => selectHouZhuTarget(c.id)}>
+                    {c.name} ({c.currentHp}/{c.maxHp})
+                  </button>
+                ))}
+                <button style={treasureBtnStyle} onClick={() => selectHouZhuTarget(null)}>不发动</button>
+              </div>
+            </div>
+          )}
+
+          {/* 濒死救援: 玩家被询问是否用药救濒死目标 */}
+          {phase === 'dyingRescue' && dyingRescuePrompt && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(171,71,71,0.18)', borderRadius: '4px',
+              border: '1px solid rgba(171,71,71,0.4)',
+              color: '#ff8a8a', fontSize: '12px',
+            }}>
+              <div style={{ marginBottom: '6px' }}>💀 濒死救援 — <b>{dyingRescuePrompt.targetName}</b> 濒死！是否用药或红桃(回春)救？(已选 {dyingRescueSelected.length} 张)</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {dyingRescuePrompt.yaoHandCards.map(c => {
+                  const picked = dyingRescueSelected.includes(c.id)
+                  const label = c.name === '药' ? '【药】' : `【${c.name}♥】`
+                  return (
+                    <button key={c.id} onClick={() => toggleDyingRescueCard(c.id)} style={{
+                      padding: '4px 8px', fontSize: '11px',
+                      background: picked ? 'rgba(171,71,71,0.35)' : 'var(--bg-medium)',
+                      border: picked ? '1px solid #ff8a8a' : '1px solid var(--border-wood)',
+                      color: 'var(--text-light)', borderRadius: '3px', cursor: 'pointer',
+                    }}>
+                      {label}
+                    </button>
+                  )
+                })}
+                <button style={treasureBtnStyle} className="primary" disabled={dyingRescueSelected.length === 0} onClick={confirmDyingRescue}>
+                  救人
+                </button>
+                <button style={{ ...treasureBtnStyle, marginLeft: '6px' }} onClick={cancelDyingRescue}>放弃救援</button>
+              </div>
+            </div>
+          )}
+
+          {/* 芦叶枪: 选2张手牌当杀 */}
+          {phase === 'selectDualCards' && (
+            <div style={{
+              marginBottom: '8px', padding: '8px 12px',
+              background: 'rgba(184,134,11,0.18)', borderRadius: '4px',
+              border: '1px solid rgba(184,134,11,0.4)',
+              color: '#ffd54f', fontSize: '12px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+            }}>
+              <span>🎋 芦叶枪 — 请选2张手牌当杀 (已选 {selectedDualCards.length}/2, 选满自动确认)</span>
+              <button style={treasureBtnStyle} onClick={cancelDualCards}>取消</button>
+            </div>
+          )}
+
+          {/* Pending出牌提示: 点击手牌上移后显示描述 + 确定/取消 */}
+          {phase === 'playing' && pendingCardId && pendingCardType && (() => {
+            const pendingCard = playerHand.find(c => c.id === pendingCardId)
+            if (!pendingCard) return null
+            const descMap: Record<string, string> = {
+              '杀': '对攻击范围内的1名其他角色使用, 造成1点伤害',
+              '药': '立即回复1点体力 (满血时不可使用)',
+              '闪': '响应【杀】时使用, 抵消伤害',
+              '无懈可击': '抵消1张【杀】或锦囊对其目标的效果',
+              '无中生有': '立即从牌堆摸2张牌',
+              '决斗': '与1名其他角色拼点, 输的一方受到1点伤害',
+              '万箭齐发': '除你以外的所有其他角色须各打出1张【闪】, 否则受到你1点伤害',
+              '烽火狼烟': '除你以外的所有其他角色须各打出1张【杀】, 否则受到你1点伤害',
+              '五谷丰登': '亮出牌堆顶8张牌, 所有角色依次拿取其中1张',
+              '探囊取物': '获得攻击范围内1名其他角色的1张手牌/判定/装备',
+              '釜底抽薪': '弃攻击范围内1名其他角色的1张手牌/判定/装备',
+              '借刀杀人': '选择1名装备武器的其他角色, 该角色需对其攻击范围内的另一名角色使用【杀】',
+              '手捧雷': '延时锦囊, 判定非♠2-9则目标受到2点雷电伤害',
+              '画地为牢': '延时锦囊, 判定非♥则目标跳过下回合出牌阶段',
+              '休养生息': '立即回复1点体力',
+            }
+            const desc = descMap[pendingCard.name] ?? (pendingCard as any).description ?? '该牌的特殊效果'
+            const needTarget = pendingCardType === 'kill' || pendingCardType === 'scheme'
+            const selectedTargetName = selectedTargetId ? (gameState?.heroes.find(h => h.hero.id === selectedTargetId)?.hero.name ?? '') : ''
+            const canConfirm = !needTarget || !!selectedTargetId
+            const confirmLabel = needTarget
+              ? (selectedTargetId ? `确定 → ${selectedTargetName}` : '请先选择目标')
+              : `确定使用【${pendingCard.name}】`
+            const suitColor = pendingCard.suit === 'heart' || pendingCard.suit === 'diamond' ? '#e57373' : 'var(--text-light)'
+            return (
+              <div style={{
+                marginBottom: '8px', padding: '8px 12px',
+                background: 'rgba(255,213,79,0.15)', borderRadius: '4px',
+                border: '2px solid #ffd54f',
+                color: '#ffd54f', fontSize: '12px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+                boxShadow: '0 0 12px rgba(255,213,79,0.3)',
+              }}>
+                <span style={{ flex: 1 }}>
+                  🎯 <b style={{ color: suitColor }}>【{pendingCard.name}】</b> {desc}
+                  {needTarget && (
+                    <span style={{ color: 'var(--text-muted)', marginLeft: '6px' }}>
+                      {selectedTargetId ? `(已选目标: ${selectedTargetName})` : '(请点击场上角色选择目标)'}
+                    </span>
+                  )}
+                </span>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button style={treasureBtnStyle} onClick={cancelPlay}>取消</button>
+                  <button
+                    className="primary"
+                    style={{ ...treasureBtnStyle, opacity: canConfirm ? 1 : 0.5 }}
+                    disabled={!canConfirm}
+                    onClick={confirmPlay}
+                  >
+                    {confirmLabel}
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Hand cards */}
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: '6px', flexWrap: 'wrap', alignContent: 'flex-start' }}>
             {playerHand.map(card => {
               const isSelectedDual = selectedDualCards.includes(card.id)
               const isSelectedTreasure = treasureCardIds.includes(card.id)
               const isSelectedYuRen = treasureSkill === 'yu-ren' && yuRenCardIds.includes(card.id)
               const isSelectedDiscard = selectedDiscardCards.includes(card.id)
+              const isSelectedFuChou = phase === 'selectFuChouDiscard' && fuChouPickSelected.includes(card.id)
               const isSelectedManWu = manWuSelectedCardId === card.id
               return (
                 <div
                   key={card.id}
                   onClick={() => {
+                    setLastClickedHandCardId(card.id)
                     if (phase === 'selectDualCards') toggleDualCard(card.id)
                     else if (phase === 'selectDiscardCards') toggleDiscardCard(card.id)
+                    else if (phase === 'selectFuChouDiscard') toggleFuChouPick(card.id)
                     else if (phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards') pickTreasureCard(card.id)
                     else if (phase === 'treasureSelectEquipment' && card.type === 'equipment') pickTreasureCard(card.id)
                     else if (phase === 'treasureSelectWeapon' && card.type === 'equipment' && (card as any).slot === 'weapon') {
@@ -1017,25 +987,28 @@ export function BattleBoard() {
                     }
                   }}
                   style={{
-                    outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedManWu) ? '3px solid #b8860b' : 'none',
+                    outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu) ? '3px solid #b8860b' : 'none',
                     borderRadius: '6px',
-                    cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
+                    cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
                   }}
                 >
                   <HandCard
                     card={card}
-                    disabled={!(isPlayerTurn || phase === 'judgeReplace' || phase === 'awaitingResponse' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill') || phase === 'selectTarget'}
+                    disabled={!(isPlayerTurn || phase === 'judgeReplace' || phase === 'awaitingResponse' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || phase === 'selectFuChouDiscard' || huiChunAvailable)}
                     canPlayKill={canPlayKill}
                     isFullHp={isFullHp}
                     aoJianActive={aoJianActive}
                     hasHongZhuang={hasHongZhuang}
+                    hasLeiInJudge={hasLeiInJudge}
                     isResponse={phase === 'awaitingResponse'}
                     isJudgeReplace={phase === 'judgeReplace'}
-                    isPending={(phase === 'selectTarget' || phase === 'selectJieDaoHolder' || phase === 'selectTanNangTarget' || phase === 'selectFudiTarget' || phase === 'selectJieDaoTarget' || phase === 'selectDualCards') && pendingCardId === card.id}
+                    isPending={pendingCardId === card.id}
+                    isLifted={lastClickedHandCardId === card.id}
                     treasureSelectMode={phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'xiaDanPickCard'}
                     selectDualMode={phase === 'selectDualCards'}
-                    selectDiscardMode={phase === 'selectDiscardCards'}
+                    selectDiscardMode={phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard'}
                     hasValidSchemeTarget={hasValidSchemeTarget(card.name)}
+                    huiChunAvailable={huiChunAvailable}
                     onPlayKill={playKill}
                     onPlayHeal={playHeal}
                     onEquip={equipCard}
@@ -1043,11 +1016,204 @@ export function BattleBoard() {
                     onPlaySchemeSelf={playSchemeSelf}
                     onJudgeReplace={judgeReplace}
                     onRespondWithCard={respondWithCard}
+                    onHuiChunHeal={huiChunHeal}
                   />
                 </div>
               )
             })}
           </div>
+
+            {/* 技能按钮行: 主动技能 + 宝具技能 + 傲剑 + 芦叶枪 + 结束出牌 (仅玩家回合显示) */}
+            {isPlayerTurn && (
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--border-wood)', paddingTop: '6px' }}>
+                <span style={{ color: 'var(--text-gold)', fontSize: '12px', fontWeight: 'bold' }}>你的回合</span>
+
+                {/* 主动技能 (玩家可主动发动) */}
+                {allSkills.filter(s => s.type === 'active').map(skill => (
+                  <button
+                    key={skill.id}
+                    title={skill.description}
+                    style={{
+                      fontSize: '11px',
+                      padding: '3px 8px',
+                      background: 'rgba(255,215,0,0.18)',
+                      color: 'var(--text-gold)',
+                      border: '1px solid #b8860b',
+                      borderRadius: '4px',
+                      cursor: 'help',
+                    }}
+                  >
+                    {skill.name}
+                  </button>
+                ))}
+
+                {/* 被动技能 (灰色, 划过查看描述) */}
+                {allSkills.filter(s => s.type === 'passive').map(skill => (
+                  <button
+                    key={skill.id}
+                    title={skill.description}
+                    disabled
+                    style={{
+                      fontSize: '11px',
+                      padding: '3px 8px',
+                      background: 'rgba(255,255,255,0.05)',
+                      color: 'var(--text-muted)',
+                      border: '1px solid #3a2a1a',
+                      borderRadius: '4px',
+                      cursor: 'help',
+                    }}
+                  >
+                    {skill.name}
+                  </button>
+                ))}
+
+                {/* 傲剑 */}
+                {hasAoJian && (
+                  <button
+                    onClick={toggleAoJian}
+                    style={{
+                      fontSize: '11px',
+                      padding: '3px 8px',
+                      background: aoJianActive ? '#e57373' : 'var(--bg-dark)',
+                      color: aoJianActive ? '#fff' : 'var(--text-light)',
+                      border: aoJianActive ? '1px solid #e57373' : '1px solid var(--border-wood)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: aoJianActive ? 'bold' : 'normal',
+                    }}
+                    title="傲剑: 红色牌当杀(包括药)"
+                  >
+                    {aoJianActive ? '⚔ 傲剑·激活' : '⚔ 傲剑'}
+                  </button>
+                )}
+
+                {/* 芦叶枪 */}
+                {playerWeaponName === '芦叶枪' && canPlayKill && playerHand.length >= 2 && !useBattleStore.getState().pendingCardId && (
+                  <button
+                    onClick={() => {
+                      const { resolveAction } = useBattleStore.getState()
+                      if (resolveAction) {
+                        resolveAction('luYeQiang:')
+                        useBattleStore.setState({ resolveAction: null })
+                      }
+                    }}
+                    style={{
+                      fontSize: '11px',
+                      padding: '3px 8px',
+                      background: phase === 'selectDualCards' ? 'rgba(184,134,11,0.45)' : 'var(--bg-dark)',
+                      color: phase === 'selectDualCards' ? '#ffd54f' : 'var(--text-light)',
+                      border: phase === 'selectDualCards' ? '1px solid #ffd54f' : '1px solid var(--border-wood)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: phase === 'selectDualCards' ? 'bold' : 'normal',
+                    }}
+                    title="芦叶枪: 选择2张手牌当杀"
+                  >
+                    🎋 芦叶枪
+                  </button>
+                )}
+
+                {/* 宝具技能 */}
+                {hasLiaoShang && (
+                  <button onClick={() => useTreasureSkill('liao-shang')} style={treasureBtnStyle} title="疗伤: 弃1张手牌令1名角色回复1血">
+                    💊 疗伤
+                  </button>
+                )}
+                {hasZhiYu && (
+                  <button onClick={() => useTreasureSkill('zhi-yu')} style={treasureBtnStyle} title="治愈: 弃2张手牌令1名角色回复1血">
+                    💊 治愈
+                  </button>
+                )}
+                {hasFengHuo && (
+                  <button
+                    onClick={() => useTreasureSkill('feng-huo')}
+                    style={{
+                      ...treasureBtnStyle,
+                      background: treasureSkill === 'feng-huo' ? '#b8860b' : treasureBtnStyle.background,
+                      color: treasureSkill === 'feng-huo' ? '#fff' : treasureBtnStyle.color,
+                      boxShadow: treasureSkill === 'feng-huo' ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
+                    }}
+                    title="烽火: 弃1张装备视为烽火狼烟"
+                  >
+                    🔥 烽火{treasureSkill === 'feng-huo' ? ' ·选装备' : ''}
+                  </button>
+                )}
+                {hasJueJi && (
+                  <button
+                    onClick={() => useTreasureSkill('jue-ji')}
+                    disabled={jueJiUsedThisTurn > 0}
+                    style={{
+                      ...treasureBtnStyle,
+                      background: jueJiUsedThisTurn > 0 ? '#444' : (treasureSkill === 'jue-ji' ? '#b8860b' : treasureBtnStyle.background),
+                      color: jueJiUsedThisTurn > 0 ? '#888' : (treasureSkill === 'jue-ji' ? '#fff' : treasureBtnStyle.color),
+                      cursor: jueJiUsedThisTurn > 0 ? 'not-allowed' : 'pointer',
+                      opacity: jueJiUsedThisTurn > 0 ? 0.5 : 1,
+                    }}
+                    title={jueJiUsedThisTurn > 0 ? '绝击: 本回合已用' : '绝击: 弃装备区或手牌武器, 或受1伤, 令攻击范围内1名角色受1伤 (每回合限1次)'}
+                  >
+                    ⚔ 绝击{jueJiUsedThisTurn > 0 ? ' ·已用' : ''}
+                  </button>
+                )}
+                {hasQiYi && (
+                  <button onClick={() => useTreasureSkill('qi-yi')} style={treasureBtnStyle} title="起义: 放弃摸牌, 改为从至多2名角色各拿1张手牌">
+                    ✊ 起义
+                  </button>
+                )}
+                {hasXiaDan && (
+                  <button
+                    onClick={() => useTreasureSkill('xia-dan')}
+                    disabled={xiaDanUsedThisTurn}
+                    style={{
+                      ...treasureBtnStyle,
+                      background: xiaDanActive ? '#b8860b' : (xiaDanUsedThisTurn ? '#444' : treasureBtnStyle.background),
+                      color: xiaDanActive ? '#fff' : (xiaDanUsedThisTurn ? '#888' : treasureBtnStyle.color),
+                      boxShadow: xiaDanActive ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
+                      cursor: xiaDanUsedThisTurn ? 'not-allowed' : 'pointer',
+                      opacity: xiaDanUsedThisTurn ? 0.5 : 1,
+                    }}
+                    title={xiaDanUsedThisTurn ? '侠胆: 本回合已使用' : '侠胆: 点击进入待选状态, 再点1名有手牌的角色拼点, 胜→杀次数=2(每张最多2目标), 负→本回合不能出杀'}
+                  >
+                    🗡 侠胆{xiaDanActive ? ' ·待选' : (xiaDanUsedThisTurn ? ' ·已用' : '')}
+                  </button>
+                )}
+                {hasYuRen && (
+                  <button
+                    onClick={() => useTreasureSkill('yu-ren')}
+                    disabled={yuRenUsedThisTurn}
+                    style={{
+                      ...treasureBtnStyle,
+                      background: treasureSkill === 'yu-ren' ? '#b8860b' : (yuRenUsedThisTurn ? '#444' : treasureBtnStyle.background),
+                      color: treasureSkill === 'yu-ren' ? '#fff' : (yuRenUsedThisTurn ? '#888' : treasureBtnStyle.color),
+                      boxShadow: treasureSkill === 'yu-ren' ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
+                      cursor: yuRenUsedThisTurn ? 'not-allowed' : 'pointer',
+                      opacity: yuRenUsedThisTurn ? 0.5 : 1,
+                    }}
+                    title={yuRenUsedThisTurn ? '驭人: 本回合已使用' : '驭人: 弃任意张手牌或装备, 然后摸等量牌'}
+                  >
+                    🎴 驭人{treasureSkill === 'yu-ren' ? ` ·已选${yuRenCardIds.length}张` : (yuRenUsedThisTurn ? ' ·已用' : '')}
+                  </button>
+                )}
+                {hasShiQuan && (
+                  <button
+                    onClick={() => useTreasureSkill('shi-quan')}
+                    style={{
+                      ...treasureBtnStyle,
+                      background: treasureSkill === 'shi-quan' ? '#b8860b' : treasureBtnStyle.background,
+                      color: treasureSkill === 'shi-quan' ? '#fff' : treasureBtnStyle.color,
+                      boxShadow: treasureSkill === 'shi-quan' ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
+                    }}
+                    title="释权: 弃1张黑色手牌或装备区任意牌, 当作【釜底抽薪】使用"
+                  >
+                    🏛 释权
+                  </button>
+                )}
+
+                {/* 结束出牌 */}
+                <button className="primary" style={{ fontSize: '12px', padding: '4px 12px', marginLeft: 'auto' }} onClick={endPlayPhase}>
+                  结束出牌
+                </button>
+              </div>
+            )}
             </div>
 
           </div>
@@ -1210,7 +1376,7 @@ export function BattleBoard() {
                         cursor: 'pointer', border: sel ? '2px solid #ff8a65' : 'none',
                         borderRadius: '6px',
                       }}>
-                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
                       </div>
                     )
                   })}
@@ -1229,7 +1395,7 @@ export function BattleBoard() {
                         cursor: 'pointer', border: sel ? '2px solid #ff8a65' : 'none',
                         borderRadius: '6px',
                       }}>
-                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
                       </div>
                     )
                   })}
@@ -1279,7 +1445,7 @@ export function BattleBoard() {
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '16px' }}>
               {wuguCandidates.map(card => (
                 <div key={card.id} onClick={() => selectWuguCard(card.id)} style={{ cursor: 'pointer' }}>
-                  <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                  <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
                 </div>
               ))}
             </div>
@@ -1334,7 +1500,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {tanNangTargetInfo.judge.map(card => (
                     <div key={card.id} onClick={() => selectTanNangCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
                     </div>
                   ))}
                 </div>
@@ -1347,7 +1513,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {tanNangTargetInfo.equipment.map(card => (
                     <div key={card.id} onClick={() => selectTanNangCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
                     </div>
                   ))}
                 </div>
@@ -1409,7 +1575,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {fudiTargetInfo.judge.map(card => (
                     <div key={card.id} onClick={() => selectFudiCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
                     </div>
                   ))}
                 </div>
@@ -1422,7 +1588,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {fudiTargetInfo.equipment.map(card => (
                     <div key={card.id} onClick={() => selectFudiCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
                     </div>
                   ))}
                 </div>
@@ -1484,7 +1650,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {faJiaTargetInfo.judge.map(card => (
                     <div key={card.id} onClick={() => selectFaJiaCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
                     </div>
                   ))}
                 </div>
@@ -1497,7 +1663,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {faJiaTargetInfo.equipment.map(card => (
                     <div key={card.id} onClick={() => selectFaJiaCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
                     </div>
                   ))}
                 </div>

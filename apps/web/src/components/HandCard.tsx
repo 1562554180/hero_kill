@@ -11,10 +11,14 @@ interface Props {
   isResponse?: boolean  // 响应模式 (决斗/南蛮入侵): 只能出杀
   isJudgeReplace?: boolean
   isPending?: boolean  // 玩家刚点选等待选目标 (出杀/出锦囊时进入selectTarget)
+  isLifted?: boolean  // 玩家最近点选 (上移5px提示)
   treasureSelectMode?: boolean  // 宝具选牌模式: 禁用常规出牌, 由外层div处理点击
   selectDualMode?: boolean  // 芦叶枪选2张手牌模式: 禁用常规出牌, 由外层div处理点击
   selectDiscardMode?: boolean  // 弃牌阶段选牌模式: 禁用常规出牌, 由外层div处理点击
   hasValidSchemeTarget?: boolean  // 锦囊当前是否有合法目标 (无目标时禁用, 避免点了再提示无效)
+  huiChunAvailable?: boolean  // 回春可用 (扁鹊回合外 + 红桃 + 未满血)
+  shadowed?: boolean  // 加阴影表示不可主动使用 (闪/无懈可击/满血药/重复雷)
+  hasLeiInJudge?: boolean  // 自己判定区是否有手捧雷
   onPlayKill: (cardId: string) => void
   onPlayHeal: (cardId: string) => void
   onEquip: (cardId: string) => void
@@ -22,6 +26,7 @@ interface Props {
   onPlaySchemeSelf?: (cardId: string) => void
   onJudgeReplace?: (cardId: string | null) => void
   onRespondWithCard?: (cardId: string | null) => void
+  onHuiChunHeal?: (cardId: string) => void
 }
 
 const suitSymbol: Record<string, string> = {
@@ -34,7 +39,7 @@ const typeColor: Record<string, string> = {
   basic: 'var(--text-light)', scheme: '#64b5f6', equipment: '#81c784'
 }
 
-export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, treasureSelectMode, selectDualMode, selectDiscardMode, hasValidSchemeTarget = true, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard }: Props) {
+export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, hasValidSchemeTarget = true, huiChunAvailable, shadowed = false, hasLeiInJudge = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
   const isKill = card.name === '杀'
   const isHeal = card.name === '药'
   const isEquip = card.type === 'equipment'
@@ -49,7 +54,21 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   // 响应模式: 出杀(决斗) / 出无懈可击(抵消锦囊) / 出闪(防杀)
   const isWuXie = card.name === '无懈可击'
   const isDodge = card.name === '闪'
+  const isLei = card.name === '手捧雷'
   const canRespond = isResponse && onRespondWithCard && (canUseAsKill || isWuXie || isDodge)
+
+  // 主动可用性 (用于加阴影): 闪/无懈可击 永远不是主动可用; 药满血不可用; 手捧雷在自己判定区已有雷时不可用
+  const isShadowedByRule = shadowed || (
+    !isResponse && (
+      isDodge ||
+      isWuXie ||
+      (isHeal && isFullHp) ||
+      (isLei && hasLeiInJudge)
+    )
+  )
+
+  // 回春: 红桃手牌 + 未满血 + 扁鹊有回春
+  const canHuiChun = huiChunAvailable && card.suit === 'heart' && !isFullHp && !!onHuiChunHeal
 
   const canUse = !disabled && !treasureSelectMode && !selectDualMode && !selectDiscardMode && (
     isJudgeReplace ||
@@ -57,8 +76,9 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
     canUseAsKillNow ||
     (isHeal && !isFullHp) ||
     isEquip ||
-    (isSelfTargeted && !!onPlaySchemeSelf) ||
-    (isScheme && !isSelfTargeted && card.name !== '无懈可击' && hasValidSchemeTarget && !!onPlayScheme)
+    (isSelfTargeted && !(isLei && hasLeiInJudge) && !!onPlaySchemeSelf) ||
+    (isScheme && !isSelfTargeted && card.name !== '无懈可击' && hasValidSchemeTarget && !!onPlayScheme) ||
+    canHuiChun
   )
 
   const handleClick = () => {
@@ -71,6 +91,10 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
       onRespondWithCard(card.id)
       return
     }
+    if (canHuiChun && onHuiChunHeal) {
+      onHuiChunHeal(card.id)
+      return
+    }
     if (canUseAsKillNow) onPlayKill(card.id)
     else if (isHeal) onPlayHeal(card.id)
     else if (isEquip) onEquip(card.id)
@@ -81,6 +105,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   return (
     <div
       onClick={handleClick}
+      title={isShadowedByRule && !isResponse ? '此牌不可主动使用 (需响应时除外)' : undefined}
       style={{
         background: 'var(--bg-dark)',
         border: `1px solid ${isJudgeReplace && !disabled ? '#64b5f6' : (canUse || treasureSelectMode || selectDualMode || selectDiscardMode) ? '#8b6914' : '#333'}`,
@@ -93,9 +118,12 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         transition: 'all 0.15s',
         userSelect: 'none',
         position: 'relative',
-        transform: isPending ? 'translateY(-12px)' : 'translateY(0)',
-        boxShadow: isPending ? '0 4px 8px rgba(0,0,0,0.5)' : 'none',
-        zIndex: isPending ? 1 : 0,
+        transform: (isPending || isLifted) ? 'translateY(-5px)' : 'translateY(0)',
+        boxShadow: isShadowedByRule && !isResponse
+          ? 'inset 0 0 8px rgba(0,0,0,0.65), 0 0 2px rgba(0,0,0,0.4)'
+          : 'none',
+        filter: isShadowedByRule && !isResponse ? 'grayscale(0.4) brightness(0.7)' : 'none',
+        zIndex: (isPending || isLifted) ? 1 : 0,
       }}
     >
       <div style={{ position: 'absolute', top: '4px', left: '6px', color: typeColor[card.type], fontSize: '10px', fontWeight: 'bold', writingMode: 'vertical-rl', lineHeight: 1.1 }}>
@@ -126,6 +154,15 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
           padding: '0 4px', borderRadius: '3px', fontWeight: 'bold',
         }}>
           响应
+        </div>
+      )}
+      {canHuiChun && (
+        <div style={{
+          position: 'absolute', top: '-6px', left: '-4px',
+          background: '#e91e63', color: '#fff', fontSize: '9px',
+          padding: '0 4px', borderRadius: '3px', fontWeight: 'bold',
+        }}>
+          回春
         </div>
       )}
     </div>

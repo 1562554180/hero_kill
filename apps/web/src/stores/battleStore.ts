@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { Game, type GameConfig, type Player } from '@hero-legend/game-engine'
 import type { GameState, BattleResult, Card, GameEvent, GameEventType, HeroInstance, EquipmentSlot } from '@hero-legend/shared-types'
 
-export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm' | 'selectFuChouDiscard'
+export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm' | 'selectFuChouDiscard' | 'dyingRescue' | 'chaoTuoPick' | 'houZhuTarget'
 
 interface BattleState {
   game: Game | null
@@ -12,7 +12,8 @@ interface BattleState {
   actionLog: string[]
   result: BattleResult | null
   pendingCardId: string | null
-  pendingCardType: 'kill' | 'scheme' | null
+  pendingCardType: 'kill' | 'scheme' | 'schemeSelf' | 'heal' | 'equip' | null
+  selectedTargetId: string | null  // pending 状态下选中的目标 (仅高亮, 不立即出牌)
   aoJianActive: boolean
   responsePrompt: string | null  // 例如 '决斗: 请打出【杀】或放弃'
   equippedCards: Record<string, Partial<Record<EquipmentSlot, Card>>>  // heroId -> slot -> card
@@ -119,9 +120,19 @@ interface BattleState {
   // 复仇: 来源(玩家)选 弃2张手牌 / 掉1血
   fuChouChoosePrompt: { attackerId: string; attackerName: string; handCount: number } | null
   resolveFuChouChoose: ((choice: 'discard' | 'damage') => void) | null
-  // 复仇: 来源(玩家)选弃哪2张手牌
-  fuChouPickPrompt: { attackerId: string; attackerName: string; hand: Card[]; pickedIds: string[] } | null
+  // 复仇: 来源(玩家)选弃哪2张手牌 (直接从手牌点击, 无独立弹框)
+  fuChouPickSelected: string[]
   resolveFuChouPick: ((cardIds: string[]) => void) | null
+  // 濒死救援: 玩家被问是否用药救濒死目标
+  dyingRescuePrompt: { saviorId: string; saviorName: string; targetId: string; targetName: string; yaoHandCards: Card[] } | null
+  dyingRescueSelected: string[]
+  resolveDyingRescue: ((cardIds: string[] | null) => void) | null
+  // 超脱: 李煜判定时用黑色手牌或装备替换
+  chaoTuoPrompt: { judgeCardName: string; blackHandIds: string[]; blackEquipment: Array<{ cardId: string; slot: string; name: string }> } | null
+  resolveChaoTuo: ((cardId: string | null) => void) | null
+  // 后主: 李煜用闪后选目标令其判定
+  houZhuPrompt: { candidates: Array<{ id: string; name: string; currentHp: number; maxHp: number }> } | null
+  resolveHouZhu: ((targetId: string | null) => void) | null
   judgeCard: Card | null
   // 最近一次判定结果 (含来源名/牌名, 供中央显示; 显示2.5秒后自动清空)
   lastJudgeResult: { judgeHeroName: string; judgeCardName: string; resultCard: { suit: string; number: number; name: string } } | null
@@ -131,6 +142,8 @@ interface BattleState {
   playScheme: (cardId: string) => void
   playSchemeSelf: (cardId: string) => void
   confirmTarget: (targetId: string) => void
+  confirmPlay: () => void
+  cancelPlay: () => void
   playHeal: (cardId: string) => void
   equipCard: (cardId: string) => void
   endPlayPhase: () => void
@@ -243,6 +256,16 @@ interface BattleState {
   confirmFuChouChoose: (choice: 'discard' | 'damage') => void
   toggleFuChouPick: (cardId: string) => void
   confirmFuChouPick: () => void
+  // 濒死救援
+  toggleDyingRescueCard: (cardId: string) => void
+  confirmDyingRescue: () => void
+  cancelDyingRescue: () => void
+  // 超脱: 选牌 / 取消
+  selectChaoTuoCard: (cardId: string | null) => void
+  // 后主: 选目标 / 取消
+  selectHouZhuTarget: (targetId: string | null) => void
+  // 回春: 回合外用红桃手牌/装备当药
+  huiChunHeal: (cardId: string) => void
 }
 
 const heroNames: Record<string, string> = {}
@@ -270,6 +293,7 @@ function eventToLog(event: GameEvent, game: Game): string | null {
     case 'damage:deal': return `${src} → ${tgt} 造成 ${(event.data as any)?.damage} 点伤害`
     case 'damage:receive': return `${src} 受到 ${(event.data as any)?.damage} 点伤害`
     case 'heal': return `${src} 回复 ${(event.data as any)?.amount} 点生命`
+    case 'dying': return `${src} 濒死!`
     case 'die': return `${src} 阵亡!`
     case 'skill:trigger': {
       const name = (event.data as any)?.skillName
@@ -326,7 +350,7 @@ function eventToLog(event: GameEvent, game: Game): string | null {
 const allEventTypes: GameEventType[] = [
   'game:start', 'game:end', 'turn:start', 'turn:end',
   'phase:start', 'phase:end', 'card:play', 'card:draw', 'card:discard', 'card:gain',
-  'damage:deal', 'damage:receive', 'damage:prevent', 'heal', 'die',
+  'damage:deal', 'damage:receive', 'damage:prevent', 'heal', 'dying', 'die',
   'skill:trigger', 'skill:resolve', 'judge', 'equipment:equip', 'equipment:unequip',
   'scheme:nullify', 'wugu:reveal', 'wugu:pickStart',
 ]
@@ -340,6 +364,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   result: null,
   pendingCardId: null,
   pendingCardType: null,
+  selectedTargetId: null,
   aoJianActive: false,
   responsePrompt: null,
   resolveAction: null,
@@ -418,8 +443,15 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveFuChouTrigger: null,
   fuChouChoosePrompt: null,
   resolveFuChouChoose: null,
-  fuChouPickPrompt: null,
+  fuChouPickSelected: [],
   resolveFuChouPick: null,
+  dyingRescuePrompt: null,
+  dyingRescueSelected: [],
+  resolveDyingRescue: null,
+  chaoTuoPrompt: null,
+  resolveChaoTuo: null,
+  houZhuPrompt: null,
+  resolveHouZhu: null,
   xiaDanActive: false,
   xiaDanUsedThisTurn: false,
   yuRenCardIds: [],
@@ -438,6 +470,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       result: null,
       pendingCardId: null,
       pendingCardType: null,
+      selectedTargetId: null,
       aoJianActive: false,
       responsePrompt: null,
       equippedCards: {},
@@ -509,8 +542,15 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveFuChouTrigger: null,
       fuChouChoosePrompt: null,
       resolveFuChouChoose: null,
-      fuChouPickPrompt: null,
+      fuChouPickSelected: [],
       resolveFuChouPick: null,
+      dyingRescuePrompt: null,
+      dyingRescueSelected: [],
+      resolveDyingRescue: null,
+      chaoTuoPrompt: null,
+      resolveChaoTuo: null,
+      houZhuPrompt: null,
+      resolveHouZhu: null,
     })
 
     const wrappedConfig: GameConfig = {
@@ -767,12 +807,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       fuChouPickHandler: async (game: Game, attacker: Player, handCards: Card[]) => {
         set({
           phase: 'selectFuChouDiscard',
-          fuChouPickPrompt: { attackerId: attacker.getId(), attackerName: attacker.getName(), hand: [...handCards], pickedIds: [] },
+          fuChouPickSelected: [],
         })
         const picked = await new Promise<string[]>(resolve => {
           set({ resolveFuChouPick: resolve })
         })
-        set({ resolveFuChouPick: null, fuChouPickPrompt: null, phase: 'playing' })
+        set({ resolveFuChouPick: null, fuChouPickSelected: [], phase: 'playing' })
         return picked
       },
       manWuPickCardHandler: async (game: Game, victim: Player) => {
@@ -835,6 +875,61 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         return new Promise<boolean>(resolve => {
           set({ resolveZhenSha: resolve })
         })
+      },
+      dyingRescueHandler: async (game: Game, savior: Player, dyingTarget: Player, yaoHandCards: Card[]) => {
+        set({
+          phase: 'dyingRescue',
+          dyingRescuePrompt: {
+            saviorId: savior.getId(),
+            saviorName: savior.getName(),
+            targetId: dyingTarget.getId(),
+            targetName: dyingTarget.getName(),
+            yaoHandCards: [...yaoHandCards],
+          },
+          dyingRescueSelected: [],
+          game,
+        })
+        const cardIds = await new Promise<string[] | null>(resolve => {
+          set({ resolveDyingRescue: resolve })
+        })
+        set({ resolveDyingRescue: null, dyingRescuePrompt: null, dyingRescueSelected: [], phase: 'waiting' })
+        return cardIds
+      },
+      chaoTuoHandler: async (game: Game, player: Player, judgeCard: Card, blackCards: { hand: string[]; equipment: Array<{ cardId: string; slot: string }> }) => {
+        const playerAny = player as any
+        const equippedCards: Record<string, Partial<Record<EquipmentSlot, Card>>> = useBattleStore.getState().equippedCards
+        const heroEquip = equippedCards[player.getId()] ?? {}
+        const blackEquipment = blackCards.equipment.map(({ cardId, slot }) => {
+          const eq = heroEquip[slot as EquipmentSlot]
+          return { cardId, slot, name: eq?.name ?? '' }
+        })
+        set({
+          phase: 'chaoTuoPick',
+          chaoTuoPrompt: {
+            judgeCardName: judgeCard.name,
+            blackHandIds: blackCards.hand,
+            blackEquipment,
+          },
+          playerHand: player.getHand(),
+        })
+        const cardId = await new Promise<string | null>(resolve => {
+          set({ resolveChaoTuo: resolve })
+        })
+        set({ resolveChaoTuo: null, chaoTuoPrompt: null, phase: 'waiting' })
+        return cardId
+      },
+      houZhuHandler: async (game: Game, dodger: Player, candidates: Player[]) => {
+        set({
+          phase: 'houZhuTarget',
+          houZhuPrompt: {
+            candidates: candidates.map(p => ({ id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() })),
+          },
+        })
+        const targetId = await new Promise<string | null>(resolve => {
+          set({ resolveHouZhu: resolve })
+        })
+        set({ resolveHouZhu: null, houZhuPrompt: null, phase: 'waiting' })
+        return targetId
       },
       buDaoHandler: async (game: Game, guanYu: Player, victim: Player) => {
         set({
@@ -998,6 +1093,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   playKill: (cardId: string) => {
+    // 点击同一张pending牌 → 取消
+    const { pendingCardId, pendingCardType, selectedTargetId } = get()
+    if (pendingCardId === cardId && pendingCardType === 'kill') {
+      set({ pendingCardId: null, pendingCardType: null, selectedTargetId: null })
+      return
+    }
     // 侠胆胜出: 进入多目标选人(每张杀最多xiaDanWinTargetsPerKill目标, 共xiaDanWinKillsLeft次)
     const { game } = get()
     if (game) {
@@ -1019,13 +1120,24 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         return
       }
     }
-    set({ phase: 'selectTarget', pendingCardId: cardId, pendingCardType: 'kill' })
+    // 设置pending, 等玩家点选目标后点确定才真正出牌
+    set({
+      phase: 'playing',
+      pendingCardId: cardId,
+      pendingCardType: 'kill',
+      selectedTargetId: null,
+    })
   },
 
   playScheme: (cardId: string) => {
+    // 点击同一张pending牌 → 取消
+    const { pendingCardId, pendingCardType, playerHand } = get()
+    if (pendingCardId === cardId && pendingCardType === 'scheme') {
+      set({ pendingCardId: null, pendingCardType: null, selectedTargetId: null })
+      return
+    }
     // 所有锦囊统一走 selectTarget 选目标, 跟杀一样的流程
-    // 探囊/釜底/借刀也通过 UI 选目标, 取消时牌保留
-    const card = get().playerHand.find(c => c.id === cardId)
+    const card = playerHand.find(c => c.id === cardId)
     if (!card) return
 
     if (card.name === '借刀杀人') {
@@ -1041,42 +1153,101 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         phase: 'selectJieDaoHolder',
         pendingCardId: cardId,
         pendingCardType: 'scheme',
+        selectedTargetId: null,
         jieDaoHolders: holders,
       })
       return
     }
 
-    // 探囊/釜底/其他锦囊: 统一 selectTarget 阶段
-    set({ phase: 'selectTarget', pendingCardId: cardId, pendingCardType: 'scheme' })
+    // 探囊/釜底/其他锦囊: 设置pending, 等玩家点选目标后点确定才真正出牌
+    set({
+      phase: 'playing',
+      pendingCardId: cardId,
+      pendingCardType: 'scheme',
+      selectedTargetId: null,
+    })
   },
 
   playSchemeSelf: (cardId: string) => {
-    const { resolveAction } = get()
-    if (!resolveAction) return
-    resolveAction(`scheme:${cardId}:`)  // 空 targetId 表示自己
-    set({ resolveAction: null })
+    // 点击同一张pending牌 → 取消
+    const { pendingCardId, pendingCardType } = get()
+    if (pendingCardId === cardId && pendingCardType === 'schemeSelf') {
+      set({ pendingCardId: null, pendingCardType: null })
+      return
+    }
+    // 设置pending, 等待玩家点"确定"
+    set({
+      pendingCardId: cardId,
+      pendingCardType: 'schemeSelf',
+      selectedTargetId: null,
+    })
   },
 
   confirmTarget: (targetId: string) => {
-    const { pendingCardId, pendingCardType, resolveAction } = get()
+    // 仅设置选中目标, 不立即commit (由 confirmPlay 真正出牌)
+    set({ selectedTargetId: targetId })
+  },
+
+  confirmPlay: () => {
+    const { pendingCardId, pendingCardType, selectedTargetId, resolveAction } = get()
     if (!pendingCardId || !resolveAction) return
-    const prefix = pendingCardType === 'scheme' ? 'scheme' : 'kill'
-    resolveAction(`${prefix}:${pendingCardId}:${targetId}`)
-    set({ resolveAction: null, pendingCardId: null, pendingCardType: null })
+    if (pendingCardType === 'kill' || pendingCardType === 'scheme') {
+      if (!selectedTargetId) return  // 需选目标但未选
+      const prefix = pendingCardType === 'scheme' ? 'scheme' : 'kill'
+      resolveAction(`${prefix}:${pendingCardId}:${selectedTargetId}`)
+    } else if (pendingCardType === 'schemeSelf') {
+      resolveAction(`scheme:${pendingCardId}:`)
+    } else if (pendingCardType === 'heal') {
+      resolveAction(`heal:${pendingCardId}`)
+    } else if (pendingCardType === 'equip') {
+      resolveAction(`equip:${pendingCardId}`)
+    } else {
+      return
+    }
+    set({
+      pendingCardId: null,
+      pendingCardType: null,
+      selectedTargetId: null,
+      resolveAction: null,
+    })
+  },
+
+  cancelPlay: () => {
+    set({
+      pendingCardId: null,
+      pendingCardType: null,
+      selectedTargetId: null,
+    })
   },
 
   playHeal: (cardId: string) => {
-    const { resolveAction } = get()
-    if (!resolveAction) return
-    resolveAction(`heal:${cardId}`)
-    set({ resolveAction: null })
+    // 点击同一张pending牌 → 取消
+    const { pendingCardId, pendingCardType } = get()
+    if (pendingCardId === cardId && pendingCardType === 'heal') {
+      set({ pendingCardId: null, pendingCardType: null })
+      return
+    }
+    // 设置pending, 等待玩家点"确定"
+    set({
+      pendingCardId: cardId,
+      pendingCardType: 'heal',
+      selectedTargetId: null,
+    })
   },
 
   equipCard: (cardId: string) => {
-    const { resolveAction } = get()
-    if (!resolveAction) return
-    resolveAction(`equip:${cardId}`)
-    set({ resolveAction: null })
+    // 点击同一张pending牌 → 取消
+    const { pendingCardId, pendingCardType } = get()
+    if (pendingCardId === cardId && pendingCardType === 'equip') {
+      set({ pendingCardId: null, pendingCardType: null })
+      return
+    }
+    // 设置pending, 等待玩家点"确定"
+    set({
+      pendingCardId: cardId,
+      pendingCardType: 'equip',
+      selectedTargetId: null,
+    })
   },
 
   endPlayPhase: () => {
@@ -1172,13 +1343,23 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     set({ resolveAction: null, phase: 'playing', multiTargetCandidates: [], selectedTargets: [], killMultiCardId: null, pendingCardId: null, pendingCardType: null })
   },
 
-  // 芦叶枪选2张手牌
+  // 芦叶枪选2张手牌 (选满2张自动确认)
   toggleDualCard: (cardId: string) => {
-    const { selectedDualCards } = get()
-    if (selectedDualCards.includes(cardId)) {
-      set({ selectedDualCards: selectedDualCards.filter(id => id !== cardId) })
-    } else if (selectedDualCards.length < 2) {
-      set({ selectedDualCards: [...selectedDualCards, cardId] })
+    const { selectedDualCards, resolveDualCard } = get()
+    const picked = selectedDualCards
+    let nextPicked: string[]
+    if (picked.includes(cardId)) {
+      nextPicked = picked.filter(id => id !== cardId)
+    } else if (picked.length < 2) {
+      nextPicked = [...picked, cardId]
+    } else {
+      return
+    }
+    set({ selectedDualCards: nextPicked })
+    if (nextPicked.length === 2 && resolveDualCard) {
+      const resolve = resolveDualCard
+      set({ resolveDualCard: null, selectedDualCards: [] })
+      resolve(nextPicked)
     }
   },
   confirmDualCards: () => {
@@ -1784,21 +1965,67 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     resolveFuChouChoose(choice)
     set({ resolveFuChouChoose: null, fuChouChoosePrompt: null, phase: 'waiting' })
   },
-  // 复仇: 来源选弃哪2张手牌
+  // 复仇: 来源选弃哪2张手牌 (直接从手牌点击, 选满2张后需点确定)
   toggleFuChouPick: (cardId: string) => {
-    const { fuChouPickPrompt, resolveFuChouPick } = get()
-    if (!fuChouPickPrompt || !resolveFuChouPick) return
-    const picked = fuChouPickPrompt.pickedIds
+    const { fuChouPickSelected } = get()
+    const picked = fuChouPickSelected
+    let nextPicked: string[]
     if (picked.includes(cardId)) {
-      set({ fuChouPickPrompt: { ...fuChouPickPrompt, pickedIds: picked.filter(id => id !== cardId) } })
+      nextPicked = picked.filter(id => id !== cardId)
     } else if (picked.length < 2) {
-      set({ fuChouPickPrompt: { ...fuChouPickPrompt, pickedIds: [...picked, cardId] } })
+      nextPicked = [...picked, cardId]
+    } else {
+      return
     }
+    set({ fuChouPickSelected: nextPicked })
   },
   confirmFuChouPick: () => {
-    const { fuChouPickPrompt, resolveFuChouPick } = get()
-    if (!fuChouPickPrompt || !resolveFuChouPick) return
-    if (fuChouPickPrompt.pickedIds.length < 2) return
-    resolveFuChouPick(fuChouPickPrompt.pickedIds)
+    const { fuChouPickSelected, resolveFuChouPick } = get()
+    if (!resolveFuChouPick) return
+    if (fuChouPickSelected.length < 2) return
+    const resolve = resolveFuChouPick
+    set({ resolveFuChouPick: null, fuChouPickSelected: [] })
+    resolve(fuChouPickSelected)
+  },
+  // 濒死救援: 选/取消药
+  toggleDyingRescueCard: (cardId: string) => {
+    const { dyingRescuePrompt, dyingRescueSelected } = get()
+    if (!dyingRescuePrompt) return
+    if (dyingRescueSelected.includes(cardId)) {
+      set({ dyingRescueSelected: dyingRescueSelected.filter(id => id !== cardId) })
+    } else {
+      set({ dyingRescueSelected: [...dyingRescueSelected, cardId] })
+    }
+  },
+  confirmDyingRescue: () => {
+    const { resolveDyingRescue, dyingRescueSelected } = get()
+    if (!resolveDyingRescue) return
+    resolveDyingRescue(dyingRescueSelected)
+  },
+  cancelDyingRescue: () => {
+    const { resolveDyingRescue } = get()
+    if (!resolveDyingRescue) return
+    resolveDyingRescue(null)
+  },
+  // 超脱: 选牌或取消
+  selectChaoTuoCard: (cardId: string | null) => {
+    const { resolveChaoTuo } = get()
+    if (!resolveChaoTuo) return
+    resolveChaoTuo(cardId)
+  },
+  // 后主: 选目标或取消
+  selectHouZhuTarget: (targetId: string | null) => {
+    const { resolveHouZhu } = get()
+    if (!resolveHouZhu) return
+    resolveHouZhu(targetId)
+  },
+  // 回春: 回合外用红桃手牌/装备当药
+  huiChunHeal: (cardId: string) => {
+    const { game } = get()
+    if (!game) return
+    const player = game.getPlayer()
+    if (!player) return
+    game.playerHuiChunHeal(player, cardId)
+    set({ gameState: game.getState(), playerHand: player.getHand(), equippedCards: get().equippedCards })
   },
 }))

@@ -6,6 +6,7 @@ interface Props {
   hero: BattleHero
   isCurrentTurn: boolean
   isSelectable: boolean
+  isSelected?: boolean
   dimmed?: boolean
   onClick?: () => void
   aoJianActive?: boolean
@@ -16,7 +17,7 @@ interface Props {
 
 const SLOT_SIZE = '26px'
 
-export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang }: Props) {
+export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang }: Props) {
   const game = useBattleStore(s => s.game)
   const phase = useBattleStore(s => s.phase)
   const treasureSkill = useBattleStore(s => s.treasureSkill)
@@ -25,11 +26,13 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
   const hpPercent = maxHp > 0 ? (currentHp / maxHp) * 100 : 0
   const isDanger = hpPercent <= 30
 
-  const borderColor = isSelectable
-    ? '#ff4444'
-    : isCurrentTurn
-      ? 'var(--border-gold)'
-      : role === 'enemy' ? '#c62828' : role === 'ally' ? '#2e7d32' : '#3a5a3a'
+  const borderColor = isSelected
+    ? '#ffd54f'
+    : isSelectable
+      ? '#ff4444'
+      : isCurrentTurn
+        ? 'var(--border-gold)'
+        : role === 'enemy' ? '#c62828' : role === 'ally' ? '#2e7d32' : '#3a5a3a'
   const bgColor = role === 'enemy'
     ? 'rgba(198,40,40,0.08)'
     : role === 'ally'
@@ -49,15 +52,22 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         borderRadius: '8px',
         padding: '8px 10px',
         minWidth: '170px',
+        height: '100%',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
         opacity: currentHp > 0 ? (dimmed ? 0.4 : 1) : 0.4,
         cursor: isSelectable ? 'pointer' : 'default',
         transition: 'border-color 0.2s, box-shadow 0.2s, opacity 0.2s',
         position: 'relative',
-        boxShadow: isSelectable
-          ? '0 0 10px rgba(255,68,68,0.5), inset 0 0 6px rgba(255,68,68,0.2)'
-          : isCurrentTurn
-            ? '0 0 8px rgba(218,165,32,0.4)'
-            : 'none',
+        boxShadow: isSelected
+          ? '0 0 12px rgba(255,213,79,0.7), inset 0 0 8px rgba(255,213,79,0.3)'
+          : isSelectable
+            ? '0 0 10px rgba(255,68,68,0.5), inset 0 0 6px rgba(255,68,68,0.2)'
+            : isCurrentTurn
+              ? '0 0 8px rgba(218,165,32,0.4)'
+              : 'none',
       }}
     >
       {/* 头部: 角色名 + AI徽章 */}
