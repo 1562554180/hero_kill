@@ -96,13 +96,13 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         </span>
       </div>
 
-      {/* 凹槽区: 主印1/N + 辅印1/M + 手牌数量 */}
+      {/* 凹槽区: 永远显示4个 (主印1/2 + 辅印1/2), 未开启的显示锁定 — 手牌数量 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px', flexWrap: 'wrap' }}>
-        {Array.from({ length: slotConfig.main }).map((_, i) => (
-          <TreasureSlot key={`m-${i}`} treasure={mainTreasures[i]} type="main" />
+        {[0, 1].map(i => (
+          <TreasureSlot key={`m-${i}`} treasure={mainTreasures[i]} type="main" locked={i >= slotConfig.main} />
         ))}
-        {Array.from({ length: slotConfig.sub }).map((_, i) => (
-          <TreasureSlot key={`s-${i}`} treasure={subTreasures[i]} type="sub" />
+        {[0, 1].map(i => (
+          <TreasureSlot key={`s-${i}`} treasure={subTreasures[i]} type="sub" locked={i >= slotConfig.sub} />
         ))}
         <span style={{ color: 'var(--text-muted)', fontSize: '10px', marginLeft: '4px' }}>
           手牌: {hero.handCards.length}
@@ -233,10 +233,31 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
 }
 
 // 宝具凹槽子组件
-function TreasureSlot({ treasure, type }: { treasure: Treasure | null | undefined; type: 'main' | 'sub' }) {
+function TreasureSlot({ treasure, type, locked }: { treasure: Treasure | null | undefined; type: 'main' | 'sub'; locked?: boolean }) {
   const color = type === 'main' ? '#ff8a65' : '#90caf9'
   const bgColor = type === 'main' ? 'rgba(255,138,101,0.18)' : 'rgba(144,202,249,0.18)'
   const borderColor = type === 'main' ? 'rgba(255,138,101,0.5)' : 'rgba(144,202,249,0.5)'
+
+  // 锁定凹槽 (星级未开启)
+  if (locked) {
+    return (
+      <div
+        title="未开启凹槽 (升星解锁)"
+        style={{
+          width: SLOT_SIZE, height: SLOT_SIZE,
+          background: 'rgba(0,0,0,0.3)',
+          border: '1px dashed #333',
+          borderRadius: '4px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#555',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          lineHeight: 1,
+          cursor: 'help',
+        }}
+      >✕</div>
+    )
+  }
 
   if (!treasure) {
     return (
