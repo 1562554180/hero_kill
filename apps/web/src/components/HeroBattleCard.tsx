@@ -78,9 +78,16 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         )}
       </div>
 
-      {/* HP区: 当前血量 + 进度条 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
-        <span style={{ color: isDanger ? '#e57373' : 'var(--text-light)', fontSize: '11px', fontWeight: 'bold', minWidth: '14px' }}>
+      {/* HP区: 当前血量(淡金底白字) + 进度条 — 两端对齐 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+        <span style={{
+          background: 'rgba(255,213,79,0.22)',
+          color: '#fff',
+          fontSize: '11px', fontWeight: 'bold',
+          padding: '1px 6px', borderRadius: '3px',
+          border: '1px solid rgba(255,213,79,0.4)',
+          minWidth: '22px', textAlign: 'center',
+        }}>
           {currentHp}
         </span>
         <div style={{ flex: 1, height: '6px', background: '#1a1a1a', borderRadius: '3px', overflow: 'hidden' }}>
@@ -93,15 +100,24 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         </div>
       </div>
 
-      {/* 凹槽区: 永远显示4个 (主印1/2 + 辅印1/2), 未开启的显示锁定 — 手牌数量 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px', flexWrap: 'wrap' }}>
-        {[0, 1].map(i => (
-          <TreasureSlot key={`m-${i}`} treasure={mainTreasures[i]} type="main" locked={i >= slotConfig.main} />
-        ))}
-        {[0, 1].map(i => (
-          <TreasureSlot key={`s-${i}`} treasure={subTreasures[i]} type="sub" locked={i >= slotConfig.sub} />
-        ))}
-        <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: '4px', fontWeight: 'bold' }}>
+      {/* 凹槽区: 永远显示4个 (主印1/2 + 辅印1/2) — 手牌数量(灰白底) 两端对齐 */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {[0, 1].map(i => (
+            <TreasureSlot key={`m-${i}`} treasure={mainTreasures[i]} type="main" locked={i >= slotConfig.main} />
+          ))}
+          {[0, 1].map(i => (
+            <TreasureSlot key={`s-${i}`} treasure={subTreasures[i]} type="sub" locked={i >= slotConfig.sub} />
+          ))}
+        </div>
+        <span style={{
+          background: 'rgba(255,255,255,0.12)',
+          color: 'var(--text-light)',
+          fontSize: '11px', fontWeight: 'bold',
+          padding: '1px 6px', borderRadius: '3px',
+          border: '1px solid rgba(255,255,255,0.18)',
+          minWidth: '22px', textAlign: 'center',
+        }}>
           {hero.handCards.length}
         </span>
       </div>
@@ -119,7 +135,8 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
         const isJueJiWeaponPick = treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon'
         return (
-          <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+            <div style={{ display: 'flex', gap: '3px' }}>
             {slots.map(s => {
               const id = hero.equipment[s.slot]
               if (!id) {
@@ -190,6 +207,16 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
                 </span>
               )
             })}
+            </div>
+            <span style={{
+              background: 'rgba(255,255,255,0.08)',
+              color: 'var(--text-light)',
+              fontSize: '11px', fontWeight: 'bold',
+              padding: '1px 6px', borderRadius: '3px',
+              border: '1px solid rgba(255,255,255,0.15)',
+            }}>
+              Lv.{instance.level ?? 1}
+            </span>
           </div>
         )
       })()}
