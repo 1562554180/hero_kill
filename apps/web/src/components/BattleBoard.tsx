@@ -290,67 +290,57 @@ export function BattleBoard() {
         <BattleLog logs={actionLog} />
       </div>
 
-      {/* Player area (含友军, 放在玩家角色后面) */}
+      {/* Player area (含友军, 放在玩家整个操作界面后面) */}
       {player && (
         <div style={{
+          position: 'relative',
           background: 'var(--bg-medium)',
           border: '1px solid var(--border-wood)',
           borderRadius: '8px',
           padding: '12px',
           flex: '0 0 auto',
+          overflow: 'hidden',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              {/* 友军AI: 放在玩家角色后面 (右侧, 与玩家错位叠放) */}
-              {allies.length > 0 && (
-                <div style={{ display: 'flex', marginRight: '-40px', position: 'relative', zIndex: 0 }}>
-                  {allies.map((h, idx) => (
-                    <div key={h.hero.id} style={{ marginLeft: idx > 0 ? '-50px' : 0, zIndex: 0, opacity: 0.85, filter: 'brightness(0.9)' }}>
-                      <HeroBattleCard
-                        hero={h}
-                        isCurrentTurn={gameState.currentHeroId === h.hero.id && !isPlayerTurn}
-                        isSelectable={
-                          (h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)) &&
-                          ((phase === 'treasureSelectTarget') || (phase === 'treasureSelectTargets') ||
-                           (phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === h.hero.id)) ||
-                           (phase === 'selectLuYeQiangTarget' && luYeQiangCandidates.some(lc => lc.id === h.hero.id)))
-                        }
-                        onClick={() => {
-                          if (phase === 'treasureSelectTarget') pickTreasureTarget(h.hero.id)
-                          else if (phase === 'selectJieDaoTarget') selectJieDaoTarget(h.hero.id)
-                          else if (phase === 'selectLuYeQiangTarget') selectLuYeQiangTarget(h.hero.id)
-                          else if (phase === 'treasureSelectTargets') {
-                            const t = treasureTargetIds
-                            if (t.includes(h.hero.id)) {
-                              useBattleStore.setState({ treasureTargetIds: t.filter(id => id !== h.hero.id) })
-                            } else if (t.length < 2 && h.hero.id !== player?.hero.id) {
-                              useBattleStore.setState({ treasureTargetIds: [...t, h.hero.id] })
-                            }
-                          }
-                        }}
-                      />
-                    </div>
-                  ))}
+          {/* 友军AI: 放在玩家整个操作界面的后面 (背景层, 半透明) */}
+          {allies.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              top: 0, right: 0, bottom: 0, left: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+              paddingRight: '32px',
+              zIndex: 0,
+              pointerEvents: 'none',
+              opacity: 0.28,
+              filter: 'blur(0.5px)',
+            }}>
+              {allies.map(h => (
+                <div key={h.hero.id} style={{ transform: 'scale(1.15)' }}>
+                  <HeroBattleCard
+                    hero={h}
+                    isCurrentTurn={false}
+                    isSelectable={false}
+                    onClick={() => {}}
+                  />
                 </div>
-              )}
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <HeroBattleCard
-                  hero={player}
-                  isCurrentTurn={isPlayerTurn}
-                  isSelectable={phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === player.hero.id)}
-                  onClick={() => {
-                    if (phase === 'selectJieDaoTarget') selectJieDaoTarget(player.hero.id)
-                  }}
-                  aoJianActive={aoJianActive}
-                  canPlayKill={canPlayKill && (isPlayerTurn || phase === 'awaitingResponse')}
-                  hasHongZhuang={hasHongZhuang}
-                  onEquipAsKill={(cardId: string) => {
-                    if (phase === 'playing') playKill(cardId)
-                    else if (phase === 'awaitingResponse') respondWithCard(cardId)
-                  }}
-                />
-              </div>
+              ))}
             </div>
+          )}
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <HeroBattleCard
+              hero={player}
+              isCurrentTurn={isPlayerTurn}
+              isSelectable={phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === player.hero.id)}
+              onClick={() => {
+                if (phase === 'selectJieDaoTarget') selectJieDaoTarget(player.hero.id)
+              }}
+              aoJianActive={aoJianActive}
+              canPlayKill={canPlayKill && (isPlayerTurn || phase === 'awaitingResponse')}
+              hasHongZhuang={hasHongZhuang}
+              onEquipAsKill={(cardId: string) => {
+                if (phase === 'playing') playKill(cardId)
+                else if (phase === 'awaitingResponse') respondWithCard(cardId)
+              }}
+            />
             {phase === 'selectTarget' ? (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <span style={{ color: '#ff6b6b', fontSize: '14px', fontWeight: 'bold' }}>
