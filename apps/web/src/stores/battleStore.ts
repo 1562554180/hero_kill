@@ -1037,15 +1037,23 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           }
         }, 3000)
       }
-      // 关键事件触发时同步 gameState, 避免 UI 显示陈旧的 HP/状态
+      // 关键事件触发时同步 gameState + playerHand, 避免 UI 显示陈旧的 HP/手牌
+      // (出牌/弃牌/摸牌/装备/失去装备 时手牌会变, 必须同步, 否则像李逵复仇等待时
+      //  玩家出的杀卡还留在手里 — 因为 playerActionHandler 在 await 复仇, 之后那行同步未执行)
       if (event.type === 'damage:deal' || event.type === 'damage:receive' ||
           event.type === 'heal' || event.type === 'die' ||
           event.type === 'turn:start' || event.type === 'turn:end' ||
           event.type === 'card:play' || event.type === 'card:draw' ||
-          event.type === 'card:discard' || event.type === 'phase:start' ||
+          event.type === 'card:discard' || event.type === 'card:gain' ||
+          event.type === 'phase:start' ||
           event.type === 'phase:end' || event.type === 'judge' ||
-          event.type === 'scheme:nullify') {
-        set({ gameState: game.getState() })
+          event.type === 'scheme:nullify' ||
+          event.type === 'equipment:equip' || event.type === 'equipment:unequip') {
+        const player = game.getPlayer()
+        set({
+          gameState: game.getState(),
+          playerHand: player?.getHand() ?? get().playerHand,
+        })
       }
       // 玩家回合开始: 重置 侠胆/驭人 已用标记
       if (event.type === 'turn:start' && event.sourceHeroId === game.getPlayer()?.getId()) {

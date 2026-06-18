@@ -441,6 +441,37 @@ export function BattleBoard() {
             )
           })()}
 
+          {/* 复仇弃牌浮动横幅 — 绝对定位浮在玩家操作栏上方 (与pending提示样式一致) */}
+          {phase === 'selectFuChouDiscard' && (
+            <div style={{
+              position: 'absolute',
+              bottom: '100%',
+              left: 0,
+              right: 0,
+              marginBottom: '8px',
+              padding: '10px 16px',
+              background: 'linear-gradient(135deg, rgba(244,67,54,0.18), rgba(183,28,28,0.18))',
+              borderRadius: '6px',
+              border: '2px solid #ef5350',
+              color: '#ef9a9a', fontSize: '13px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+              boxShadow: '0 2px 12px rgba(244,67,54,0.4)',
+              zIndex: 10,
+            }}>
+              <span style={{ flex: 1 }}>
+                🗡️ <b style={{ fontSize: '14px' }}>复仇弃牌</b> — 请从手牌中选2张弃掉 (已选 {fuChouPickSelected.length}/2)
+              </span>
+              <button
+                style={{ ...treasureBtnStyle, opacity: fuChouPickSelected.length < 2 ? 0.5 : 1 }}
+                className="primary"
+                disabled={fuChouPickSelected.length < 2}
+                onClick={confirmFuChouPick}
+              >
+                确认弃{fuChouPickSelected.length}张
+              </button>
+            </div>
+          )}
+
           {/* 布局: 玩家卡(左侧上下占满) | 提示 + 手牌 + 技能按钮行 */}
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'stretch' }}>
             {/* 左侧: 玩家卡 (上下占满) */}
@@ -815,26 +846,7 @@ export function BattleBoard() {
             </div>
           )}
 
-          {/* 复仇弃牌: 不再独立弹框, 直接点击手牌选2张 (选满后需点确定) */}
-          {phase === 'selectFuChouDiscard' && (
-            <div style={{
-              marginBottom: '8px', padding: '8px 12px',
-              background: 'rgba(244,67,54,0.12)', borderRadius: '4px',
-              border: '1px solid rgba(244,67,54,0.3)',
-              color: '#ef9a9a', fontSize: '12px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
-            }}>
-              <span>🗡️ 复仇弃牌 — 请从手牌中选2张弃掉 (已选 {fuChouPickSelected.length}/2)</span>
-              <button
-                style={treasureBtnStyle}
-                className="primary"
-                disabled={fuChouPickSelected.length < 2}
-                onClick={confirmFuChouPick}
-              >
-                确认弃{fuChouPickSelected.length}张
-              </button>
-            </div>
-          )}
+          {/* 复仇弃牌: 已移到玩家区域上方浮动横幅 (与手牌pending提示一致) */}
 
           {/* 补刀: 关羽回合外对受害角色补杀 */}
           {phase === 'buDaoKill' && buDaoPrompt && (
