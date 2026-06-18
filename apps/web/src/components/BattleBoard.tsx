@@ -338,9 +338,28 @@ export function BattleBoard() {
           flex: '0 0 auto',
           overflow: 'hidden',
         }}>
-          {/* 三栏布局: 提示+手牌 | 操作按钮(垂直) | 玩家卡(右下) */}
+          {/* 三栏布局: 玩家卡(左下) | 提示+手牌 | 操作按钮(垂直) */}
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-            {/* 左: 提示 + 手牌 */}
+            {/* 左: 玩家卡 (永远在左下) */}
+            <div style={{ flex: '0 0 auto' }}>
+              <HeroBattleCard
+                hero={player}
+                isCurrentTurn={isPlayerTurn}
+                isSelectable={phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === player.hero.id)}
+                onClick={() => {
+                  if (phase === 'selectJieDaoTarget') selectJieDaoTarget(player.hero.id)
+                }}
+                aoJianActive={aoJianActive}
+                canPlayKill={canPlayKill && (isPlayerTurn || phase === 'awaitingResponse')}
+                hasHongZhuang={hasHongZhuang}
+                onEquipAsKill={(cardId: string) => {
+                  if (phase === 'playing') playKill(cardId)
+                  else if (phase === 'awaitingResponse') respondWithCard(cardId)
+                }}
+              />
+            </div>
+
+            {/* 中: 提示 + 手牌 */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, gap: '6px' }}>
 
           {/* Judge replace info */}
@@ -960,25 +979,6 @@ export function BattleBoard() {
               ) : (
                 <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>等待中...</span>
               )}
-            </div>
-
-            {/* 右: 玩家卡 (永远在右下) */}
-            <div style={{ flex: '0 0 auto' }}>
-              <HeroBattleCard
-                hero={player}
-                isCurrentTurn={isPlayerTurn}
-                isSelectable={phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === player.hero.id)}
-                onClick={() => {
-                  if (phase === 'selectJieDaoTarget') selectJieDaoTarget(player.hero.id)
-                }}
-                aoJianActive={aoJianActive}
-                canPlayKill={canPlayKill && (isPlayerTurn || phase === 'awaitingResponse')}
-                hasHongZhuang={hasHongZhuang}
-                onEquipAsKill={(cardId: string) => {
-                  if (phase === 'playing') playKill(cardId)
-                  else if (phase === 'awaitingResponse') respondWithCard(cardId)
-                }}
-              />
             </div>
           </div>
         </div>
