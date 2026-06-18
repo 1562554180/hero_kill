@@ -1,5 +1,5 @@
-import type { BattleHero, Card } from '@hero-legend/shared-types'
-import { isRedSuit } from '@hero-legend/shared-types'
+import type { BattleHero, Card, Treasure } from '@hero-legend/shared-types'
+import { isRedSuit, getTreasureSlots } from '@hero-legend/shared-types'
 import { useBattleStore } from '../stores/battleStore'
 
 interface Props {
@@ -14,30 +14,31 @@ interface Props {
   hasHongZhuang?: boolean
 }
 
+const SLOT_SIZE = '28px'
+
 export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang }: Props) {
   const game = useBattleStore(s => s.game)
   const phase = useBattleStore(s => s.phase)
   const treasureSkill = useBattleStore(s => s.treasureSkill)
   const pickTreasureCard = useBattleStore(s => s.pickTreasureCard)
   const { hero: config, currentHp, maxHp, role, instance } = hero
-  const hpPercent = (currentHp / maxHp) * 100
-  const hpColor = hpPercent > 60 ? '#4caf50' : hpPercent > 30 ? '#ff9800' : '#f44336'
+  const hpPercent = maxHp > 0 ? (currentHp / maxHp) * 100 : 0
+  const isDanger = hpPercent <= 30
 
   const borderColor = isSelectable
     ? '#ff4444'
     : isCurrentTurn
       ? 'var(--border-gold)'
       : role === 'enemy' ? '#c62828' : role === 'ally' ? '#2e7d32' : '#3a5a3a'
-  // 背景底色: 敌方淡红 / 友方淡绿, 让角色归属更直观
   const bgColor = role === 'enemy'
     ? 'rgba(198,40,40,0.08)'
     : role === 'ally'
       ? 'rgba(46,125,50,0.08)'
       : 'var(--bg-medium)'
 
-  const skills = config.skills ?? []
-  const mainTreasures = (instance.treasures?.main ?? []).filter(Boolean)
-  const subTreasures = (instance.treasures?.sub ?? []).filter(Boolean)
+  const mainTreasures = instance.treasures?.main ?? []
+  const subTreasures = instance.treasures?.sub ?? []
+  const slotConfig = getTreasureSlots(instance.starLevel ?? 1)
 
   return (
     <div
@@ -46,8 +47,8 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         background: bgColor,
         border: `2px solid ${borderColor}`,
         borderRadius: '8px',
-        padding: '8px 12px',
-        minWidth: '140px',
+        padding: '8px 10px',
+        minWidth: '170px',
         opacity: currentHp > 0 ? (dimmed ? 0.4 : 1) : 0.4,
         cursor: isSelectable ? 'pointer' : 'default',
         transition: 'border-color 0.2s, box-shadow 0.2s, opacity 0.2s',
@@ -59,93 +60,56 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
             : 'none',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+      {/* 头部: 角色名 + AI徽章 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
         <span style={{ color: 'var(--text-light)', fontWeight: 'bold', fontSize: '14px' }}>
           {config.name}
         </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {role === 'ally' && (
-            <span style={{
-              fontSize: '10px', color: '#a5d6a7',
-              background: 'rgba(46,125,50,0.18)',
-              padding: '0 4px', borderRadius: '3px', fontWeight: 'bold',
-              border: '1px solid rgba(46,125,50,0.5)',
-            }}>AI</span>
-          )}
-          {role === 'enemy' && (
-            <span style={{
-              fontSize: '10px', color: '#ef9a9a',
-              background: 'rgba(198,40,40,0.18)',
-              padding: '0 4px', borderRadius: '3px', fontWeight: 'bold',
-              border: '1px solid rgba(198,40,40,0.5)',
-            }}>AI</span>
-          )}
-        </span>
+        {(role === 'ally' || role === 'enemy') && (
+          <span style={{
+            fontSize: '9px',
+            color: role === 'ally' ? '#a5d6a7' : '#ef9a9a',
+            background: role === 'ally' ? 'rgba(46,125,50,0.18)' : 'rgba(198,40,40,0.18)',
+            padding: '1px 5px',
+            borderRadius: '3px',
+            fontWeight: 'bold',
+            border: `1px solid ${role === 'ally' ? 'rgba(46,125,50,0.5)' : 'rgba(198,40,40,0.5)'}`,
+          }}>AI</span>
+        )}
       </div>
 
-      {/* 技能 */}
-      {skills.length > 0 && (
-        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '4px' }}>
-          {skills.map(s => (
-            <span key={s.id} style={{
-              fontSize: '10px', color: '#ffd54f',
-              background: 'rgba(255,213,79,0.12)',
-              padding: '1px 5px', borderRadius: '3px',
-              border: '1px solid rgba(255,213,79,0.25)',
-            }}>
-              {s.name}
-            </span>
+      {/* HP区: 红心 + 数字 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+        <div style={{ display: 'flex', gap: '2px' }}>
+          {Array.from({ length: maxHp }).map((_, i) => (
+            <span key={i} style={{
+              color: i < currentHp ? (isDanger ? '#e57373' : '#e53935') : '#3a2a2a',
+              fontSize: '14px',
+              lineHeight: 1,
+              textShadow: i < currentHp ? '0 0 4px rgba(229,57,53,0.6)' : 'none',
+              opacity: i < currentHp ? 1 : 0.5,
+            }}>♥</span>
           ))}
         </div>
-      )}
-
-      {/* 主印 */}
-      {mainTreasures.length > 0 && (
-        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '2px' }}>
-          {mainTreasures.map((t, i) => t && (
-            <span key={t.id} title={t.skill.description} style={{
-              fontSize: '10px', color: '#ff8a65',
-              background: 'rgba(255,138,101,0.12)',
-              padding: '1px 5px', borderRadius: '3px',
-              border: '1px solid rgba(255,138,101,0.25)',
-            }}>
-              {t.name}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* 辅印 */}
-      {subTreasures.length > 0 && (
-        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '2px' }}>
-          {subTreasures.map((t, i) => t && (
-            <span key={t.id} title={t.skill.description} style={{
-              fontSize: '10px', color: '#90caf9',
-              background: 'rgba(144,202,249,0.12)',
-              padding: '1px 5px', borderRadius: '3px',
-              border: '1px solid rgba(144,202,249,0.25)',
-            }}>
-              {t.name}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-        <div style={{
-          flex: 1, height: '8px', background: '#1a1a1a', borderRadius: '4px', overflow: 'hidden',
-        }}>
-          <div style={{
-            width: `${hpPercent}%`, height: '100%', background: hpColor, borderRadius: '4px',
-            transition: 'width 0.3s',
-          }} />
-        </div>
-        <span style={{ color: hpColor, fontSize: '11px', whiteSpace: 'nowrap' }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap', marginLeft: '2px' }}>
           {currentHp}/{maxHp}
         </span>
       </div>
 
-      {/* 装备区: 只显示图标, hover 显示名称+描述; 交互状态下高亮可点击 */}
+      {/* 凹槽区: 主印1/N + 辅印1/M + 手牌数量 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px', flexWrap: 'wrap' }}>
+        {Array.from({ length: slotConfig.main }).map((_, i) => (
+          <TreasureSlot key={`m-${i}`} treasure={mainTreasures[i]} type="main" />
+        ))}
+        {Array.from({ length: slotConfig.sub }).map((_, i) => (
+          <TreasureSlot key={`s-${i}`} treasure={subTreasures[i]} type="sub" />
+        ))}
+        <span style={{ color: 'var(--text-muted)', fontSize: '10px', marginLeft: '4px' }}>
+          手牌: {hero.handCards.length}
+        </span>
+      </div>
+
+      {/* 装备区: 武器/防具/+1马/-1马 — 固定4个22px方格 */}
       {(() => {
         const p = game?.getPlayerById(hero.hero.id)
         const slots: { slot: 'weapon' | 'armor' | 'attackMount' | 'defenseMount' }[] = [
@@ -158,24 +122,29 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
         const isJueJiWeaponPick = treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon'
         return (
-          <>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              手牌: {hero.handCards.length}
-            </div>
-            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px', fontSize: '10px' }}>
-              {slots.map(s => {
+          <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+            {slots.map(s => {
               const id = hero.equipment[s.slot]
-              if (!id) return null
+              if (!id) {
+                const placeholder = s.slot === 'weapon' ? '武' : s.slot === 'armor' ? '防' : s.slot === 'attackMount' ? '+马' : '-马'
+                return (
+                  <span key={s.slot} style={{
+                    width: '32px', height: '22px',
+                    border: '1px dashed #444',
+                    borderRadius: '3px',
+                    fontSize: '10px',
+                    color: '#555',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>{placeholder}</span>
+                )
+              }
               const card = p?.getEquippedCard(s.slot)
               const name = card?.name ?? '???'
               const desc = (card as any)?.description ?? ''
               const icon = (card as any)?.icon ?? '⚙'
               const isRed = !!card && isRedSuit(card.suit)
-              // 傲剑: 红色武器当杀
               const canActivate = s.slot === 'weapon' && aoJianActive && isRed && !!canPlayKill && !!card
-              // 绝击: 选武器
               const isJueJiThis = isJueJiWeaponPick && s.slot === 'weapon' && !!card
-              // 驭人/烽火: 选装备
               const isPickingEquip = isSelectingEquipment && !!card
               const defaultColor = s.slot === 'weapon' ? '#ff8a65' : s.slot === 'armor' ? '#90caf9' : '#a5d6a7'
               const activeColor = isYuRen ? '#b8860b' : '#ff9800'
@@ -206,29 +175,31 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
                   title={hoverText}
                   onClick={handleClick}
                   style={{
+                    width: '32px', height: '22px',
                     color,
                     background: `${color}22`,
                     border: `1px solid ${color}55`,
-                    padding: '1px 5px',
                     borderRadius: '3px',
-                    fontSize: '14px',
+                    fontSize: '13px',
                     lineHeight: '1',
                     cursor: handleClick ? 'pointer' : 'help',
                     fontWeight: isHighlighted ? 'bold' : 'normal',
                     boxShadow: canActivate ? '0 0 4px rgba(229,115,115,0.6)' : isJueJiThis ? '0 0 4px rgba(255,87,34,0.6)' : isPickingEquip ? (isYuRen ? '0 0 4px rgba(255,215,0,0.6)' : '0 0 4px rgba(255,152,0,0.6)') : 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    overflow: 'hidden',
                   }}
                 >
                   {icon}
                 </span>
               )
             })}
-            </div>
-          </>
+          </div>
         )
       })()}
+
       {/* 判定区标记: 画地为牢/手捧雷 */}
       {hero.judgeCards.length > 0 && game && (
-        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '3px' }}>
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
           {hero.judgeCards.map(cid => {
             const p = game.getPlayerById(hero.hero.id)
             const card = p?.getJudgeCards()?.find((c: Card) => c.id === cid)
@@ -254,8 +225,52 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         <div style={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
           color: '#f44336', fontSize: '20px', fontWeight: 'bold',
+          textShadow: '0 0 6px rgba(0,0,0,0.8)',
         }}>阵亡</div>
       )}
     </div>
+  )
+}
+
+// 宝具凹槽子组件
+function TreasureSlot({ treasure, type }: { treasure: Treasure | null | undefined; type: 'main' | 'sub' }) {
+  const color = type === 'main' ? '#ff8a65' : '#90caf9'
+  const bgColor = type === 'main' ? 'rgba(255,138,101,0.18)' : 'rgba(144,202,249,0.18)'
+  const borderColor = type === 'main' ? 'rgba(255,138,101,0.5)' : 'rgba(144,202,249,0.5)'
+
+  if (!treasure) {
+    return (
+      <div
+        title="空凹槽"
+        style={{
+          width: SLOT_SIZE, height: SLOT_SIZE,
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px dashed #555',
+          borderRadius: '4px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      />
+    )
+  }
+
+  const displayChar = (treasure.name?.[0] ?? '?')
+  return (
+    <div
+      title={`${treasure.name} (${type === 'main' ? '主印' : '辅印'}) - 触发率 ${Math.round((treasure.triggerRate ?? 0) * 100)}% - ${treasure.skill?.description ?? ''}`}
+      style={{
+        width: SLOT_SIZE, height: SLOT_SIZE,
+        background: bgColor,
+        border: `1px solid ${borderColor}`,
+        borderRadius: '4px',
+        color,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '13px',
+        fontWeight: 'bold',
+        cursor: 'help',
+        textShadow: '0 0 3px rgba(0,0,0,0.6)',
+      }}
+    >{displayChar}</div>
   )
 }
