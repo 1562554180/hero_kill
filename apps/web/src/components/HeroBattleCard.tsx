@@ -80,9 +80,6 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
               border: '1px solid rgba(198,40,40,0.5)',
             }}>AI</span>
           )}
-          <span style={{ color: 'var(--text-gold)', fontSize: '11px' }}>
-            {'★'.repeat(instance.starLevel)}
-          </span>
         </span>
       </div>
 

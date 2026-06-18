@@ -56,6 +56,74 @@ export function BattleBoard() {
   const allies = gameState.heroes.filter(h => h.role === 'ally')
   const player = gameState.heroes.find(h => h.role === 'player')
 
+  // 角色排布: 玩家永远在右下角
+  // - 3人: 另两个全在顶部
+  // - 4人: 上下左右各一个 (其中"下"即玩家在右下)
+  // - 5+: 左右下各一个 (玩家右下), 其他的都在顶部
+  // 上限8人 (玩家1 + 其他7)
+  const others = [...enemies, ...allies] // 敌方优先排在前面
+  const totalHeroes = others.length + (player ? 1 : 0)
+  let topHeroes: typeof others = []
+  let leftHero: typeof others[0] | null = null
+  let rightHero: typeof others[0] | null = null
+  if (totalHeroes === 3) {
+    topHeroes = others
+  } else if (totalHeroes === 4) {
+    topHeroes = [others[0]]
+    leftHero = others[1]
+    rightHero = others[2]
+  } else if (totalHeroes >= 5) {
+    topHeroes = others.slice(0, totalHeroes - 3)
+    leftHero = others[totalHeroes - 3]
+    rightHero = others[totalHeroes - 2]
+  }
+
+  // 渲染一个非玩家英雄卡 (敌方/友方通用, 含可点击/选中/AI回合高亮)
+  const renderOtherHeroCard = (h: typeof others[0], dimInvalidTargets?: boolean) => (
+    <HeroBattleCard
+      key={h.hero.id}
+      hero={h}
+      isCurrentTurn={gameState.currentHeroId === h.hero.id && !isPlayerTurn}
+      isSelectable={
+        (h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)) &&
+        (
+          (phase === 'selectTarget' && isValidTarget(h.hero.id)) ||
+          (phase === 'selectMultiTargets') ||
+          (phase === 'selectKillMultiTargets') ||
+          (phase === 'selectJieDaoHolder' && jieDaoHolders.some(jh => jh.id === h.hero.id)) ||
+          (phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === h.hero.id)) ||
+          (phase === 'selectLuYeQiangTarget' && luYeQiangCandidates.some(lc => lc.id === h.hero.id)) ||
+          (phase === 'treasureSelectTarget') ||
+          (phase === 'treasureSelectTargets') ||
+          (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id))
+        )
+      }
+      dimmed={!!dimInvalidTargets && !isValidTarget(h.hero.id)}
+      onClick={() => {
+        if (phase === 'selectTarget') confirmTarget(h.hero.id)
+        else if (phase === 'selectMultiTargets') toggleTarget(h.hero.id)
+        else if (phase === 'selectKillMultiTargets') toggleKillMultiTarget(h.hero.id)
+        else if (phase === 'selectJieDaoHolder') {
+          if (jieDaoHolders.some(jh => jh.id === h.hero.id)) selectJieDaoHolder(h.hero.id)
+        }
+        else if (phase === 'selectJieDaoTarget') selectJieDaoTarget(h.hero.id)
+        else if (phase === 'selectLuYeQiangTarget') selectLuYeQiangTarget(h.hero.id)
+        else if (phase === 'selectTanNangTarget') selectTanNangTarget(h.hero.id)
+        else if (phase === 'selectFudiTarget') selectFudiTarget(h.hero.id)
+        else if (phase === 'treasureSelectTarget') pickTreasureTarget(h.hero.id)
+        else if (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id)) selectManWuTarget(h.hero.id)
+        else if (phase === 'treasureSelectTargets') {
+          const t = treasureTargetIds
+          if (t.includes(h.hero.id)) {
+            useBattleStore.setState({ treasureTargetIds: t.filter(id => id !== h.hero.id) })
+          } else if (t.length < 2 && h.hero.id !== player?.hero.id) {
+            useBattleStore.setState({ treasureTargetIds: [...t, h.hero.id] })
+          }
+        }
+      }}
+    />
+  )
+
   // 始终从引擎读取傲剑激活状态 (store 的状态可能与引擎不同步)
   const aoJianActive = game?.isAoJianActive(player?.hero?.id ?? '') ?? false
 
@@ -94,10 +162,10 @@ export function BattleBoard() {
     return true
   }
   // 选目标阶段是否应启用 dim 效果 (出杀/锦囊)
-  const dimInvalidTargets = game && player && (
+  const dimInvalidTargets = !!(game && player && (
     (phase === 'selectTarget' && (pendingCardType === 'kill' || (pendingCardType === 'scheme' && pendingSchemeName === '探囊取物'))) ||
     (phase === 'treasureSelectTarget' && useBattleStore.getState().treasureSkill === 'jue-ji')
-  )
+  ))
 
   const isPlayerTurn = phase === 'playing' || phase === 'selectTarget' || phase === 'selectDualCards' || phase === 'selectLuYeQiangTarget'
   const canPlayKill = game?.canPlayKill ?? false
@@ -155,185 +223,108 @@ export function BattleBoard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%', padding: '8px 12px', boxSizing: 'border-box' }}>
-      {/* Enemy area */}
-      <div style={{ flex: '0 0 auto' }}>
-        <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>敌方</div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {enemies.map(h => (
-            <HeroBattleCard
-              key={h.hero.id}
-              hero={h}
-              isCurrentTurn={gameState.currentHeroId === h.hero.id && !isPlayerTurn}
-              isSelectable={
-                (h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)) &&
-                (
-                  (phase === 'selectTarget' && isValidTarget(h.hero.id)) ||
-                  (phase === 'selectMultiTargets') ||
-                  (phase === 'selectKillMultiTargets') ||
-                  (phase === 'selectJieDaoHolder' && jieDaoHolders.some(jh => jh.id === h.hero.id)) ||
-                  (phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === h.hero.id)) ||
-                  (phase === 'selectLuYeQiangTarget' && luYeQiangCandidates.some(lc => lc.id === h.hero.id)) ||
-                  (phase === 'treasureSelectTarget') ||
-                  (phase === 'treasureSelectTargets') ||
-                  (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id))
-                )
-              }
-              dimmed={
-                !!dimInvalidTargets && !isValidTarget(h.hero.id)
-              }
-              onClick={() => {
-                if (phase === 'selectTarget') confirmTarget(h.hero.id)
-                else if (phase === 'selectMultiTargets') toggleTarget(h.hero.id)
-                else if (phase === 'selectKillMultiTargets') toggleKillMultiTarget(h.hero.id)
-                else if (phase === 'selectJieDaoHolder') {
-                  if (jieDaoHolders.some(jh => jh.id === h.hero.id)) selectJieDaoHolder(h.hero.id)
-                }
-                else if (phase === 'selectJieDaoTarget') selectJieDaoTarget(h.hero.id)
-                else if (phase === 'selectLuYeQiangTarget') selectLuYeQiangTarget(h.hero.id)
-                else if (phase === 'selectTanNangTarget') selectTanNangTarget(h.hero.id)
-                else if (phase === 'selectFudiTarget') selectFudiTarget(h.hero.id)
-                else if (phase === 'treasureSelectTarget') pickTreasureTarget(h.hero.id)
-                else if (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id)) selectManWuTarget(h.hero.id)
-                else if (phase === 'treasureSelectTargets') {
-                  // 起义: toggle target selection
-                  const t = treasureTargetIds
-                  if (t.includes(h.hero.id)) {
-                    useBattleStore.setState({ treasureTargetIds: t.filter(id => id !== h.hero.id) })
-                  } else if (t.length < 2 && h.hero.id !== player?.hero.id) {
-                    useBattleStore.setState({ treasureTargetIds: [...t, h.hero.id] })
-                  }
-                }
-              }}
-            />
-          ))}
-        </div>
-        {phase === 'selectTarget' && (
-          <div style={{
-            marginTop: '6px', padding: '6px 12px',
-            background: 'rgba(255,68,68,0.15)', borderRadius: '4px',
-            border: '1px solid rgba(255,68,68,0.3)',
-            color: '#ff6b6b', fontSize: '13px', textAlign: 'center',
-          }}>
-            点击敌方英雄选择攻击目标
-          </div>
-        )}
-        {phase === 'selectMultiTargets' && (
-          <div style={{
-            marginTop: '6px', padding: '8px 12px',
-            background: 'rgba(255,140,0,0.15)', borderRadius: '4px',
-            border: '1px solid rgba(255,140,0,0.3)',
-            color: '#ffa726', fontSize: '13px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <span>🐺 狼牙棒 — 点击敌方选择目标 (最多3个, 已选 {selectedTargets.length}/3)</span>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button style={{ fontSize: '12px' }} onClick={cancelMultiTarget}>取消</button>
-              <button
-                className="primary"
-                style={{ fontSize: '12px' }}
-                disabled={selectedTargets.length === 0}
-                onClick={confirmMultiTarget}
-              >
-                出杀
-              </button>
-            </div>
-          </div>
-        )}
-        {phase === 'selectKillMultiTargets' && (
-          <div style={{
-            marginTop: '6px', padding: '8px 12px',
-            background: 'rgba(255,215,0,0.15)', borderRadius: '4px',
-            border: '1px solid rgba(255,215,0,0.3)',
-            color: '#ffd54f', fontSize: '13px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <span>🗡️ 侠胆 — 点击敌方选择目标 (最多 {killMultiMax || 2} 个, 已选 {selectedTargets.length}/{killMultiMax || 2}; 剩余 {killMultiRemaining} 次出杀)</span>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button style={{ fontSize: '12px' }} onClick={cancelKillMultiTarget}>取消</button>
-              <button
-                className="primary"
-                style={{ fontSize: '12px' }}
-                disabled={selectedTargets.length === 0}
-                onClick={confirmKillMultiTarget}
-              >
-                出杀
-              </button>
-            </div>
-          </div>
-        )}
-        {phase === 'selectJieDaoHolder' && (
-          <div style={{
-            marginTop: '6px', padding: '6px 12px',
-            background: 'rgba(255,140,0,0.15)', borderRadius: '4px',
-            border: '1px solid rgba(255,140,0,0.3)',
-            color: '#ffa726', fontSize: '13px', textAlign: 'center',
-          }}>
-            借刀杀人 — 点击有武器的玩家
-            <button style={{ fontSize: '12px', marginLeft: '12px' }} onClick={cancelJieDaoHolder}>取消</button>
-          </div>
-        )}
-        {phase === 'selectJieDaoTarget' && (
-          <div style={{
-            marginTop: '6px', padding: '6px 12px',
-            background: 'rgba(255,68,68,0.15)', borderRadius: '4px',
-            border: '1px solid rgba(255,68,68,0.3)',
-            color: '#ff6b6b', fontSize: '13px', textAlign: 'center',
-          }}>
-            借刀杀人 — 选择被借刀玩家的攻击目标
-            <button style={{ fontSize: '12px', marginLeft: '12px' }} onClick={cancelJieDaoTarget}>取消</button>
-          </div>
-        )}
+      {/* Top row: 顶部其他角色 (按数量自动排布) */}
+      <div style={{ flex: '0 0 auto', display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        {topHeroes.map(h => renderOtherHeroCard(h, dimInvalidTargets))}
       </div>
 
-      {/* 友方AI (绿色边框, 与敌方区分) */}
-      {allies.length > 0 && (
-        <div style={{ flex: '0 0 auto' }}>
-          <div style={{ color: '#a5d6a7', fontSize: '12px', marginBottom: '6px' }}>友方</div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {allies.map(h => (
-              <HeroBattleCard
-                key={h.hero.id}
-                hero={h}
-                isCurrentTurn={gameState.currentHeroId === h.hero.id && !isPlayerTurn}
-                isSelectable={
-                  (h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)) &&
-                  (
-                    (phase === 'selectTarget' && isValidTarget(h.hero.id)) ||
-                    (phase === 'selectMultiTargets') ||
-                    (phase === 'selectKillMultiTargets') ||
-                    (phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === h.hero.id)) ||
-                    (phase === 'selectLuYeQiangTarget' && luYeQiangCandidates.some(lc => lc.id === h.hero.id)) ||
-                    (phase === 'treasureSelectTarget') ||
-                    (phase === 'treasureSelectTargets') ||
-                    (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id))
-                  )
-                }
-                onClick={() => {
-                  if (phase === 'selectTarget') confirmTarget(h.hero.id)
-                  else if (phase === 'selectMultiTargets') toggleTarget(h.hero.id)
-                  else if (phase === 'selectKillMultiTargets') toggleKillMultiTarget(h.hero.id)
-                  else if (phase === 'selectJieDaoTarget') selectJieDaoTarget(h.hero.id)
-                  else if (phase === 'selectLuYeQiangTarget') selectLuYeQiangTarget(h.hero.id)
-                  else if (phase === 'treasureSelectTarget') pickTreasureTarget(h.hero.id)
-                  else if (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id)) selectManWuTarget(h.hero.id)
-                  else if (phase === 'treasureSelectTargets') {
-                    const t = treasureTargetIds
-                    if (t.includes(h.hero.id)) {
-                      useBattleStore.setState({ treasureTargetIds: t.filter(id => id !== h.hero.id) })
-                    } else if (t.length < 2 && h.hero.id !== player?.hero.id) {
-                      useBattleStore.setState({ treasureTargetIds: [...t, h.hero.id] })
-                    }
-                  }
-                }}
-              />
-            ))}
+      {/* 选择目标的提示 (原敌方位提示, 现在挪到底部上方) */}
+      {phase === 'selectTarget' && (
+        <div style={{
+          padding: '6px 12px',
+          background: 'rgba(255,68,68,0.15)', borderRadius: '4px',
+          border: '1px solid rgba(255,68,68,0.3)',
+          color: '#ff6b6b', fontSize: '13px', textAlign: 'center',
+          flex: '0 0 auto',
+        }}>
+          点击敌方英雄选择攻击目标
+        </div>
+      )}
+      {phase === 'selectMultiTargets' && (
+        <div style={{
+          padding: '8px 12px',
+          background: 'rgba(255,140,0,0.15)', borderRadius: '4px',
+          border: '1px solid rgba(255,140,0,0.3)',
+          color: '#ffa726', fontSize: '13px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flex: '0 0 auto',
+        }}>
+          <span>🐺 狼牙棒 — 点击敌方选择目标 (最多3个, 已选 {selectedTargets.length}/3)</span>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button style={{ fontSize: '12px' }} onClick={cancelMultiTarget}>取消</button>
+            <button
+              className="primary"
+              style={{ fontSize: '12px' }}
+              disabled={selectedTargets.length === 0}
+              onClick={confirmMultiTarget}
+            >
+              出杀
+            </button>
           </div>
         </div>
       )}
+      {phase === 'selectKillMultiTargets' && (
+        <div style={{
+          padding: '8px 12px',
+          background: 'rgba(255,215,0,0.15)', borderRadius: '4px',
+          border: '1px solid rgba(255,215,0,0.3)',
+          color: '#ffd54f', fontSize: '13px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          flex: '0 0 auto',
+        }}>
+          <span>🗡️ 侠胆 — 点击敌方选择目标 (最多 {killMultiMax || 2} 个, 已选 {selectedTargets.length}/{killMultiMax || 2}; 剩余 {killMultiRemaining} 次出杀)</span>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button style={{ fontSize: '12px' }} onClick={cancelKillMultiTarget}>取消</button>
+            <button
+              className="primary"
+              style={{ fontSize: '12px' }}
+              disabled={selectedTargets.length === 0}
+              onClick={confirmKillMultiTarget}
+            >
+              出杀
+            </button>
+          </div>
+        </div>
+      )}
+      {phase === 'selectJieDaoHolder' && (
+        <div style={{
+          padding: '6px 12px',
+          background: 'rgba(255,140,0,0.15)', borderRadius: '4px',
+          border: '1px solid rgba(255,140,0,0.3)',
+          color: '#ffa726', fontSize: '13px', textAlign: 'center',
+          flex: '0 0 auto',
+        }}>
+          借刀杀人 — 点击有武器的玩家
+          <button style={{ fontSize: '12px', marginLeft: '12px' }} onClick={cancelJieDaoHolder}>取消</button>
+        </div>
+      )}
+      {phase === 'selectJieDaoTarget' && (
+        <div style={{
+          padding: '6px 12px',
+          background: 'rgba(255,68,68,0.15)', borderRadius: '4px',
+          border: '1px solid rgba(255,68,68,0.3)',
+          color: '#ff6b6b', fontSize: '13px', textAlign: 'center',
+          flex: '0 0 auto',
+        }}>
+          借刀杀人 — 选择被借刀玩家的攻击目标
+          <button style={{ fontSize: '12px', marginLeft: '12px' }} onClick={cancelJieDaoTarget}>取消</button>
+        </div>
+      )}
 
-      {/* Battle log */}
-      <div style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
-        <BattleLog logs={actionLog} />
+      {/* Battle log — 左右两侧摆放左右角色, 战报居中 */}
+      <div style={{
+        flex: '1 1 auto', minHeight: 0, overflow: 'hidden',
+        display: 'flex', alignItems: 'center', gap: '10px',
+      }}>
+        <div style={{ flex: '0 0 auto', alignSelf: 'center' }}>
+          {leftHero && renderOtherHeroCard(leftHero, dimInvalidTargets)}
+        </div>
+        <div style={{ flex: '1 1 auto', minWidth: 0, minHeight: 0, height: '100%' }}>
+          <BattleLog logs={actionLog} />
+        </div>
+        <div style={{ flex: '0 0 auto', alignSelf: 'center' }}>
+          {rightHero && renderOtherHeroCard(rightHero, dimInvalidTargets)}
+        </div>
       </div>
 
       {/* Player area (玩家本人永远在左下角) */}
@@ -347,28 +338,9 @@ export function BattleBoard() {
           flex: '0 0 auto',
           overflow: 'hidden',
         }}>
-          {/* 三栏布局: 玩家卡 | 提示+手牌 | 操作按钮(垂直) */}
-          <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'stretch' }}>
-            {/* 左: 玩家卡 */}
-            <div style={{ flex: '0 0 auto' }}>
-              <HeroBattleCard
-                hero={player}
-                isCurrentTurn={isPlayerTurn}
-                isSelectable={phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === player.hero.id)}
-                onClick={() => {
-                  if (phase === 'selectJieDaoTarget') selectJieDaoTarget(player.hero.id)
-                }}
-                aoJianActive={aoJianActive}
-                canPlayKill={canPlayKill && (isPlayerTurn || phase === 'awaitingResponse')}
-                hasHongZhuang={hasHongZhuang}
-                onEquipAsKill={(cardId: string) => {
-                  if (phase === 'playing') playKill(cardId)
-                  else if (phase === 'awaitingResponse') respondWithCard(cardId)
-                }}
-              />
-            </div>
-
-            {/* 中: 提示 + 手牌 */}
+          {/* 三栏布局: 提示+手牌 | 操作按钮(垂直) | 玩家卡(右下) */}
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+            {/* 左: 提示 + 手牌 */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, gap: '6px' }}>
 
           {/* Judge replace info */}
@@ -758,7 +730,7 @@ export function BattleBoard() {
           </div>
             </div>
 
-            {/* 右: 操作按钮 (垂直) */}
+            {/* 中: 操作按钮 (垂直) */}
             <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '120px', maxWidth: '180px' }}>
               {phase === 'selectTarget' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -988,6 +960,25 @@ export function BattleBoard() {
               ) : (
                 <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>等待中...</span>
               )}
+            </div>
+
+            {/* 右: 玩家卡 (永远在右下) */}
+            <div style={{ flex: '0 0 auto' }}>
+              <HeroBattleCard
+                hero={player}
+                isCurrentTurn={isPlayerTurn}
+                isSelectable={phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === player.hero.id)}
+                onClick={() => {
+                  if (phase === 'selectJieDaoTarget') selectJieDaoTarget(player.hero.id)
+                }}
+                aoJianActive={aoJianActive}
+                canPlayKill={canPlayKill && (isPlayerTurn || phase === 'awaitingResponse')}
+                hasHongZhuang={hasHongZhuang}
+                onEquipAsKill={(cardId: string) => {
+                  if (phase === 'playing') playKill(cardId)
+                  else if (phase === 'awaitingResponse') respondWithCard(cardId)
+                }}
+              />
             </div>
           </div>
         </div>
