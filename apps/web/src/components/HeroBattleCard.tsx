@@ -78,7 +78,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         )}
       </div>
 
-      {/* HP区: 当前血量(淡金底白字) + 进度条 — 两端对齐 */}
+      {/* HP区: 当前血量(淡金底白字) + 血量格子(深红/灰, 中间分割线) — 两端对齐 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
         <span style={{
           background: 'rgba(255,213,79,0.22)',
@@ -90,13 +90,19 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         }}>
           {currentHp}
         </span>
-        <div style={{ flex: 1, height: '6px', background: '#1a1a1a', borderRadius: '3px', overflow: 'hidden' }}>
-          <div style={{
-            width: `${hpPercent}%`, height: '100%',
-            background: isDanger ? '#e57373' : hpPercent > 60 ? '#4caf50' : '#ff9800',
-            borderRadius: '3px',
-            transition: 'width 0.3s',
-          }} />
+        <div style={{
+          display: 'flex', flex: 1, height: '14px',
+          background: '#0a0a0a', borderRadius: '2px',
+          overflow: 'hidden',
+          border: '1px solid #0a0a0a',
+        }}>
+          {Array.from({ length: maxHp }).map((_, i) => (
+            <div key={i} style={{
+              flex: 1,
+              background: i < currentHp ? '#8b0000' : '#3a3a3a',
+              borderRight: i < maxHp - 1 ? '1px solid #0a0a0a' : 'none',
+            }} />
+          ))}
         </div>
       </div>
 
