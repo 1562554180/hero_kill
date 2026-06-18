@@ -27,7 +27,13 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
     ? '#ff4444'
     : isCurrentTurn
       ? 'var(--border-gold)'
-      : role === 'enemy' ? '#8b4513' : role === 'ally' ? '#5b8fb9' : '#3a5a3a'
+      : role === 'enemy' ? '#c62828' : role === 'ally' ? '#2e7d32' : '#3a5a3a'
+  // 背景底色: 敌方淡红 / 友方淡绿, 让角色归属更直观
+  const bgColor = role === 'enemy'
+    ? 'rgba(198,40,40,0.08)'
+    : role === 'ally'
+      ? 'rgba(46,125,50,0.08)'
+      : 'var(--bg-medium)'
 
   const skills = config.skills ?? []
   const mainTreasures = (instance.treasures?.main ?? []).filter(Boolean)
@@ -37,7 +43,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
     <div
       onClick={isSelectable ? onClick : undefined}
       style={{
-        background: 'var(--bg-medium)',
+        background: bgColor,
         border: `2px solid ${borderColor}`,
         borderRadius: '8px',
         padding: '8px 12px',
@@ -60,10 +66,18 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           {role === 'ally' && (
             <span style={{
-              fontSize: '10px', color: '#90caf9',
-              background: 'rgba(144,202,249,0.15)',
+              fontSize: '10px', color: '#a5d6a7',
+              background: 'rgba(46,125,50,0.18)',
               padding: '0 4px', borderRadius: '3px', fontWeight: 'bold',
-              border: '1px solid rgba(144,202,249,0.4)',
+              border: '1px solid rgba(46,125,50,0.5)',
+            }}>AI</span>
+          )}
+          {role === 'enemy' && (
+            <span style={{
+              fontSize: '10px', color: '#ef9a9a',
+              background: 'rgba(198,40,40,0.18)',
+              padding: '0 4px', borderRadius: '3px', fontWeight: 'bold',
+              border: '1px solid rgba(198,40,40,0.5)',
             }}>AI</span>
           )}
           <span style={{ color: 'var(--text-gold)', fontSize: '11px' }}>

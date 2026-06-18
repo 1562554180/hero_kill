@@ -285,12 +285,58 @@ export function BattleBoard() {
         )}
       </div>
 
+      {/* 友方AI (绿色边框, 与敌方区分) */}
+      {allies.length > 0 && (
+        <div style={{ flex: '0 0 auto' }}>
+          <div style={{ color: '#a5d6a7', fontSize: '12px', marginBottom: '6px' }}>友方</div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {allies.map(h => (
+              <HeroBattleCard
+                key={h.hero.id}
+                hero={h}
+                isCurrentTurn={gameState.currentHeroId === h.hero.id && !isPlayerTurn}
+                isSelectable={
+                  (h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)) &&
+                  (
+                    (phase === 'selectTarget' && isValidTarget(h.hero.id)) ||
+                    (phase === 'selectMultiTargets') ||
+                    (phase === 'selectKillMultiTargets') ||
+                    (phase === 'selectJieDaoTarget' && jieDaoCandidates.some(jc => jc.id === h.hero.id)) ||
+                    (phase === 'selectLuYeQiangTarget' && luYeQiangCandidates.some(lc => lc.id === h.hero.id)) ||
+                    (phase === 'treasureSelectTarget') ||
+                    (phase === 'treasureSelectTargets') ||
+                    (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id))
+                  )
+                }
+                onClick={() => {
+                  if (phase === 'selectTarget') confirmTarget(h.hero.id)
+                  else if (phase === 'selectMultiTargets') toggleTarget(h.hero.id)
+                  else if (phase === 'selectKillMultiTargets') toggleKillMultiTarget(h.hero.id)
+                  else if (phase === 'selectJieDaoTarget') selectJieDaoTarget(h.hero.id)
+                  else if (phase === 'selectLuYeQiangTarget') selectLuYeQiangTarget(h.hero.id)
+                  else if (phase === 'treasureSelectTarget') pickTreasureTarget(h.hero.id)
+                  else if (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id)) selectManWuTarget(h.hero.id)
+                  else if (phase === 'treasureSelectTargets') {
+                    const t = treasureTargetIds
+                    if (t.includes(h.hero.id)) {
+                      useBattleStore.setState({ treasureTargetIds: t.filter(id => id !== h.hero.id) })
+                    } else if (t.length < 2 && h.hero.id !== player?.hero.id) {
+                      useBattleStore.setState({ treasureTargetIds: [...t, h.hero.id] })
+                    }
+                  }
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Battle log */}
       <div style={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
         <BattleLog logs={actionLog} />
       </div>
 
-      {/* Player area (含友军, 放在玩家整个操作界面后面) */}
+      {/* Player area (玩家本人永远在左下角) */}
       {player && (
         <div style={{
           position: 'relative',
@@ -301,30 +347,6 @@ export function BattleBoard() {
           flex: '0 0 auto',
           overflow: 'hidden',
         }}>
-          {/* 友军AI: 放在玩家整个操作界面的后面 (背景层, 半透明) */}
-          {allies.length > 0 && (
-            <div style={{
-              position: 'absolute',
-              top: 0, right: 0, bottom: 0, left: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-              paddingRight: '32px',
-              zIndex: 0,
-              pointerEvents: 'none',
-              opacity: 0.28,
-              filter: 'blur(0.5px)',
-            }}>
-              {allies.map(h => (
-                <div key={h.hero.id} style={{ transform: 'scale(1.15)' }}>
-                  <HeroBattleCard
-                    hero={h}
-                    isCurrentTurn={false}
-                    isSelectable={false}
-                    onClick={() => {}}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
           {/* 三栏布局: 玩家卡 | 提示+手牌 | 操作按钮(垂直) */}
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'stretch' }}>
             {/* 左: 玩家卡 */}
