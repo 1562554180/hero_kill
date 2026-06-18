@@ -135,15 +135,14 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
         const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
         const isJueJiWeaponPick = treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon'
         return (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
-            <div style={{ display: 'flex', gap: '3px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
             {slots.map(s => {
               const id = hero.equipment[s.slot]
               if (!id) {
                 const placeholder = s.slot === 'weapon' ? '武' : s.slot === 'armor' ? '防' : s.slot === 'attackMount' ? '+马' : '-马'
                 return (
                   <span key={s.slot} style={{
-                    width: '32px', height: '22px',
+                    flex: 1, height: '22px',
                     border: '1px dashed #444',
                     borderRadius: '3px',
                     fontSize: '10px',
@@ -189,7 +188,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
                   title={hoverText}
                   onClick={handleClick}
                   style={{
-                    width: '32px', height: '22px',
+                    flex: 1, height: '22px',
                     color,
                     background: `${color}22`,
                     border: `1px solid ${color}55`,
@@ -207,16 +206,6 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, dimmed, onCl
                 </span>
               )
             })}
-            </div>
-            <span style={{
-              background: 'rgba(255,255,255,0.08)',
-              color: 'var(--text-light)',
-              fontSize: '11px', fontWeight: 'bold',
-              padding: '1px 6px', borderRadius: '3px',
-              border: '1px solid rgba(255,255,255,0.15)',
-            }}>
-              Lv.{instance.level ?? 1}
-            </span>
           </div>
         )
       })()}
