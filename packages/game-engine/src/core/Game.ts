@@ -1222,10 +1222,7 @@ export class Game {
             this.emitSkillTrigger(attacker, '刺客', '黑色-弃对方一张牌')
           }
         }
-
-        if (!defender.isAlive()) {
-          this.eventBus.emit({ type: 'die', sourceHeroId: defender.getId(), data: { killedBy: attacker.getId() } })
-        }
+        // 注: 'die' 事件由 applyDamage 内部统一发送, 此处不重复 emit
       }
     } else {
       // 强掠: 杀被闪后询问是否发动 → 判定，黑色抽对方一张
