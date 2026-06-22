@@ -1125,6 +1125,12 @@ export function BattleBoard() {
                     treasureSelectMode={phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'xiaDanPickCard'}
                     selectDualMode={phase === 'selectDualCards'}
                     selectDiscardMode={phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard'}
+                    isHandCardSelect={
+                      phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment'
+                      || phase === 'xiaDanPickCard' || phase === 'selectDualCards' || phase === 'selectDiscardCards'
+                      || phase === 'selectFuChouDiscard' || phase === 'tianXiang' || phase === 'buDaoKill'
+                      || manWuRedHeartCards.length > 0 || phase === 'chaoTuoPick'
+                    }
                     hasValidSchemeTarget={hasValidSchemeTarget(card.name)}
                     huiChunAvailable={huiChunAvailable}
                     onPlayKill={playKill}

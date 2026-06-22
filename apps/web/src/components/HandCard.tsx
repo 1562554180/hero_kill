@@ -15,6 +15,8 @@ interface Props {
   treasureSelectMode?: boolean
   selectDualMode?: boolean
   selectDiscardMode?: boolean
+  /** 任一"选手牌"模式: 弃牌/侠胆/曼舞/天香/补刀/超脱/treasure/... 此模式下整张牌都不可加阴影 */
+  isHandCardSelect?: boolean
   hasValidSchemeTarget?: boolean
   huiChunAvailable?: boolean
   shadowed?: boolean
@@ -46,7 +48,7 @@ const TYPE_LABEL: Record<string, string> = {
 const suitFontColor = (suit: string) => (suit === 'heart' || suit === 'diamond') ? '#c62828' : '#212121'
 const suitWaterColor = (suit: string) => (suit === 'heart' || suit === 'diamond') ? 'rgba(198,40,40,0.10)' : 'rgba(33,33,33,0.10)'
 
-export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, hasValidSchemeTarget = true, huiChunAvailable, shadowed = false, hasLeiInJudge = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
+export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, isHandCardSelect, hasValidSchemeTarget = true, huiChunAvailable, shadowed = false, hasLeiInJudge = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
   const isKill = card.name === '杀'
   const isHeal = card.name === '药'
   const isEquip = card.type === 'equipment'
@@ -62,9 +64,11 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   const isLei = card.name === '手捧雷'
   const canRespond = isResponse && onRespondWithCard && (canUseAsKill || isWuXie || isDodge)
 
+  // 选牌模式(弃牌/侠胆/曼舞/天香/补刀/超脱/treasure/...)整张牌都不加阴影, 玩家正在做选择
+  // 傲剑下红色闪当杀: canUseAsKill=true 也不再视为"不可用"
   const isShadowedByRule = shadowed || (
-    !isResponse && (
-      (isDodge && !(aoJianActive && effectiveIsRed && canUseAsKill)) ||
+    !isResponse && !isHandCardSelect && (
+      (isDodge && !canUseAsKill) ||
       isWuXie ||
       (isHeal && isFullHp) ||
       (isLei && hasLeiInJudge)
@@ -116,7 +120,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   return (
     <div
       onClick={handleClick}
-      title={isShadowedByRule && !isResponse ? '此牌不可主动使用 (需响应时除外)' : undefined}
+      title={isShadowedByRule && !isResponse && !isHandCardSelect ? '此牌不可主动使用 (需响应时除外)' : undefined}
       style={{
         position: 'relative',
         width: '55px',
@@ -125,9 +129,9 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         border: `1.5px solid ${theme.border}`,
         borderRadius: '4px',
         boxShadow: '0 3px 6px rgba(0,0,0,0.5), inset 0 0 8px rgba(139,105,20,0.2)',
-        cursor: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode) ? 'pointer' : 'default',
-        opacity: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode) ? (isShadowedByRule && !isResponse ? 0.5 : 1) : 0.45,
-        filter: isShadowedByRule && !isResponse ? 'grayscale(0.4) brightness(0.85)' : 'none',
+        cursor: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode || isHandCardSelect) ? 'pointer' : 'default',
+        opacity: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode || isHandCardSelect) ? (isShadowedByRule && !isResponse && !isHandCardSelect ? 0.5 : 1) : 0.45,
+        filter: (isShadowedByRule && !isResponse && !isHandCardSelect) ? 'grayscale(0.4) brightness(0.85)' : 'none',
         transition: 'all 0.15s',
         userSelect: 'none',
         overflow: 'hidden',
