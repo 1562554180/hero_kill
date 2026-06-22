@@ -1352,12 +1352,15 @@ export class Game {
     }
 
     // 反击: 对来源出杀(红色不可被闪, 黑色正常可闪)
+    // 使用反击 → 本次 onDamageReceived 的补刀被阻断(反击造成的伤害在新的 onDamageReceived 里走自己的补刀检查)
+    let fanJiUsed = false
     if (victim.hasSkillOrTreasure('fan-ji') && attacker.isAlive()) {
       const hasKillable = victim.getHand().some(c => this.canUseAsKill(c, victim))
       if (hasKillable) {
         // 复用 promptResponseKill: AI自动选, 玩家走响应UI (支持傲剑/武穆等)
         const killCard = await this.promptResponseKill(victim, attacker.getId(), '反击', 1)
         if (killCard) {
+          fanJiUsed = true
           const isRed = isRedSuit(killCard.suit)
           this.emitSkillTrigger(victim, '反击', isRed ? '红色杀-不可闪' : '对来源出杀')
           await this.executeKill(victim, attacker, killCard, { forceNoDodge: isRed })
@@ -1371,11 +1374,12 @@ export class Game {
     }
 
     // 补刀: 关羽回合外, 攻击范围内的角色被【杀】掉血后, 可对该角色补杀, 造成伤害则继续
-    // 触发顺序: 在复仇/法家之后 (避免先补刀导致受伤者被阵亡, 复仇/法家失去机会)
+    // 触发顺序: 在复仇/法家/反击之后
     // 兼容: sourceAction === 'kill' (武圣/傲剑把红牌当杀时) 或 sourceCard.name === '杀'
     // 防递归: 关羽自己出杀(补刀链)不触发补刀
+    // 被反击打断: 受害方反击了 → 本次补刀被阻断(反击造成的伤害在新的 onDamageReceived 里走自己的补刀检查)
     const isKillDamage = sourceAction === 'kill' || sourceCard?.name === '杀'
-    if (isKillDamage && victim.isAlive()) {
+    if (isKillDamage && victim.isAlive() && !fanJiUsed) {
       const guanYu = this.players.find(p => p.hero.hero.id === 'guan-yu' && p.isAlive())
       const currentPlayer = this.players[this.currentPlayerIndex]
       if (guanYu && currentPlayer && guanYu.getId() !== currentPlayer.getId() &&
