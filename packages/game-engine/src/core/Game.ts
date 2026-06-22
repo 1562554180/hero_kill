@@ -1406,8 +1406,8 @@ export class Game {
     target = this.redirectIfMenShen(initiator, target)
     if (!target.isAlive()) return
 
-    // 女权: 女性对男性出【决斗】, 对方需出2张【杀】; 男性对女性正常出决斗
-    const femaleVsMale = initiator.isFemale() && !target.isFemale()
+    // 女权(技能, 仅武则天): 女性对男性出【决斗】, 对方需出2张【杀】; 男性对女性正常出决斗
+    const femaleVsMale = initiator.hasSkillOrTreasure('nu-quan') && !target.hasSkillOrTreasure('nu-quan')
 
     // 交替出杀, target 先. 输方掉1血
     let current = target
