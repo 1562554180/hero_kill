@@ -1306,12 +1306,14 @@ export class Game {
 
     // 补刀: 关羽回合外, 攻击范围内的角色被【杀】掉血后, 可对该角色补杀, 造成伤害则继续
     // 兼容: sourceAction === 'kill' (武圣/傲剑把红牌当杀时) 或 sourceCard.name === '杀'
+    // 防递归: 关羽自己出杀(补刀链)不触发补刀
     const isKillDamage = sourceAction === 'kill' || sourceCard?.name === '杀'
     if (isKillDamage && victim.isAlive()) {
       const guanYu = this.players.find(p => p.hero.hero.id === 'guan-yu' && p.isAlive())
       const currentPlayer = this.players[this.currentPlayerIndex]
       if (guanYu && currentPlayer && guanYu.getId() !== currentPlayer.getId() &&
           guanYu.getId() !== victim.getId() &&
+          attacker.getId() !== guanYu.getId() &&
           this.isInAttackRange(guanYu, victim) &&
           guanYu.getHand().some(c => this.canUseAsKill(c, guanYu))) {
         await this.executeBuDao(guanYu, victim)
@@ -2184,8 +2186,15 @@ export class Game {
         killCardId = c?.id ?? null
       }
       if (!killCardId) break
+      const killCard = guanYu.getHand().find(c => c.id === killCardId)
+        ?? guanYu.getEquippedCard('weapon')
+        ?? guanYu.getEquippedCard('armor')
+        ?? guanYu.getEquippedCard('attackMount')
+        ?? guanYu.getEquippedCard('defenseMount')
+      if (!killCard) break
+      this.emitSkillTrigger(guanYu, '补刀', `对${victim.getName()}补刀 使用了【杀】`)
       const beforeHp = victim.getCurrentHp()
-      await this.executeKill(guanYu, victim, killCardId as any)
+      await this.executeKill(guanYu, victim, killCard)
       // 造成伤害则继续
       const afterHp = victim.getCurrentHp()
       if (afterHp >= beforeHp) break
