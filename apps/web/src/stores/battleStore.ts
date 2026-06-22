@@ -1119,13 +1119,11 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       set({ pendingCardId: null, pendingCardType: null, selectedTargetId: null })
       return
     }
-    // 侠胆胜出: 进入多目标选人(每张杀最多xiaDanWinTargetsPerKill目标, 共xiaDanWinKillsLeft次)
+    // 侠胆胜出: 进入多目标选人(每张杀最多xiaDanMultiTargetPerKill目标, 持续整个回合)
     const { game } = get()
     if (game) {
-      const playerId = game.getPlayer().getId()
-      const winKillsP = (game as any).xiaDanWinKillsLeft?.get?.(playerId) ?? 0
-      const maxTargetsP = (game as any).xiaDanWinTargetsPerKill?.get?.(playerId) ?? 0
-      if (winKillsP > 0 && maxTargetsP > 1) {
+      const maxTargetsP = (game as any).getMaxTargetsPerKill?.() ?? 1
+      if (maxTargetsP > 1) {
         const enemies = game.players.filter(p => p.getRole() !== 'player' && p.getRole() !== 'ally' && p.isAlive())
         set({
           phase: 'selectKillMultiTargets',
@@ -1133,7 +1131,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           pendingCardType: 'kill',
           killMultiCardId: cardId,
           killMultiMax: maxTargetsP,
-          killMultiRemaining: winKillsP,
+          killMultiRemaining: 0,  // 侠胆模式下无"剩余次数"概念
           multiTargetCandidates: enemies.map(p => ({ id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() })),
           selectedTargets: [],
         })
@@ -1413,12 +1411,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       return
     }
     // 用killMulti前缀传多个目标(逗号分隔); 狼牙棒额外传maxTargets参数
-    const isWolfFang = game && game.getPlayer().getWeaponName() === '狼牙棒' && killMultiMax === 3 && killMultiRemaining === 1
+    const isWolfFang = game && game.getPlayer().getWeaponName() === '狼牙棒' && killMultiMax === 3
     const payload = isWolfFang
       ? `killMulti:${killMultiCardId}:${selectedTargets.join(',')}:3`
       : `killMulti:${killMultiCardId}:${selectedTargets.join(',')}`
     resolveAction(payload)
-    set({ resolveAction: null, phase: 'waiting', multiTargetCandidates: [], selectedTargets: [], killMultiCardId: null, pendingCardId: null, pendingCardType: null, killMultiRemaining: Math.max(0, killMultiRemaining - 1) })
+    set({ resolveAction: null, phase: 'waiting', multiTargetCandidates: [], selectedTargets: [], killMultiCardId: null, pendingCardId: null, pendingCardType: null, killMultiRemaining: 0 })
   },
   cancelKillMultiTarget: () => {
     const { resolveAction } = get()

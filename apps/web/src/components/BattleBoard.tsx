@@ -1019,7 +1019,7 @@ export function BattleBoard() {
                   color: '#ffd54f', fontSize: '12px',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
                 }}>
-                  <span>🗡️ 多杀 — 点击敌方选择目标 (最多 {killMultiMax || 2} 个, 已选 {selectedTargets.length}/{killMultiMax || 2}; 剩余 {killMultiRemaining} 次出杀)</span>
+                  <span>🗡️ 多杀 — 点击敌方选择目标 (最多 {killMultiMax || 2} 个, 已选 {selectedTargets.length}/{killMultiMax || 2})</span>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button style={treasureBtnStyle} onClick={cancelKillMultiTarget}>取消</button>
                     <button className="primary" style={treasureBtnStyle} disabled={selectedTargets.length === 0} onClick={confirmKillMultiTarget}>出杀</button>
@@ -1289,7 +1289,7 @@ export function BattleBoard() {
                       cursor: xiaDanUsedThisTurn ? 'not-allowed' : 'pointer',
                       opacity: xiaDanUsedThisTurn ? 0.5 : 1,
                     }}
-                    title={xiaDanUsedThisTurn ? '侠胆: 本回合已使用' : '侠胆: 点击进入待选状态, 再点1名有手牌的角色拼点, 胜→杀次数=2(每张最多2目标), 负→本回合不能出杀'}
+                    title={xiaDanUsedThisTurn ? '侠胆: 本回合已使用' : '侠胆: 点击进入待选状态, 再点1名有手牌的角色拼点, 胜→本回合每张杀可指定2目标(无视距离)+杀次数+1, 负→本回合不能出杀'}
                   >
                     🗡 侠胆{xiaDanActive ? ' ·待选' : (xiaDanUsedThisTurn ? ' ·已用' : '')}
                   </button>

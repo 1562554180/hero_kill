@@ -108,15 +108,15 @@ export class Game {
   private winner: 'player' | 'enemy' | null = null
   private killUsedThisTurn = false
   private killsUsedThisTurn = 0        // 本回合已出杀次数
-  private killsMaxThisTurn = 1         // 本回合最大杀次数 (天狼/虎符→Infinity; 侠胆胜→不影响此值)
+  private killsMaxThisTurn = 1         // 本回合最大杀次数 (天狼/虎符→Infinity; 侠胆胜→+1, 与天狼/虎符互不影响)
+  private xiaDanMultiTargetPerKill = 1  // 侠胆: 每张杀最多指定几个目标(胜出=2, 默认1)
   private lastPlayedCardName: string | null = null
   private zuijiuActive = false  // 醉酒：本回合杀/决斗伤害+1
   private skipNextTurnPlayerId: string | null = null  // 蓄谋：跳过指定玩家的下一回合
   private skipCurrentTurnPlayerId: string | null = null  // 画地为牢：跳过指定玩家的当前回合
   private aoJianActive = new Set<string>()  // 傲剑主动模式: 玩家id集合, 回合结束清空
-  // 侠胆: 本回合赢了拼点 → 额外获得1次多目标杀(每张最多2目标, 无视距离); 输了 → 本回合不能出杀
-  private xiaDanWinKillsLeft = new Map<string, number>()    // playerId → 剩余杀次数
-  private xiaDanWinTargetsPerKill = new Map<string, number>() // playerId → 每张杀目标数上限
+  // 侠胆: 胜→本回合所有杀可指定2目标 + 杀次数+1 (天狼/虎符不增加次数但保留2目标)
+  //      负→本回合不能出杀
   private xiaDanLossThisTurn = new Set<string>()             // 输了侠胆的玩家集合
   private xiaDanUsedThisTurn = new Set<string>()             // 本回合已尝试拼点的玩家 (限1次)
   private skipDrawThisTurn = false                            // 起义: 跳过本回合摸牌
@@ -133,8 +133,13 @@ export class Game {
     if (this.xiaDanLossThisTurn.has(player.getId())) return false
     // 天狼/虎符: 杀无限制
     if (this.hasUnlimitedKill(player)) return true
-    // 侠胆胜出后: 杀次数被额外+1(已用算入, 通过 xiaDanWinKillsLeft 单独管理, 不影响 killsMaxThisTurn)
+    // 杀次数: 基础1, 侠胆胜出+1(已算入killsMaxThisTurn)
     return this.killsUsedThisTurn < this.killsMaxThisTurn
+  }
+
+  /** 侠胆: 每张杀最多可指定几个目标(默认1, 侠胆胜出=2) */
+  getMaxTargetsPerKill(): number {
+    return this.xiaDanMultiTargetPerKill
   }
 
   /** 控局: 控局角色对手牌相关锦囊的免疫判定 */
@@ -659,8 +664,7 @@ export class Game {
     // 门神: 秦琼的下回合开始时清除自己上回合指定的保护
     this.menShenMap.delete(player.getId())
     // 侠胆: 每个玩家回合开始时重置
-    this.xiaDanWinKillsLeft.delete(player.getId())
-    this.xiaDanWinTargetsPerKill.delete(player.getId())
+    this.xiaDanMultiTargetPerKill = 1
     this.xiaDanLossThisTurn.delete(player.getId())
     this.xiaDanUsedThisTurn.delete(player.getId())
     this.skipDrawThisTurn = false
@@ -2209,11 +2213,9 @@ export class Game {
    */
   async playerPlayKillMulti(player: Player, cardId: string, targetIds: string[], maxTargetsOverride?: number): Promise<void> {
     if (this.xiaDanLossThisTurn.has(player.getId())) return
-    const winKills = this.xiaDanWinKillsLeft.get(player.getId()) ?? 0
-    const maxTargets = maxTargetsOverride ?? this.xiaDanWinTargetsPerKill.get(player.getId()) ?? 0
-    // 触发条件: 侠胆胜出 OR 狼牙棒最后一杀 (maxTargetsOverride 由调用方保证)
-    if (winKills <= 0 && !maxTargetsOverride) return
-    if (maxTargets <= 0) return
+    const maxTargets = maxTargetsOverride ?? this.xiaDanMultiTargetPerKill
+    // 触发条件: 侠胆胜出(xiaDanMultiTargetPerKill>1) OR 狼牙棒最后一杀 (maxTargetsOverride 由调用方保证)
+    if (maxTargets <= 1 && !maxTargetsOverride) return
     let killCard = player.getHand().find(c => c.id === cardId)
     if (!killCard) {
       for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
@@ -2222,7 +2224,7 @@ export class Game {
       }
     }
     if (!killCard || !this.canUseAsKill(killCard, player)) return
-    const ignoreRange = winKills > 0  // 侠胆胜出期间无视距离限制
+    const ignoreRange = this.xiaDanMultiTargetPerKill > 1  // 侠胆胜出期间无视距离限制
     // 限定: 目标数 ≤ maxTargets
     const limited = targetIds.slice(0, maxTargets)
     for (const tid of limited) {
@@ -2238,7 +2240,6 @@ export class Game {
       this.killUsedThisTurn = true
       player.setUsedKillThisTurn(true)
     }
-    if (winKills > 0) this.xiaDanWinKillsLeft.set(player.getId(), winKills - 1)
   }
 
   async playerPlayScheme(player: Player, cardId: string, targetId?: string): Promise<void> {
@@ -3020,11 +3021,14 @@ export class Game {
     })
 
     if (playerCard.number >= opponentCard.number) {
-      // 胜: 侠胆成功 → 本回合多1次杀次数, 这张杀最多指定2个目标, 无视距离
-      // 注: 不影响 killsMaxThisTurn 的天狼/虎符逻辑 — 玩家依旧保留"无限杀"特权
-      this.xiaDanWinKillsLeft.set(player.getId(), 1)
-      this.xiaDanWinTargetsPerKill.set(player.getId(), 2)
-      this.emitSkillTrigger(player, '侠胆', '拼点胜-可出1张多目标杀(最多2目标,无视距离)')
+      // 胜: 侠胆成功
+      //  - 杀次数 +1 (天狼/虎符的无限杀不受影响)
+      //  - 本回合所有杀可指定最多2个目标, 无视距离
+      if (!this.hasUnlimitedKill(player)) {
+        this.killsMaxThisTurn += 1
+      }
+      this.xiaDanMultiTargetPerKill = 2
+      this.emitSkillTrigger(player, '侠胆', '拼点胜-本回合每张杀可指定2目标(无视距离), 杀次数+1')
     } else {
       this.xiaDanLossThisTurn.add(player.getId())
       this.emitSkillTrigger(player, '侠胆', '拼点负-本回合不能出杀')
