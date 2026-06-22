@@ -72,7 +72,11 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
     >
       {/* 头部: 角色名 + AI徽章 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-        <span style={{ color: 'var(--text-light)', fontWeight: 'bold', fontSize: '14px' }}>
+        <span style={{
+          color: role === 'enemy' ? '#ef5350' : role === 'ally' ? '#81c784' : 'var(--text-light)',
+          fontWeight: 'bold',
+          fontSize: '14px',
+        }}>
           {config.name}
         </span>
         {(role === 'ally' || role === 'enemy') && (
