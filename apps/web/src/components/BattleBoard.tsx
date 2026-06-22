@@ -321,45 +321,17 @@ export function BattleBoard() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, minHeight: 0 }}>
       {/* Battle field: 顶部战场, 其他角色按逆时针分布在玩家周围 */}
       <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative', background: 'var(--bg-dark)', border: '1px solid var(--border-wood)', borderRadius: '8px', padding: '8px', overflow: 'hidden' }}>
-        {/* 顶部提示 (悬浮在战场上方, 不阻挡角色) */}
-        {(phase === 'selectTarget' || phase === 'selectMultiTargets' || phase === 'selectKillMultiTargets') && (
+        {/* 顶部提示 (悬浮在战场上方, 不阻挡角色) — 选单目标提示 */}
+        {phase === 'selectTarget' && (
           <div style={{ position: 'absolute', top: '4px', left: '50%', transform: 'translateX(-50%)', zIndex: 5, maxWidth: '60%' }}>
-            {phase === 'selectTarget' && (
-              <div style={{
-                padding: '6px 12px',
-                background: 'rgba(255,68,68,0.15)', borderRadius: '4px',
-                border: '1px solid rgba(255,68,68,0.3)',
-                color: '#ff6b6b', fontSize: '13px', textAlign: 'center',
-              }}>
-                点击敌方英雄选择攻击目标
-              </div>
-            )}
-            {phase === 'selectMultiTargets' && (
-              <div style={{
-                padding: '6px 12px',
-                background: 'rgba(255,140,0,0.15)', borderRadius: '4px',
-                border: '1px solid rgba(255,140,0,0.3)',
-                color: '#ffa726', fontSize: '13px', textAlign: 'center',
-                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px',
-              }}>
-                <span>🐺 狼牙棒 — 点击敌方选择目标 (最多3个, 已选 {selectedTargets.length}/3)</span>
-                <button style={{ fontSize: '12px' }} onClick={cancelMultiTarget}>取消</button>
-                <button className="primary" style={{ fontSize: '12px' }} disabled={selectedTargets.length === 0} onClick={confirmMultiTarget}>出杀</button>
-              </div>
-            )}
-            {phase === 'selectKillMultiTargets' && (
-              <div style={{
-                padding: '6px 12px',
-                background: 'rgba(255,215,0,0.15)', borderRadius: '4px',
-                border: '1px solid rgba(255,215,0,0.3)',
-                color: '#ffd54f', fontSize: '13px', textAlign: 'center',
-                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px',
-              }}>
-                <span>🗡️ 侠胆 — 点击敌方选择目标 (最多 {killMultiMax || 2} 个, 已选 {selectedTargets.length}/{killMultiMax || 2}; 剩余 {killMultiRemaining} 次出杀)</span>
-                <button style={{ fontSize: '12px' }} onClick={cancelKillMultiTarget}>取消</button>
-                <button className="primary" style={{ fontSize: '12px' }} disabled={selectedTargets.length === 0} onClick={confirmKillMultiTarget}>出杀</button>
-              </div>
-            )}
+            <div style={{
+              padding: '6px 12px',
+              background: 'rgba(255,68,68,0.15)', borderRadius: '4px',
+              border: '1px solid rgba(255,68,68,0.3)',
+              color: '#ff6b6b', fontSize: '13px', textAlign: 'center',
+            }}>
+              点击敌方英雄选择攻击目标
+            </div>
           </div>
         )}
 
@@ -411,6 +383,8 @@ export function BattleBoard() {
               || phase === 'houZhuTarget'
               || (phase === 'dyingRescue' && !!dyingRescuePrompt)
               || phase === 'selectDualCards'
+              || phase === 'selectMultiTargets'
+              || phase === 'selectKillMultiTargets'
             if (!hasAny) return null
             return (
             <div style={{
@@ -1014,6 +988,42 @@ export function BattleBoard() {
                 }}>
                   <span>🎋 芦叶枪 — 请选2张手牌当杀 (已选 {selectedDualCards.length}/2, 选满自动确认)</span>
                   <button style={treasureBtnStyle} onClick={cancelDualCards}>取消</button>
+                </div>
+              )}
+
+              {/* 28. 狼牙棒多目标 — 最后一张手牌出杀可指定多目标 (最多3) */}
+              {phase === 'selectMultiTargets' && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  padding: '8px 12px',
+                  background: 'rgba(255,140,0,0.15)', borderRadius: '4px',
+                  border: '1px solid rgba(255,140,0,0.3)',
+                  color: '#ffa726', fontSize: '12px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+                }}>
+                  <span>🐺 狼牙棒 — 点击敌方选择目标 (最多3个, 已选 {selectedTargets.length}/3)</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button style={treasureBtnStyle} onClick={cancelMultiTarget}>取消</button>
+                    <button className="primary" style={treasureBtnStyle} disabled={selectedTargets.length === 0} onClick={confirmMultiTarget}>出杀</button>
+                  </div>
+                </div>
+              )}
+
+              {/* 29. 侠胆/狼牙棒多杀 — 选多目标出杀 (无视距离, 最多 killMultiMax 目标/张) */}
+              {phase === 'selectKillMultiTargets' && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  padding: '8px 12px',
+                  background: 'rgba(255,215,0,0.15)', borderRadius: '4px',
+                  border: '1px solid rgba(255,215,0,0.3)',
+                  color: '#ffd54f', fontSize: '12px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+                }}>
+                  <span>🗡️ 多杀 — 点击敌方选择目标 (最多 {killMultiMax || 2} 个, 已选 {selectedTargets.length}/{killMultiMax || 2}; 剩余 {killMultiRemaining} 次出杀)</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button style={treasureBtnStyle} onClick={cancelKillMultiTarget}>取消</button>
+                    <button className="primary" style={treasureBtnStyle} disabled={selectedTargets.length === 0} onClick={confirmKillMultiTarget}>出杀</button>
+                  </div>
                 </div>
               )}
             </div>

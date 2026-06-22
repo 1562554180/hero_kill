@@ -1179,6 +1179,7 @@ export class Game {
         } else {
           // 杀伤害: 走统一伤害处理 (含濒死救援 + 受伤触发 + 杀辅印)
           await this.applyDamage(attacker, defender, damage, killCard, {
+            sourceAction: 'kill',
             afterOnDamageReceived: async () => {
               await this.onKillDamageDealt(attacker, defender)
               await this.onKillDamageReceived(defender, attacker)
@@ -1269,6 +1270,7 @@ export class Game {
               // 伤害已转移
             } else {
               await this.applyDamage(attacker, defender, 1, killCard, {
+                sourceAction: 'kill',
                 afterOnDamageReceived: async () => {
                   await this.onKillDamageDealt(attacker, defender)
                   await this.onKillDamageReceived(defender, attacker)
@@ -1295,7 +1297,7 @@ export class Game {
   }
 
   /** 受伤后的被动技能触发 */
-  private async onDamageReceived(victim: Player, attacker: Player, sourceCard?: Card): Promise<void> {
+  private async onDamageReceived(victim: Player, attacker: Player, sourceCard?: Card, sourceAction?: string): Promise<void> {
     // 濒死救援: HP≤0 时先进入濒死阶段 (鸩杀→救援→诀别). 若未救活则不再走下面的技能触发
     if (victim.getCurrentHp() <= 0 && victim.isAlive()) {
       const saved = await this.rescueDyingPlayer(victim)
@@ -1303,7 +1305,9 @@ export class Game {
     }
 
     // 补刀: 关羽回合外, 攻击范围内的角色被【杀】掉血后, 可对该角色补杀, 造成伤害则继续
-    if (sourceCard?.name === '杀' && victim.isAlive()) {
+    // 兼容: sourceAction === 'kill' (武圣/傲剑把红牌当杀时) 或 sourceCard.name === '杀'
+    const isKillDamage = sourceAction === 'kill' || sourceCard?.name === '杀'
+    if (isKillDamage && victim.isAlive()) {
       const guanYu = this.players.find(p => p.hero.hero.id === 'guan-yu' && p.isAlive())
       const currentPlayer = this.players[this.currentPlayerIndex]
       if (guanYu && currentPlayer && guanYu.getId() !== currentPlayer.getId() &&
@@ -1967,6 +1971,7 @@ export class Game {
    * 统一伤害处理: takeDamage → damage events → 濒死救援 → onDamageReceived → 死亡判定
    * @param skipOnDamageReceived 复仇反弹等场景不需要触发 onDamageReceived (避免死循环)
    * @param afterOnDamageReceived 杀伤害额外逻辑 (强化/吸血/伤之仇等)
+   * @param sourceAction 伤害来源的"有效牌型" (kill/dodge/scheme/judge/...) — 武圣/傲剑把红牌当杀时, sourceCard.name != '杀', 用此字段补刀/补杀等技能判断
    */
   async applyDamage(
     attacker: Player,
@@ -1976,6 +1981,7 @@ export class Game {
     options?: {
       skipOnDamageReceived?: boolean
       afterOnDamageReceived?: () => Promise<void>
+      sourceAction?: 'kill' | 'dodge' | 'scheme' | 'judge' | 'mount' | string
     }
   ): Promise<void> {
     const actual = defender.takeDamage(damage)
@@ -1985,12 +1991,12 @@ export class Game {
       type: 'damage:deal',
       sourceHeroId: attacker.getId(),
       targetHeroId: defender.getId(),
-      data: { damage: actual },
+      data: { damage: actual, sourceAction: options?.sourceAction },
     })
     this.eventBus.emit({
       type: 'damage:receive',
       sourceHeroId: defender.getId(),
-      data: { damage: actual, from: attacker.getId() },
+      data: { damage: actual, from: attacker.getId(), sourceAction: options?.sourceAction },
     })
 
     // 濒死救援: 若HP≤0, 进入濒死阶段
@@ -2007,7 +2013,7 @@ export class Game {
     }
 
     if (!options?.skipOnDamageReceived) {
-      await this.onDamageReceived(defender, attacker, sourceCard)
+      await this.onDamageReceived(defender, attacker, sourceCard, options?.sourceAction)
     }
 
     if (options?.afterOnDamageReceived) {
@@ -2149,15 +2155,15 @@ export class Game {
       }
     } else {
       // 2闪: 程咬金自己掉1血
-      await this.applyDamageWithManWu(attacker, defender, 1, killCard)
+      await this.applyDamageWithManWu(attacker, defender, 1, killCard, 'kill')
     }
   }
 
   /** 应用伤害并触发受击效果 (含曼舞, 含濒死救援) */
-  private async applyDamageWithManWu(victim: Player, attacker: Player, damage: number, sourceCard?: Card): Promise<void> {
+  private async applyDamageWithManWu(victim: Player, attacker: Player, damage: number, sourceCard?: Card, sourceAction?: string): Promise<void> {
     if (this.zuijiuActive) { damage += 1; this.zuijiuActive = false }
     if (await this.promptManWu(victim, attacker, damage)) return
-    await this.applyDamage(attacker, victim, damage, sourceCard)
+    await this.applyDamage(attacker, victim, damage, sourceCard, sourceAction ? { sourceAction } : undefined)
   }
 
   /**
@@ -3004,11 +3010,11 @@ export class Game {
     })
 
     if (playerCard.number >= opponentCard.number) {
-      // 胜: 杀次数设为 2 (天狼则无限)
-      this.killsMaxThisTurn = this.hasUnlimitedKill(player) ? Infinity : 2
-      this.xiaDanWinKillsLeft.set(player.getId(), this.killsMaxThisTurn === Infinity ? Number.MAX_SAFE_INTEGER : 2)
+      // 胜: 本次侠胆最多发 2 张多目标杀 (无视距离, 每张最多 2 目标)
+      // 注: 不影响 killsMaxThisTurn 的天狼/虎符逻辑 — 玩家依旧保留"无限杀"特权
+      this.xiaDanWinKillsLeft.set(player.getId(), 2)
       this.xiaDanWinTargetsPerKill.set(player.getId(), 2)
-      this.emitSkillTrigger(player, '侠胆', '拼点胜-本回合杀次数=2(每张最多2目标)')
+      this.emitSkillTrigger(player, '侠胆', '拼点胜-可出2张多目标杀(每张最多2目标,无视距离)')
     } else {
       this.xiaDanLossThisTurn.add(player.getId())
       this.emitSkillTrigger(player, '侠胆', '拼点负-本回合不能出杀')
