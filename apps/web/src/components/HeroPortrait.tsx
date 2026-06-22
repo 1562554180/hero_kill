@@ -7,10 +7,11 @@ interface Props {
 
 type Archetype = 'emperor' | 'female' | 'scholar' | 'assassin' | 'berserker' | 'warrior'
 
-const FACTION_THEME: Record<string, { bg1: string; bg2: string; label: string; accent: string; skin: string; cloth: string }> = {
-  '君': { bg1: '#8b1a1a', bg2: '#2a0808', label: '君', accent: '#c62828', skin: '#f4c4a0', cloth: '#7a1a1a' },
-  '臣': { bg1: '#0d47a1', bg2: '#001f3f', label: '臣', accent: '#1565c0', skin: '#f4c4a0', cloth: '#0d3a7a' },
-  '民': { bg1: '#2e7d32', bg2: '#0d2818', label: '民', accent: '#43a047', skin: '#f4c4a0', cloth: '#1d5a1f' },
+// 角色配色: 玩家=蓝, 友方AI=绿, 敌方AI=红 (与阵营无关)
+const ROLE_THEME: Record<string, { bg1: string; bg2: string; accent: string; skin: string; cloth: string }> = {
+  player: { bg1: '#0d47a1', bg2: '#001f3f', accent: '#1565c0', skin: '#f4c4a0', cloth: '#0d3a7a' },
+  ally:   { bg1: '#2e7d32', bg2: '#0d2818', accent: '#43a047', skin: '#f4c4a0', cloth: '#1d5a1f' },
+  enemy:  { bg1: '#8b1a1a', bg2: '#2a0808', accent: '#c62828', skin: '#f4c4a0', cloth: '#7a1a1a' },
 }
 
 const HERO_ARCHETYPE: Record<string, Archetype> = {
@@ -913,8 +914,9 @@ function ArchetypeDecor({ archetype }: { archetype: Archetype }) {
 }
 
 export function HeroPortrait({ hero, size = 100 }: Props) {
+  const role = hero.role ?? 'enemy'
+  const theme = ROLE_THEME[role] ?? ROLE_THEME['enemy']
   const faction = hero.hero.faction
-  const theme = FACTION_THEME[faction] ?? FACTION_THEME['民']
   const archetype = getArchetype(hero.hero.id)
   const starLevel = hero.instance.starLevel ?? 1
   const gid = `bg-${hero.hero.id}`
@@ -963,12 +965,12 @@ export function HeroPortrait({ hero, size = 100 }: Props) {
             stroke="rgba(212,175,55,0.4)" strokeWidth="0.5" rx="3"
             strokeDasharray="2,1" />
 
-      {/* 势力标签 (顶部) */}
-      <rect x="36" y="4" width="28" height="9" fill="rgba(0,0,0,0.65)" rx="2" />
-      <text x="50" y="11" fontSize="7" fill="#ffd54f" textAnchor="middle"
+      {/* 阵营徽章 (顶部, 小字) */}
+      <rect x="42" y="4" width="16" height="9" fill="rgba(0,0,0,0.65)" rx="2" />
+      <text x="50" y="11" fontSize="6" fill="#ffd54f" textAnchor="middle"
             fontFamily="'KaiTi','STKaiti',serif" fontWeight="bold"
             style={{ letterSpacing: '1.5px' }}>
-        {theme.label}
+        {faction}
       </text>
 
       {/* 底部名字条 */}
