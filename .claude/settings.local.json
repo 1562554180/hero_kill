@@ -70,7 +70,31 @@
       "Bash(awk 'NR<=1294 && /^[a-zA-Z_]+.*[:=] \\(async \\)?function|^  [a-zA-Z_]+:/ {print NR\": \"$0}' /d/work/hero-legend/apps/web/src/stores/battleStore.ts)",
       "Bash(git config *)",
       "Read(//c/Users/王威/**)",
-      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__close_page"
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__close_page",
+      "Bash(awk 'NR>=294 && NR<=960' \"D:\\\\work\\\\hero-legend\\\\apps\\\\web\\\\src\\\\components\\\\BattleBoard.tsx\")",
+      "Bash(awk 'NR>=294 && NR<=970' \"D:\\\\work\\\\hero-legend\\\\apps\\\\web\\\\src\\\\components\\\\BattleBoard.tsx\")",
+      "Bash(awk 'NR==328,NR==960' \"D:\\\\work\\\\hero-legend\\\\apps\\\\web\\\\src\\\\components\\\\BattleBoard.tsx\")",
+      "Read(//d/d/work/hero-legend/packages/game-data/dist/**)",
+      "Bash(tasklist)",
+      "Bash(tasklist /v)",
+      "Bash(wmic process *)",
+      "Bash(powershell -Command \"Get-CimInstance Win32_Process -Filter 'ProcessId=27404' | Select-Object CommandLine\")",
+      "Bash(powershell -Command \"Stop-Process -Id 27404 -Force\")",
+      "Bash(powershell -Command \"Stop-Process -Id 20728 -Force\")",
+      "Bash(awk 'NR>=1750 && NR<=1810' /d/work/hero-legend/apps/web/src/stores/battleStore.ts)",
+      "Bash(awk 'NR>=1700 && NR<=1755 {print NR\": \"$0}' /d/work/hero-legend/apps/web/src/stores/battleStore.ts)",
+      "Bash(git restore *)",
+      "mcp__plugin_everything-claude-code_playwright__browser_navigate",
+      "Bash(awk 'NR>=2240 && NR<=2350' packages/game-engine/src/core/Game.ts)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "Bash(bash *)",
+      "Bash(BRAINSTORM_DIR=\"D:/work/hero-legend/.superpowers/brainstorm/5496-1782102894\" BRAINSTORM_HOST=\"127.0.0.1\" BRAINSTORM_URL_HOST=\"localhost\" node server.cjs)",
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "Bash(git reset *)"
     ]
   }
 }
