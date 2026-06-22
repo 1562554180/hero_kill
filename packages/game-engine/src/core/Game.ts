@@ -1406,12 +1406,7 @@ export class Game {
     target = this.redirectIfMenShen(initiator, target)
     if (!target.isAlive()) return
 
-    // 女权: 男性对女性出【决斗】无效
-    if (target.isFemale() && !initiator.isFemale()) {
-      this.emitSkillTrigger(target, '女权', `${initiator.getName()}的【决斗】无效`)
-      return
-    }
-    // 女权: 女性对男性出【决斗】, 对方需出2张【杀】
+    // 女权: 女性对男性出【决斗】, 对方需出2张【杀】; 男性对女性正常出决斗
     const femaleVsMale = initiator.isFemale() && !target.isFemale()
 
     // 交替出杀, target 先. 输方掉1血
