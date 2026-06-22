@@ -108,13 +108,13 @@ export class Game {
   private winner: 'player' | 'enemy' | null = null
   private killUsedThisTurn = false
   private killsUsedThisTurn = 0        // 本回合已出杀次数
-  private killsMaxThisTurn = 1         // 本回合最大杀次数 (天狼/虎符→Infinity; 侠胆胜→2)
+  private killsMaxThisTurn = 1         // 本回合最大杀次数 (天狼/虎符→Infinity; 侠胆胜→不影响此值)
   private lastPlayedCardName: string | null = null
   private zuijiuActive = false  // 醉酒：本回合杀/决斗伤害+1
   private skipNextTurnPlayerId: string | null = null  // 蓄谋：跳过指定玩家的下一回合
   private skipCurrentTurnPlayerId: string | null = null  // 画地为牢：跳过指定玩家的当前回合
   private aoJianActive = new Set<string>()  // 傲剑主动模式: 玩家id集合, 回合结束清空
-  // 侠胆: 本回合赢了拼点 → 可出2张无距离限制的杀(每张最多2目标); 输了 → 本回合不能出杀
+  // 侠胆: 本回合赢了拼点 → 额外获得1次多目标杀(每张最多2目标, 无视距离); 输了 → 本回合不能出杀
   private xiaDanWinKillsLeft = new Map<string, number>()    // playerId → 剩余杀次数
   private xiaDanWinTargetsPerKill = new Map<string, number>() // playerId → 每张杀目标数上限
   private xiaDanLossThisTurn = new Set<string>()             // 输了侠胆的玩家集合
@@ -133,7 +133,7 @@ export class Game {
     if (this.xiaDanLossThisTurn.has(player.getId())) return false
     // 天狼/虎符: 杀无限制
     if (this.hasUnlimitedKill(player)) return true
-    // 侠胆胜出后: 杀次数被设为2(已用算入)
+    // 侠胆胜出后: 杀次数被额外+1(已用算入, 通过 xiaDanWinKillsLeft 单独管理, 不影响 killsMaxThisTurn)
     return this.killsUsedThisTurn < this.killsMaxThisTurn
   }
 
@@ -1304,22 +1304,6 @@ export class Game {
       if (!saved) return
     }
 
-    // 补刀: 关羽回合外, 攻击范围内的角色被【杀】掉血后, 可对该角色补杀, 造成伤害则继续
-    // 兼容: sourceAction === 'kill' (武圣/傲剑把红牌当杀时) 或 sourceCard.name === '杀'
-    // 防递归: 关羽自己出杀(补刀链)不触发补刀
-    const isKillDamage = sourceAction === 'kill' || sourceCard?.name === '杀'
-    if (isKillDamage && victim.isAlive()) {
-      const guanYu = this.players.find(p => p.hero.hero.id === 'guan-yu' && p.isAlive())
-      const currentPlayer = this.players[this.currentPlayerIndex]
-      if (guanYu && currentPlayer && guanYu.getId() !== currentPlayer.getId() &&
-          guanYu.getId() !== victim.getId() &&
-          attacker.getId() !== guanYu.getId() &&
-          this.isInAttackRange(guanYu, victim) &&
-          guanYu.getHand().some(c => this.canUseAsKill(c, guanYu))) {
-        await this.executeBuDao(guanYu, victim)
-      }
-    }
-
     // 集权: 获得造成伤害的牌
     if (victim.hasSkillOrTreasure('ji-tian') && sourceCard) {
       // 从弃牌堆找回那张具体牌
@@ -1380,6 +1364,23 @@ export class Game {
     // 复仇: 受伤后可发动, 判定成功后来源弃2牌或掉1血
     if (victim.hasSkillOrTreasure('fu-chou') && attacker.isAlive()) {
       await this.promptFuChou(victim, attacker)
+    }
+
+    // 补刀: 关羽回合外, 攻击范围内的角色被【杀】掉血后, 可对该角色补杀, 造成伤害则继续
+    // 触发顺序: 在复仇/法家之后 (避免先补刀导致受伤者被阵亡, 复仇/法家失去机会)
+    // 兼容: sourceAction === 'kill' (武圣/傲剑把红牌当杀时) 或 sourceCard.name === '杀'
+    // 防递归: 关羽自己出杀(补刀链)不触发补刀
+    const isKillDamage = sourceAction === 'kill' || sourceCard?.name === '杀'
+    if (isKillDamage && victim.isAlive()) {
+      const guanYu = this.players.find(p => p.hero.hero.id === 'guan-yu' && p.isAlive())
+      const currentPlayer = this.players[this.currentPlayerIndex]
+      if (guanYu && currentPlayer && guanYu.getId() !== currentPlayer.getId() &&
+          guanYu.getId() !== victim.getId() &&
+          attacker.getId() !== guanYu.getId() &&
+          this.isInAttackRange(guanYu, victim) &&
+          guanYu.getHand().some(c => this.canUseAsKill(c, guanYu))) {
+        await this.executeBuDao(guanYu, victim)
+      }
     }
 
     // 妙计: 使用锦囊牌摸一张 (sourceCard为锦囊时)
@@ -2195,7 +2196,7 @@ export class Game {
       this.emitSkillTrigger(guanYu, '补刀', `对${victim.getName()}补刀 使用了【杀】`)
       const beforeHp = victim.getCurrentHp()
       await this.executeKill(guanYu, victim, killCard)
-      // 造成伤害则继续
+      // 闪后(afterHp == beforeHp, 无伤害)立即结束补刀链; 造成伤害才继续
       const afterHp = victim.getCurrentHp()
       if (afterHp >= beforeHp) break
     }
@@ -3019,11 +3020,11 @@ export class Game {
     })
 
     if (playerCard.number >= opponentCard.number) {
-      // 胜: 本次侠胆最多发 2 张多目标杀 (无视距离, 每张最多 2 目标)
+      // 胜: 侠胆成功 → 本回合多1次杀次数, 这张杀最多指定2个目标, 无视距离
       // 注: 不影响 killsMaxThisTurn 的天狼/虎符逻辑 — 玩家依旧保留"无限杀"特权
-      this.xiaDanWinKillsLeft.set(player.getId(), 2)
+      this.xiaDanWinKillsLeft.set(player.getId(), 1)
       this.xiaDanWinTargetsPerKill.set(player.getId(), 2)
-      this.emitSkillTrigger(player, '侠胆', '拼点胜-可出2张多目标杀(每张最多2目标,无视距离)')
+      this.emitSkillTrigger(player, '侠胆', '拼点胜-可出1张多目标杀(最多2目标,无视距离)')
     } else {
       this.xiaDanLossThisTurn.add(player.getId())
       this.emitSkillTrigger(player, '侠胆', '拼点负-本回合不能出杀')
