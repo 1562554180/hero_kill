@@ -62,8 +62,8 @@ export function BattleBoard() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [playerHand.length])
-  // HandCard 宽度约 76px (minWidth 60 + padding 16). 放不下时启用叠放
-  const HAND_CARD_WIDTH = 76
+  // HandCard 宽度约 55px. 放不下时启用叠放
+  const HAND_CARD_WIDTH = 55
   const handNeedsOverlap = playerHand.length > 0 && playerHand.length * HAND_CARD_WIDTH > handContainerWidth
 
   if (!gameState) return null
@@ -1085,9 +1085,9 @@ export function BattleBoard() {
                   }}
                   style={{
                     flexShrink: handNeedsOverlap ? 0 : 1,
-                    marginLeft: handNeedsOverlap && idx > 0 ? -45 : 0,
-                    outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu) ? '3px solid #b8860b' : 'none',
-                    borderRadius: '6px',
+                    marginLeft: handNeedsOverlap && idx > 0 ? -32 : 0,
+                    outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu) ? '2px solid #b8860b' : 'none',
+                    borderRadius: '4px',
                     cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
                     zIndex: isPending ? 2 : 0,
                     position: 'relative',

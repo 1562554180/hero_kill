@@ -16,7 +16,7 @@ interface Props {
   hasHongZhuang?: boolean
 }
 
-const SLOT_SIZE = '26px'
+const SLOT_SIZE = '18px'
 
 export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang }: Props) {
   const game = useBattleStore(s => s.game)
@@ -49,40 +49,40 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
       onClick={isSelectable ? onClick : undefined}
       style={{
         background: bgColor,
-        border: `2px solid ${borderColor}`,
-        borderRadius: '8px',
-        padding: '6px',
-        minWidth: '130px',
+        border: `1.5px solid ${borderColor}`,
+        borderRadius: '6px',
+        padding: '4px',
+        minWidth: '90px',
         height: '100%',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'flex-start',
-        gap: '4px',
+        gap: '3px',
         opacity: currentHp > 0 ? (dimmed ? 0.4 : 1) : 0.4,
         cursor: isSelectable ? 'pointer' : 'default',
         transition: 'border-color 0.2s, box-shadow 0.2s, opacity 0.2s',
         position: 'relative',
         boxShadow: isSelected
-          ? '0 0 12px rgba(255,213,79,0.7), inset 0 0 8px rgba(255,213,79,0.3)'
+          ? '0 0 8px rgba(255,213,79,0.7), inset 0 0 6px rgba(255,213,79,0.3)'
           : isSelectable
-            ? '0 0 10px rgba(255,68,68,0.5), inset 0 0 6px rgba(255,68,68,0.2)'
+            ? '0 0 7px rgba(255,68,68,0.5), inset 0 0 4px rgba(255,68,68,0.2)'
             : isCurrentTurn
-              ? '0 0 8px rgba(218,165,32,0.4)'
+              ? '0 0 6px rgba(218,165,32,0.4)'
               : 'none',
       }}
     >
       {/* 头像区: SVG 武将像 + 右上 AI 徽章 */}
       <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-        <HeroPortrait hero={hero} size={118} />
+        <HeroPortrait hero={hero} size={82} />
         {(role === 'ally' || role === 'enemy') && (
           <span style={{
-            position: 'absolute', top: '4px', right: '4px',
-            fontSize: '9px',
+            position: 'absolute', top: '2px', right: '2px',
+            fontSize: '7px',
             color: role === 'ally' ? '#a5d6a7' : '#ef9a9a',
             background: role === 'ally' ? 'rgba(46,125,50,0.85)' : 'rgba(198,40,40,0.85)',
-            padding: '1px 5px',
-            borderRadius: '3px',
+            padding: '0 3px',
+            borderRadius: '2px',
             fontWeight: 'bold',
             border: `1px solid ${role === 'ally' ? 'rgba(46,125,50,0.9)' : 'rgba(198,40,40,0.9)'}`,
           }}>AI</span>
@@ -90,23 +90,23 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
       </div>
 
       {/* HP区: 当前血量(淡金底白字) + 血量格子(深红/灰, 中间分割线) — 两端对齐 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
         <span style={{
           background: 'rgba(255,213,79,0.22)',
           color: '#fff',
-          fontSize: '11px', fontWeight: 'bold',
-          padding: '1px 6px', borderRadius: '3px',
+          fontSize: '8px', fontWeight: 'bold',
+          padding: '0 4px', borderRadius: '2px',
           border: '1px solid rgba(255,213,79,0.4)',
-          minWidth: '22px', textAlign: 'center',
+          minWidth: '16px', textAlign: 'center',
         }}>
           {currentHp}
         </span>
         <div style={{
-          display: 'flex', flex: 1, height: '12px',
-          background: '#0a0a0a', borderRadius: '2px',
+          display: 'flex', flex: 1, height: '8px',
+          background: '#0a0a0a', borderRadius: '1px',
           overflow: 'hidden',
           border: '1px solid #0a0a0a',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.08)',
+          boxShadow: '0 1px 1px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.08)',
         }}>
           {Array.from({ length: maxHp }).map((_, i) => (
             <div key={i} style={{
@@ -119,8 +119,8 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
       </div>
 
       {/* 凹槽区: 永远显示4个 (主印1/2 + 辅印1/2) — 手牌数量(灰白底) 两端对齐 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px', marginBottom: '6px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '3px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
           {[0, 1].map(i => (
             <TreasureSlot key={`m-${i}`} treasure={mainTreasures[i]} type="main" locked={i >= slotConfig.main} />
           ))}
@@ -131,16 +131,16 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
         <span style={{
           background: 'rgba(255,255,255,0.12)',
           color: 'var(--text-light)',
-          fontSize: '11px', fontWeight: 'bold',
-          padding: '1px 6px', borderRadius: '3px',
+          fontSize: '8px', fontWeight: 'bold',
+          padding: '0 4px', borderRadius: '2px',
           border: '1px solid rgba(255,255,255,0.18)',
-          minWidth: '22px', textAlign: 'center',
+          minWidth: '16px', textAlign: 'center',
         }}>
           {hero.handCards.length}
         </span>
       </div>
 
-      {/* 装备区: 武器/防具/+1马/-1马 — 固定4个22px方格 */}
+      {/* 装备区: 武器/防具/+1马/-1马 — 固定4个15px方格 */}
       {(() => {
         const p = game?.getPlayerById(hero.hero.id)
         const slots: { slot: 'weapon' | 'armor' | 'attackMount' | 'defenseMount' }[] = [
@@ -153,17 +153,17 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
         const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
         const isJueJiWeaponPick = treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon'
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
             {slots.map(s => {
               const id = hero.equipment[s.slot]
               if (!id) {
                 const placeholder = s.slot === 'weapon' ? '武' : s.slot === 'armor' ? '防' : s.slot === 'attackMount' ? '+马' : '-马'
                 return (
                   <span key={s.slot} style={{
-                    flex: 1, height: '22px',
+                    flex: 1, height: '15px',
                     border: '1px dashed #444',
-                    borderRadius: '3px',
-                    fontSize: '10px',
+                    borderRadius: '2px',
+                    fontSize: '7px',
                     color: '#555',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>{placeholder}</span>
@@ -206,16 +206,16 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
                   title={hoverText}
                   onClick={handleClick}
                   style={{
-                    flex: 1, height: '22px',
+                    flex: 1, height: '15px',
                     color,
                     background: `${color}22`,
                     border: `1px solid ${color}55`,
-                    borderRadius: '3px',
-                    fontSize: '13px',
+                    borderRadius: '2px',
+                    fontSize: '9px',
                     lineHeight: '1',
                     cursor: handleClick ? 'pointer' : 'help',
                     fontWeight: isHighlighted ? 'bold' : 'normal',
-                    boxShadow: canActivate ? '0 0 4px rgba(229,115,115,0.6)' : isJueJiThis ? '0 0 4px rgba(255,87,34,0.6)' : isPickingEquip ? (isYuRen ? '0 0 4px rgba(255,215,0,0.6)' : '0 0 4px rgba(255,152,0,0.6)') : 'none',
+                    boxShadow: canActivate ? '0 0 3px rgba(229,115,115,0.6)' : isJueJiThis ? '0 0 3px rgba(255,87,34,0.6)' : isPickingEquip ? (isYuRen ? '0 0 3px rgba(255,215,0,0.6)' : '0 0 3px rgba(255,152,0,0.6)') : 'none',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     overflow: 'hidden',
                   }}
@@ -230,7 +230,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
 
       {/* 判定区标记: 画地为牢/手捧雷 */}
       {hero.judgeCards.length > 0 && game && (
-        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
+        <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
           {hero.judgeCards.map(cid => {
             const p = game.getPlayerById(hero.hero.id)
             const card = p?.getJudgeCards()?.find((c: Card) => c.id === cid)
@@ -240,9 +240,9 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
             const icon = isThunder ? '💣' : '🔒'
             return (
               <span key={cid} style={{
-                fontSize: '10px', color,
+                fontSize: '7px', color,
                 background: `${color}22`,
-                padding: '1px 5px', borderRadius: '3px',
+                padding: '0 3px', borderRadius: '2px',
                 border: `1px solid ${color}55`,
               }}>
                 {icon} {name}
@@ -255,8 +255,8 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
       {currentHp <= 0 && (
         <div style={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-          color: '#f44336', fontSize: '20px', fontWeight: 'bold',
-          textShadow: '0 0 6px rgba(0,0,0,0.8)',
+          color: '#f44336', fontSize: '14px', fontWeight: 'bold',
+          textShadow: '0 0 4px rgba(0,0,0,0.8)',
         }}>阵亡</div>
       )}
     </div>
@@ -278,10 +278,10 @@ function TreasureSlot({ treasure, type, locked }: { treasure: Treasure | null | 
           width: SLOT_SIZE, height: SLOT_SIZE,
           background: 'rgba(0,0,0,0.3)',
           border: '1px dashed #333',
-          borderRadius: '4px',
+          borderRadius: '3px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#555',
-          fontSize: '16px',
+          fontSize: '11px',
           fontWeight: 'bold',
           lineHeight: 1,
           cursor: 'help',
@@ -298,7 +298,7 @@ function TreasureSlot({ treasure, type, locked }: { treasure: Treasure | null | 
           width: SLOT_SIZE, height: SLOT_SIZE,
           background: 'rgba(255,255,255,0.02)',
           border: '1px dashed #555',
-          borderRadius: '4px',
+          borderRadius: '3px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       />
@@ -313,15 +313,15 @@ function TreasureSlot({ treasure, type, locked }: { treasure: Treasure | null | 
         width: SLOT_SIZE, height: SLOT_SIZE,
         background: bgColor,
         border: `1px solid ${borderColor}`,
-        borderRadius: '4px',
+        borderRadius: '3px',
         color,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: '13px',
+        fontSize: '9px',
         fontWeight: 'bold',
         cursor: 'help',
-        textShadow: '0 0 3px rgba(0,0,0,0.6)',
+        textShadow: '0 0 2px rgba(0,0,0,0.6)',
       }}
     >{displayChar}</div>
   )
