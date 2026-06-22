@@ -208,33 +208,498 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   )
 }
 
-// 牌面 SVG 图标 — 杀/剑, 闪/盾, 锦囊/交叉剑, 装备/弓
+// 牌面 SVG 图标 — 每张牌独立设计
 function CardIcon({ card, themeMain }: { card: Card; themeMain: string }) {
   const color = themeMain
-  if (card.name === '杀') {
-    return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={color}>
-        <path d="M6.92 5L5 6.92l6.84 6.84-2.05 4.05 1.41 1.41 4.05-4.05 6.84 6.84L23.92 20 19 15.08l4.05-4.05-1.41-1.41-4.05 2.05L11.75 5.83 13.92 3.66 12.5 2.25 9.83 4.92z"/>
-      </svg>
-    )
+  const accent = '#ffd54f'
+  switch (card.name) {
+    // ========== 基本牌 ==========
+    case '杀':
+      // 长剑 (竖立, 银刃+金护手+黑握柄)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <polygon points="11,1 13,1 12.3,14 11.7,14" fill="#e0e0e0" stroke="#212121" strokeWidth="0.5" />
+          <rect x="9" y="14" width="6" height="2" fill="#5d4037" />
+          <rect x="10" y="16" width="4" height="5" fill="#3e2723" />
+          <line x1="10" y1="17.5" x2="14" y2="17.5" stroke={accent} strokeWidth="0.4" />
+          <line x1="10" y1="19" x2="14" y2="19" stroke={accent} strokeWidth="0.4" />
+          <circle cx="12" cy="22" r="1.2" fill={accent} stroke="#5d4037" strokeWidth="0.3" />
+        </svg>
+      )
+    case '闪':
+      // 盾牌 (蓝纹金边盾牌)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <path d="M12 2 L4 5 L4 12 C4 17 7.5 21 12 22 C16.5 21 20 17 20 12 L20 5 Z"
+                fill={color} stroke="#5d4037" strokeWidth="0.8" />
+          <path d="M12 4 L6 6.5 L6 12 C6 16 8.5 19 12 20 C15.5 19 18 16 18 12 L18 6.5 Z"
+                fill="none" stroke={accent} strokeWidth="0.8" />
+          <circle cx="12" cy="11" r="2" fill={accent} stroke="#5d4037" strokeWidth="0.4" />
+        </svg>
+      )
+    case '药':
+      // 葫芦 (红葫芦 + 绿叶)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <path d="M10 2 Q10 4 11 5 L11 6 Q7 7 6 11 Q5 18 12 20 Q19 18 18 11 Q17 7 13 6 L13 5 Q14 4 14 2 Z"
+                fill={color} stroke="#5d4037" strokeWidth="0.6" />
+          <path d="M10 2 Q10 4 11 5 L13 5 Q14 4 14 2 Q13 1 12 1 Q11 1 10 2 Z" fill="#5d4037" />
+          <path d="M12 1 L12 3" stroke="#2e7d32" strokeWidth="0.6" />
+          <ellipse cx="10" cy="10" rx="2" ry="1" fill="#fff" opacity="0.4" />
+          <text x="12" y="14" fontSize="3" fill={accent} textAnchor="middle" fontFamily="serif" fontWeight="bold">药</text>
+        </svg>
+      )
+
+    // ========== 锦囊牌 ==========
+    case '无中生有':
+      // 宝箱 (开启宝箱+光芒+金币)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 光芒 */}
+          {[0,1,2,3,4].map(i => (
+            <line key={i} x1="12" y1="2" x2="12" y2="5"
+                  stroke={accent} strokeWidth="0.6" transform={`rotate(${i * 30} 12 12)`} />
+          ))}
+          {/* 宝箱盖 (开) */}
+          <path d="M5 9 L19 9 L18 6 L6 6 Z" fill={color} stroke="#5d4037" strokeWidth="0.6" />
+          {/* 宝箱身 */}
+          <rect x="5" y="9" width="14" height="9" fill={color} stroke="#5d4037" strokeWidth="0.6" />
+          {/* 锁 */}
+          <rect x="11" y="11" width="2" height="3" fill={accent} />
+          <circle cx="12" cy="14" r="0.6" fill="#5d4037" />
+          {/* 金币 */}
+          <circle cx="9" cy="20" r="1.2" fill={accent} stroke="#5d4037" strokeWidth="0.3" />
+          <circle cx="15" cy="21" r="1" fill={accent} stroke="#5d4037" strokeWidth="0.3" />
+        </svg>
+      )
+    case '决斗':
+      // 交叉双剑
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <g transform="rotate(45 12 12)">
+            <polygon points="11,3 13,3 12.3,15 11.7,15" fill="#e0e0e0" stroke="#212121" strokeWidth="0.4" />
+            <rect x="9" y="15" width="6" height="1.5" fill="#5d4037" />
+            <rect x="10.5" y="16.5" width="3" height="4" fill="#3e2723" />
+            <circle cx="12" cy="21" r="0.8" fill={accent} />
+          </g>
+          <g transform="rotate(-45 12 12)">
+            <polygon points="11,3 13,3 12.3,15 11.7,15" fill={color} stroke="#5d4037" strokeWidth="0.4" />
+            <rect x="9" y="15" width="6" height="1.5" fill="#5d4037" />
+            <rect x="10.5" y="16.5" width="3" height="4" fill="#3e2723" />
+            <circle cx="12" cy="21" r="0.8" fill={accent} />
+          </g>
+          {/* 中心火花 */}
+          <circle cx="12" cy="12" r="1.5" fill={accent} stroke="#c62828" strokeWidth="0.4" />
+        </svg>
+      )
+    case '万箭齐发':
+      // 漫天箭雨
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {[
+            { x: 3, y: 4, a: 35 },
+            { x: 8, y: 3, a: 25 },
+            { x: 13, y: 2, a: 15 },
+            { x: 18, y: 4, a: -25 },
+            { x: 5, y: 9, a: 30 },
+            { x: 11, y: 7, a: 10 },
+            { x: 17, y: 9, a: -20 },
+            { x: 8, y: 13, a: 20 },
+            { x: 14, y: 13, a: -10 },
+            { x: 11, y: 17, a: 5 },
+          ].map((arr, i) => (
+            <g key={i} transform={`translate(${arr.x} ${arr.y}) rotate(${arr.a})`}>
+              <line x1="0" y1="0" x2="4" y2="0" stroke="#5d4037" strokeWidth="0.5" />
+              <polygon points="4,0 6,-0.8 6,0.8" fill={color} stroke="#212121" strokeWidth="0.2" />
+              <line x1="-1" y1="-1" x2="0" y2="0" stroke={color} strokeWidth="0.4" />
+              <line x1="-1" y1="1" x2="0" y2="0" stroke={color} strokeWidth="0.4" />
+            </g>
+          ))}
+        </svg>
+      )
+    case '烽火狼烟':
+      // 烽火台 (城楼+火焰)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 火焰 */}
+          <path d="M9 2 Q8 4 9 5 Q7 4 8 6 Q6 5 7 7 L11 7 Q12 5 11 4 Q12 5 12 3 Q11 2 9 2 Z"
+                fill={accent} stroke="#c62828" strokeWidth="0.4" />
+          <path d="M14 1 Q13 3 14 4 Q12 3 13 5 Q11 4 12 6 L16 6 Q17 4 16 3 Q17 4 17 2 Q16 1 14 1 Z"
+                fill={color} stroke="#c62828" strokeWidth="0.4" />
+          {/* 烽火台 (城楼) */}
+          <rect x="6" y="7" width="12" height="13" fill="#5d4037" stroke="#3e2723" strokeWidth="0.4" />
+          <rect x="5" y="6" width="14" height="2" fill="#5d4037" stroke="#3e2723" strokeWidth="0.4" />
+          {/* 垛口 */}
+          {[6, 9, 12, 15, 18].map(x => (
+            <rect key={x} x={x-0.5} y="4" width="1" height="2" fill="#5d4037" />
+          ))}
+          {/* 门 */}
+          <rect x="11" y="14" width="2" height="6" fill="#212121" />
+          <rect x="10" y="20" width="4" height="2" fill="#3e2723" />
+        </svg>
+      )
+    case '无懈可击':
+      // 锁链 + X (挡住来犯)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 中心盾形 */}
+          <path d="M12 3 L18 6 L18 12 C18 16 15 19 12 20 C9 19 6 16 6 12 L6 6 Z"
+                fill={color} stroke="#5d4037" strokeWidth="0.6" />
+          {/* 锁链环 */}
+          <circle cx="12" cy="11" r="3" fill="none" stroke="#212121" strokeWidth="1.2" />
+          <circle cx="12" cy="11" r="3" fill="none" stroke={accent} strokeWidth="0.4" />
+          {/* X 符号 */}
+          <line x1="10" y1="9" x2="14" y2="13" stroke="#c62828" strokeWidth="1.2" />
+          <line x1="14" y1="9" x2="10" y2="13" stroke="#c62828" strokeWidth="1.2" />
+        </svg>
+      )
+    case '五谷丰登':
+      // 麦穗 (三束麦穗)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {[0, 1, 2].map(i => (
+            <g key={i} transform={`translate(${6 + i * 5} ${i === 1 ? 4 : 6})`}>
+              <line x1="0" y1="0" x2="0" y2="14" stroke="#8b6914" strokeWidth="0.8" />
+              {[-3, -1.5, 0, 1.5, 3].map((dy, j) => (
+                <ellipse key={j} cx={j % 2 === 0 ? -2.5 : 2.5} cy={dy + 1}
+                         rx="1.2" ry="0.6" fill={accent} stroke="#8b6914" strokeWidth="0.3"
+                         transform={`rotate(${j % 2 === 0 ? -30 : 30} ${j % 2 === 0 ? -2.5 : 2.5} ${dy + 1})`} />
+              ))}
+            </g>
+          ))}
+          {/* 红丝带 */}
+          <path d="M3 20 Q12 17 21 20 L21 22 L3 22 Z" fill="#c62828" />
+        </svg>
+      )
+    case '探囊取物':
+      // 袋 + 手 (探囊)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 袋口 */}
+          <ellipse cx="9" cy="9" rx="6" ry="2" fill="#212121" />
+          <ellipse cx="9" cy="9" rx="5" ry="1.4" fill="#5d4037" />
+          {/* 袋身 */}
+          <path d="M4 9 Q3 18 9 21 Q15 18 14 9 Z" fill={color} stroke="#5d4037" strokeWidth="0.6" />
+          {/* 抽绳 */}
+          <line x1="5" y1="7" x2="3" y2="4" stroke="#5d4037" strokeWidth="0.6" />
+          <line x1="13" y1="7" x2="15" y2="4" stroke="#5d4037" strokeWidth="0.6" />
+          <circle cx="3" cy="4" r="0.8" fill={accent} />
+          <circle cx="15" cy="4" r="0.8" fill={accent} />
+          {/* 伸进袋的手 */}
+          <g transform="translate(15 12) rotate(-20)">
+            <ellipse cx="3" cy="2" rx="2.5" ry="1.5" fill="#f4c4a0" stroke="#5d4037" strokeWidth="0.4" />
+            <line x1="5" y1="2" x2="8" y2="2" stroke="#f4c4a0" strokeWidth="1" />
+          </g>
+          {/* 金币 */}
+          <circle cx="9" cy="14" r="1.2" fill={accent} stroke="#5d4037" strokeWidth="0.3" />
+        </svg>
+      )
+    case '釜底抽薪':
+      // 锅 + 柴火
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 锅 */}
+          <ellipse cx="12" cy="10" rx="7" ry="1.5" fill="#5d4037" />
+          <path d="M5 10 L6 18 Q9 21 12 21 Q15 21 18 18 L19 10 Z" fill="#212121" stroke="#5d4037" strokeWidth="0.5" />
+          {/* 锅耳 */}
+          <ellipse cx="4" cy="11" rx="1" ry="0.6" fill="#5d4037" />
+          <ellipse cx="20" cy="11" rx="1" ry="0.6" fill="#5d4037" />
+          {/* 柴火 (从锅底抽出) */}
+          <line x1="9" y1="22" x2="8" y2="14" stroke="#8b6914" strokeWidth="1" />
+          <line x1="11" y1="22" x2="11" y2="13" stroke="#a0855a" strokeWidth="0.8" />
+          <line x1="13" y1="22" x2="14" y2="14" stroke="#8b6914" strokeWidth="0.8" />
+          <line x1="15" y1="22" x2="16" y2="15" stroke="#a0855a" strokeWidth="0.8" />
+          {/* 火焰 */}
+          <path d="M10 13 Q9 11 10 9 Q11 10 11 8 Q12 9 12 11 Q13 10 13 9 Q14 10 14 12 Z"
+                fill={accent} />
+        </svg>
+      )
+    case '借刀杀人':
+      // 借字 + 刀
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 刀 (横放) */}
+          <g transform="rotate(-15 12 12)">
+            <rect x="3" y="11" width="14" height="2" fill="#e0e0e0" stroke="#212121" strokeWidth="0.4" />
+            <polygon points="17,12 20,11 20,13" fill="#9e9e9e" stroke="#212121" strokeWidth="0.3" />
+            <rect x="1" y="10" width="2" height="4" fill="#5d4037" />
+            <rect x="-1" y="10.5" width="2" height="3" fill="#3e2723" />
+          </g>
+          {/* 借字 (左下) */}
+          <rect x="2" y="18" width="8" height="4" fill={accent} stroke="#5d4037" strokeWidth="0.4" />
+          <text x="6" y="21.5" fontSize="3.5" fill="#212121" textAnchor="middle" fontFamily="'KaiTi',serif" fontWeight="bold">借</text>
+        </svg>
+      )
+    case '手捧雷':
+      // 雷云 + 闪电
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 雷云 */}
+          <path d="M5 8 Q3 8 3 11 Q3 14 6 14 L18 14 Q21 14 21 11 Q21 8 19 8 Q19 5 16 5 Q15 3 12 3 Q9 3 8 5 Q5 5 5 8 Z"
+                fill="#37474f" stroke="#212121" strokeWidth="0.5" />
+          {/* 闪电 (粗) */}
+          <polygon points="12,7 14,13 12,13 14,20 10,15 12,15 10,7"
+                   fill={accent} stroke="#c62828" strokeWidth="0.4" />
+        </svg>
+      )
+    case '画地为牢':
+      // 圆形牢笼 (圈+锁链)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 外圈 (画地为牢) */}
+          <circle cx="12" cy="13" r="9" fill="none" stroke={color} strokeWidth="1.2" strokeDasharray="2,1" />
+          <circle cx="12" cy="13" r="9" fill="none" stroke="#5d4037" strokeWidth="0.4" />
+          {/* 锁链竖 */}
+          {[8, 12, 16].map(x => (
+            <g key={x}>
+              <ellipse cx={x} cy="8" rx="1.2" ry="1.5" fill="none" stroke="#212121" strokeWidth="0.8" />
+              <ellipse cx={x} cy="11" rx="1.2" ry="1.5" fill="none" stroke="#212121" strokeWidth="0.8" />
+              <ellipse cx={x} cy="14" rx="1.2" ry="1.5" fill="none" stroke="#212121" strokeWidth="0.8" />
+              <ellipse cx={x} cy="17" rx="1.2" ry="1.5" fill="none" stroke="#212121" strokeWidth="0.8" />
+            </g>
+          ))}
+          {/* 锁 */}
+          <rect x="10" y="12" width="4" height="4" fill={accent} stroke="#5d4037" strokeWidth="0.4" rx="0.5" />
+          <circle cx="12" cy="14" r="0.6" fill="#212121" />
+        </svg>
+      )
+    case '休养生息':
+      // 月亮 + 山
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 月亮 */}
+          <path d="M16 4 A6 6 0 1 0 16 16 A4 4 0 1 1 16 4 Z" fill={accent} stroke="#5d4037" strokeWidth="0.4" />
+          {/* 山 */}
+          <path d="M2 20 L8 10 L13 16 L18 8 L22 20 Z" fill={color} stroke="#5d4037" strokeWidth="0.5" />
+          {/* 山阴影 */}
+          <path d="M2 20 L8 10 L10 14 L4 20 Z" fill="rgba(0,0,0,0.2)" />
+          <path d="M13 16 L18 8 L20 12 L16 20 Z" fill="rgba(0,0,0,0.2)" />
+          {/* 草 */}
+          <line x1="6" y1="22" x2="6" y2="20" stroke="#2e7d32" strokeWidth="0.4" />
+          <line x1="20" y1="22" x2="20" y2="20" stroke="#2e7d32" strokeWidth="0.4" />
+        </svg>
+      )
+
+    // ========== 装备 — 武器 ==========
+    case '虎符':
+      // 虎符 (两半虎形+刻字)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 符身 (左半) */}
+          <path d="M3 8 L11 8 L11 16 L3 16 Q1 16 1 14 L1 10 Q1 8 3 8 Z"
+                fill={accent} stroke="#5d4037" strokeWidth="0.6" />
+          {/* 虎头 (左) */}
+          <circle cx="3" cy="12" r="2" fill={accent} stroke="#5d4037" strokeWidth="0.4" />
+          <circle cx="3" cy="11" r="0.4" fill="#212121" />
+          <path d="M1 12 L0 10 M1 12 L0 14" stroke="#5d4037" strokeWidth="0.4" />
+          {/* 符身 (右半) */}
+          <path d="M13 8 L21 8 Q23 8 23 10 L23 14 Q23 16 21 16 L13 16 Z"
+                fill={accent} stroke="#5d4037" strokeWidth="0.6" />
+          {/* 虎头 (右) */}
+          <circle cx="21" cy="12" r="2" fill={accent} stroke="#5d4037" strokeWidth="0.4" />
+          <circle cx="21" cy="11" r="0.4" fill="#212121" />
+          <path d="M23 12 L24 10 M23 12 L24 14" stroke="#5d4037" strokeWidth="0.4" />
+          {/* 刻字 */}
+          <text x="7" y="13.5" fontSize="2.5" fill="#5d4037" textAnchor="middle" fontFamily="serif" fontWeight="bold">虎</text>
+          <text x="17" y="13.5" fontSize="2.5" fill="#5d4037" textAnchor="middle" fontFamily="serif" fontWeight="bold">符</text>
+        </svg>
+      )
+    case '盘龙棍':
+      // 龙缠棍
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 棍 */}
+          <rect x="11" y="2" width="2" height="20" fill="#5d4037" stroke="#3e2723" strokeWidth="0.3" />
+          {/* 金箍 */}
+          <rect x="10" y="6" width="4" height="1" fill={accent} />
+          <rect x="10" y="17" width="4" height="1" fill={accent} />
+          {/* 龙 (缠绕) */}
+          <path d="M6 10 Q9 8 12 11 Q15 8 18 10 Q15 12 12 14 Q9 12 6 10 Z" fill={color} stroke="#5d4037" strokeWidth="0.4" />
+          <circle cx="6" cy="10" r="0.8" fill={accent} />
+          <circle cx="18" cy="10" r="0.8" fill="#212121" />
+          <path d="M8 12 L9 11 M16 12 L15 11" stroke="#212121" strokeWidth="0.3" />
+        </svg>
+      )
+    case '鱼肠剑':
+      // 短剑 (粗短)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <polygon points="12,2 14,2 13.5,14 12.5,14" fill="#e0e0e0" stroke="#212121" strokeWidth="0.4" />
+          <polygon points="12,2 13,2 12.5,5" fill="#bdbdbd" />
+          <rect x="9" y="14" width="6" height="1.8" fill="#5d4037" />
+          <rect x="10.5" y="15.8" width="3" height="4" fill="#3e2723" />
+          <line x1="10.5" y1="17" x2="13.5" y2="17" stroke={accent} strokeWidth="0.3" />
+          <line x1="10.5" y1="18" x2="13.5" y2="18" stroke={accent} strokeWidth="0.3" />
+          <circle cx="12" cy="21" r="1" fill={accent} stroke="#5d4037" strokeWidth="0.3" />
+        </svg>
+      )
+    case '博浪锤':
+      // 锤 (方锤头)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <rect x="9" y="2" width="6" height="9" fill="#5d4037" stroke="#3e2723" strokeWidth="0.5" />
+          <rect x="10" y="3" width="4" height="7" fill="#212121" />
+          <rect x="8" y="9" width="8" height="2" fill="#5d4037" />
+          <rect x="11" y="11" width="2" height="9" fill="#3e2723" />
+          <line x1="11" y1="13" x2="13" y2="13" stroke={accent} strokeWidth="0.3" />
+          <line x1="11" y1="15" x2="13" y2="15" stroke={accent} strokeWidth="0.3" />
+          <line x1="11" y1="17" x2="13" y2="17" stroke={accent} strokeWidth="0.3" />
+          <circle cx="12" cy="21" r="1" fill={accent} />
+        </svg>
+      )
+    case '霸王弓':
+      // 弓 (大弓+弦)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <path d="M5 3 Q3 12 5 21" stroke="#5d4037" strokeWidth="1.5" fill="none" />
+          <path d="M7 3 Q5 12 7 21" stroke="#3e2723" strokeWidth="0.8" fill="none" />
+          <line x1="5" y1="3" x2="5" y2="21" stroke={accent} strokeWidth="0.4" />
+          {/* 弦 */}
+          <line x1="5" y1="3" x2="5" y2="21" stroke="#fff" strokeWidth="0.3" />
+          {/* 箭 */}
+          <line x1="6" y1="12" x2="22" y2="12" stroke="#5d4037" strokeWidth="0.6" />
+          <polygon points="22,12 24,11 24,13" fill={color} stroke="#212121" strokeWidth="0.2" />
+          <line x1="5.5" y1="11" x2="5.5" y2="13" stroke={color} strokeWidth="0.4" />
+          <line x1="6" y1="11" x2="6" y2="13" stroke={color} strokeWidth="0.4" />
+        </svg>
+      )
+    case '芦叶枪':
+      // 枪 (长枪+红缨)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 红缨 */}
+          <ellipse cx="12" cy="6" rx="2" ry="3" fill="#c62828" stroke="#7f0000" strokeWidth="0.4" />
+          <line x1="10" y1="3" x2="9" y2="6" stroke="#c62828" strokeWidth="0.5" />
+          <line x1="14" y1="3" x2="15" y2="6" stroke="#c62828" strokeWidth="0.5" />
+          {/* 枪尖 */}
+          <polygon points="12,8 14,9 12,12 10,9" fill="#e0e0e0" stroke="#212121" strokeWidth="0.4" />
+          {/* 枪杆 */}
+          <rect x="11.5" y="9" width="1" height="13" fill="#5d4037" stroke="#3e2723" strokeWidth="0.2" />
+          {/* 杆尾 */}
+          <circle cx="12" cy="22" r="1" fill={accent} stroke="#5d4037" strokeWidth="0.3" />
+        </svg>
+      )
+    case '龙鳞刀':
+      // 弯刀 (曲刃+龙鳞纹)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <path d="M11 2 Q15 8 14 16 L12 17 Q9 12 11 2 Z" fill="#e0e0e0" stroke="#212121" strokeWidth="0.4" />
+          {/* 龙鳞纹 */}
+          <path d="M11 6 L12 7 M11 9 L12 10 M11 12 L12 13 M11.5 15 L12.5 16" stroke="#212121" strokeWidth="0.3" />
+          {/* 护手 */}
+          <rect x="9" y="16" width="6" height="1.8" fill="#5d4037" />
+          {/* 握柄 */}
+          <rect x="10" y="17.8" width="4" height="4" fill="#3e2723" />
+          <line x1="10" y1="19" x2="14" y2="19" stroke={accent} strokeWidth="0.4" />
+          <line x1="10" y1="20.5" x2="14" y2="20.5" stroke={accent} strokeWidth="0.4" />
+          <circle cx="12" cy="22.5" r="0.8" fill={accent} />
+        </svg>
+      )
+    case '狼牙棒':
+      // 狼牙棒 (钉头棒)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 棒头 (椭圆+狼牙) */}
+          <ellipse cx="12" cy="6" rx="3" ry="5" fill="#5d4037" stroke="#3e2723" strokeWidth="0.5" />
+          {[0,1,2,3,4,5].map(i => (
+            <g key={i} transform={`rotate(${i * 60} 12 6)`}>
+              <polygon points="12,2 13,4 12,3.5 11,4" fill={accent} stroke="#5d4037" strokeWidth="0.2" />
+            </g>
+          ))}
+          {/* 钉子 */}
+          {[1,3,5].map(i => (
+            <circle key={i} cx="12" cy="6" r="0.5" fill="#212121" transform={`rotate(${i * 60} 12 6) translate(0 -2.5)`} />
+          ))}
+          {/* 棒柄 */}
+          <rect x="11" y="11" width="2" height="11" fill="#3e2723" stroke="#212121" strokeWidth="0.3" />
+          <line x1="11" y1="14" x2="13" y2="14" stroke={accent} strokeWidth="0.3" />
+          <line x1="11" y1="17" x2="13" y2="17" stroke={accent} strokeWidth="0.3" />
+          <line x1="11" y1="20" x2="13" y2="20" stroke={accent} strokeWidth="0.3" />
+        </svg>
+      )
+
+    // ========== 装备 — 坐骑 ==========
+    case '进攻马':
+      return <MountIcon color={color} accent={accent} type="attack" />
+    case '防御马':
+      return <MountIcon color={color} accent={accent} type="defense" />
+
+    // ========== 装备 — 防具 ==========
+    case '玉如意':
+      // 如意 (S 形金如意)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          <path d="M5 4 Q9 4 11 8 Q12 10 12 12 Q12 14 11 16 Q9 20 5 20 Q3 20 3 18 Q3 16 5 16 Q7 16 8 14 L8 10 Q7 8 5 8 Q3 8 3 6 Q3 4 5 4 Z"
+                fill={accent} stroke="#5d4037" strokeWidth="0.5" />
+          <circle cx="6" cy="5.5" r="1" fill={color} stroke="#5d4037" strokeWidth="0.3" />
+          <circle cx="6" cy="18.5" r="1" fill={color} stroke="#5d4037" strokeWidth="0.3" />
+          <rect x="11" y="11" width="3" height="2" fill={color} />
+          <rect x="14" y="10" width="5" height="4" fill={color} stroke="#5d4037" strokeWidth="0.4" />
+          <text x="16.5" y="13" fontSize="2.5" fill={accent} textAnchor="middle" fontFamily="serif" fontWeight="bold">吉</text>
+        </svg>
+      )
+    case '乾坤袋':
+      // 袋 (大布袋+束口)
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24">
+          {/* 束口绳 */}
+          <path d="M8 4 Q12 2 16 4" stroke="#5d4037" strokeWidth="1" fill="none" />
+          <circle cx="9" cy="3" r="0.6" fill={accent} />
+          <circle cx="15" cy="3" r="0.6" fill={accent} />
+          {/* 袋口 */}
+          <ellipse cx="12" cy="6" rx="6" ry="1.5" fill="#212121" />
+          <ellipse cx="12" cy="6" rx="5" ry="1" fill="#5d4037" />
+          {/* 袋身 */}
+          <path d="M5 7 Q3 16 7 20 Q12 22 17 20 Q21 16 19 7 Z" fill={color} stroke="#5d4037" strokeWidth="0.6" />
+          {/* 袋纹 (八卦) */}
+          <g transform="translate(12 13)">
+            <circle r="2" fill="none" stroke={accent} strokeWidth="0.5" />
+            <path d="M-1.5 -1 L1.5 -1 L1.5 0 A1.5 1.5 0 0 1 0 1.5 A1.5 1.5 0 0 1 -1.5 0 Z" fill={accent} />
+            <path d="M-1.5 1 L1.5 1 L1.5 0 A1.5 1.5 0 0 0 0 -1.5 A1.5 1.5 0 0 0 -1.5 0 Z" fill={color} />
+          </g>
+        </svg>
+      )
+
+    default:
+      // 兜底: 交叉剑
+      return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill={color}>
+          <path d="M6.92 5L5 6.92l6.84 6.84-2.05 4.05 1.41 1.41 4.05-4.05 6.84 6.84L23.92 20 19 15.08l4.05-4.05-1.41-1.41-4.05 2.05L11.75 5.83 13.92 3.66 12.5 2.25 9.83 4.92z"/>
+        </svg>
+      )
   }
-  if (card.name === '闪') {
-    return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill={color}>
-        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
-      </svg>
-    )
-  }
-  if (card.type === 'equipment') {
-    return (
-      <svg width="25" height="22" viewBox="0 0 32 32" fill={color}>
-        <path d="M3 16C8 8 18 6 26 6l3-3-1 5 3-2-3 4-3-1 1 4-3-2c-7 0-15 2-20 5z"/>
-      </svg>
-    )
-  }
+}
+
+// 坐骑图标 (攻击/防御区别颜色与箭头方向)
+function MountIcon({ color, accent, type }: { color: string; accent: string; type: 'attack' | 'defense' }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill={color}>
-      <path d="M6.92 5L5 6.92l6.84 6.84-2.05 4.05 1.41 1.41 4.05-4.05 6.84 6.84L23.92 20 19 15.08l4.05-4.05-1.41-1.41-4.05 2.05L11.75 5.83 13.92 3.66 12.5 2.25 9.83 4.92z"/>
+    <svg width="25" height="22" viewBox="0 0 32 32">
+      {/* 马头 (左) */}
+      <path d="M4 16 Q6 10 12 10 L18 12 L22 14 L20 18 L18 19 L18 22 L20 22 L20 25 L16 25 L16 22 L12 22 L12 19 Q9 19 6 21 L4 20 Z"
+            fill={color} stroke="#3e2723" strokeWidth="0.6" />
+      {/* 马眼 */}
+      <circle cx="9" cy="14" r="0.8" fill="#212121" />
+      {/* 马鬃 */}
+      <path d="M4 12 L2 10 M4 14 L2 13 M4 16 L2 16" stroke="#3e2723" strokeWidth="0.6" />
+      {/* 马鼻 */}
+      <ellipse cx="5" cy="17" rx="1" ry="0.6" fill="#212121" opacity="0.4" />
+      {/* 缰绳 */}
+      <line x1="22" y1="14" x2="28" y2="16" stroke="#5d4037" strokeWidth="0.6" />
+      <line x1="28" y1="16" x2="28" y2="22" stroke="#5d4037" strokeWidth="0.6" />
+      {/* 攻击/防御符号 */}
+      {type === 'attack' ? (
+        <>
+          {/* 红箭头 (攻击) */}
+          <path d="M26 4 L30 6 L26 8 L28 6 Z" fill="#c62828" stroke="#7f0000" strokeWidth="0.4" />
+          <path d="M24 8 L28 10 L24 12 L26 10 Z" fill="#c62828" stroke="#7f0000" strokeWidth="0.4" />
+        </>
+      ) : (
+        <>
+          {/* 蓝盾 (防御) */}
+          <path d="M26 2 L30 4 L30 8 Q30 11 26 12 Q22 11 22 8 L22 4 Z" fill={color} stroke="#0d47a1" strokeWidth="0.5" />
+          <path d="M25 6 L27 8 L29 5" stroke="#fff" strokeWidth="0.8" fill="none" />
+        </>
+      )}
     </svg>
   )
 }
