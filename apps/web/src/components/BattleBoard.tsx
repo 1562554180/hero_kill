@@ -9,7 +9,6 @@ import type { Card } from '@hero-legend/shared-types'
 
 export function BattleBoard() {
   const [resultOverlayDismissed, setResultOverlayDismissed] = useState(false)
-  const [hoveredHandCardId, setHoveredHandCardId] = useState<string | null>(null)
   const {
     gameState, phase, playerHand, actionLog, result, equippedCards, pendingCardId, pendingCardType, selectedTargetId,
     playKill, playScheme, playSchemeSelf, confirmTarget, confirmPlay, cancelPlay, playHeal, equipCard, endPlayPhase, cancelSelection, game,
@@ -1055,7 +1054,6 @@ export function BattleBoard() {
               const isSelectedDiscard = selectedDiscardCards.includes(card.id)
               const isSelectedFuChou = phase === 'selectFuChouDiscard' && fuChouPickSelected.includes(card.id)
               const isSelectedManWu = manWuSelectedCardId === card.id
-              const isHovered = hoveredHandCardId === card.id
               const isPending = pendingCardId === card.id
               return (
                 <div
@@ -1085,17 +1083,13 @@ export function BattleBoard() {
                       selectBuDaoCard(card.id)
                     }
                   }}
-                  onMouseEnter={() => setHoveredHandCardId(card.id)}
-                  onMouseLeave={() => setHoveredHandCardId(prev => prev === card.id ? null : prev)}
                   style={{
                     flexShrink: handNeedsOverlap ? 0 : 1,
                     marginLeft: handNeedsOverlap && idx > 0 ? -45 : 0,
                     outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu) ? '3px solid #b8860b' : 'none',
                     borderRadius: '6px',
                     cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
-                    transform: isHovered && !isPending ? 'translateY(-12px)' : 'none',
-                    transition: 'transform 0.12s',
-                    zIndex: isHovered ? 100 : isPending ? 2 : 0,
+                    zIndex: isPending ? 2 : 0,
                     position: 'relative',
                   }}
                 >
@@ -1110,7 +1104,7 @@ export function BattleBoard() {
                     isResponse={phase === 'awaitingResponse'}
                     isJudgeReplace={phase === 'judgeReplace'}
                     isPending={isPending}
-                    isLifted={isPending || isHovered}
+                    isLifted={isPending}
                     treasureSelectMode={phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'xiaDanPickCard'}
                     selectDualMode={phase === 'selectDualCards'}
                     selectDiscardMode={phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard'}
