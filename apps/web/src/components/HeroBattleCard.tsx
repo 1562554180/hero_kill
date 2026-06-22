@@ -3,6 +3,13 @@ import { isRedSuit, getTreasureSlots } from '@hero-legend/shared-types'
 import { useBattleStore } from '../stores/battleStore'
 import { HeroPortrait } from './HeroPortrait'
 
+/** 调试: 鼠标悬停AI手牌数时显示具体手牌内容. 关闭后回到原样(只显示数字) */
+const DEBUG_SHOW_AI_HAND = true
+
+const SUIT_GLYPH: Record<string, string> = { spade: '♠', heart: '♥', diamond: '♦', club: '♣' }
+const formatHandForDebug = (cards: Card[]): string =>
+  cards.map(c => `${c.name}${SUIT_GLYPH[c.suit] ?? c.suit}${c.number}`).join(', ')
+
 interface Props {
   hero: BattleHero
   isCurrentTurn: boolean
@@ -26,6 +33,17 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
   const { hero: config, currentHp, maxHp, role, instance } = hero
   const hpPercent = maxHp > 0 ? (currentHp / maxHp) * 100 : 0
   const isDanger = hpPercent <= 30
+
+  // 调试: 非玩家角色的手牌数悬停显示具体手牌
+  const debugHandTitle = (() => {
+    if (!DEBUG_SHOW_AI_HAND || !game) return undefined
+    const player = game.getPlayer()
+    if (player.getId() === hero.hero.id) return undefined
+    const p = game.getPlayerById(hero.hero.id)
+    const cards = p?.getHand() ?? []
+    if (cards.length === 0) return `${hero.hero.name}: 无手牌`
+    return `${hero.hero.name} 手牌 (${cards.length}): ${formatHandForDebug(cards)}`
+  })()
 
   const borderColor = isSelected
     ? '#ffd54f'
@@ -128,14 +146,17 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
             <TreasureSlot key={`s-${i}`} treasure={subTreasures[i]} type="sub" locked={i >= slotConfig.sub} />
           ))}
         </div>
-        <span style={{
-          background: 'rgba(255,255,255,0.12)',
-          color: 'var(--text-light)',
-          fontSize: '8px', fontWeight: 'bold',
-          padding: '0 4px', borderRadius: '2px',
-          border: '1px solid rgba(255,255,255,0.18)',
-          minWidth: '16px', textAlign: 'center',
-        }}>
+        <span
+          title={debugHandTitle}
+          style={{
+            background: 'rgba(255,255,255,0.12)',
+            color: 'var(--text-light)',
+            fontSize: '8px', fontWeight: 'bold',
+            padding: '0 4px', borderRadius: '2px',
+            border: '1px solid rgba(255,255,255,0.18)',
+            minWidth: '16px', textAlign: 'center',
+            cursor: debugHandTitle ? 'help' : 'default',
+          }}>
           {hero.handCards.length}
         </span>
       </div>
