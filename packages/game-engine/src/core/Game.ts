@@ -2378,7 +2378,8 @@ export class Game {
     } else if (card.name === '烽火狼烟') {
       let langYanBoost = false
       if (this.rollSubTreasure(player, 'treasure-lang-yan')) langYanBoost = true
-      for (const target of this.getEnemies(player)) {
+      for (const target of this.players) {
+        if (target.getId() === player.getId()) continue
         if (!target.isAlive()) continue
         if (!this.canBeSchemeTarget(target, card)) {
           this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-烽火狼烟无效`)
@@ -2409,7 +2410,8 @@ export class Game {
     } else if (card.name === '万箭齐发') {
       let wanJianBoost = false
       if (this.rollSubTreasure(player, 'treasure-wan-jian')) wanJianBoost = true
-      for (const target of this.getEnemies(player)) {
+      for (const target of this.players) {
+        if (target.getId() === player.getId()) continue
         if (!target.isAlive()) continue
         if (!this.canBeSchemeTarget(target, card)) {
           this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-万箭齐发无效`)
@@ -2765,7 +2767,8 @@ export class Game {
     if (this.rollSubTreasure(player, 'treasure-lang-yan')) langYanBoost = true
     // 烽火狼烟 card 引用(用于 canBeSchemeTarget)
     const fengHuoCard: Card = { id: 'fhly-virtual', suit: 'spade', number: 1, type: 'scheme', name: '烽火狼烟' } as Card
-    for (const target of this.getEnemies(player)) {
+    for (const target of this.players) {
+      if (target.getId() === player.getId()) continue
       if (!target.isAlive()) continue
       if (!this.canBeSchemeTarget(target, fengHuoCard)) {
         this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-烽火狼烟无效`)

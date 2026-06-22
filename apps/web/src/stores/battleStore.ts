@@ -280,29 +280,31 @@ function getHeroName(id: string, game: Game): string {
 function eventToLog(event: GameEvent, game: Game): string | null {
   const src = event.sourceHeroId ? getHeroName(event.sourceHeroId, game) : ''
   const tgt = event.targetHeroId ? getHeroName(event.targetHeroId, game) : ''
+  const wrap = (name: string) => name ? `**${name}**` : ''
+  const skill = (name: string) => `≪${name}≫`
   switch (event.type) {
-    case 'turn:start': return `── ${src} 的回合 (第${(event.data as any)?.turn}回合) ──`
+    case 'turn:start': return `── ${wrap(src)} 的回合 (第${(event.data as any)?.turn}回合) ──`
     case 'card:play': {
       const name = (event.data as any)?.cardName
-      return tgt ? `${src} 对 ${tgt} 使用了【${name}】` : `${src} 使用了【${name}】`
+      return tgt ? `${wrap(src)} 对 ${wrap(tgt)} 使用了【${name}】` : `${wrap(src)} 使用了【${name}】`
     }
     case 'damage:prevent': {
       const cardName = (event.data as any)?.cardName ?? '闪'
-      return `${src} 使用【${cardName}】抵消了攻击`
+      return `${wrap(src)} 使用【${cardName}】抵消了攻击`
     }
-    case 'damage:deal': return `${src} → ${tgt} 造成 ${(event.data as any)?.damage} 点伤害`
-    case 'damage:receive': return `${src} 受到 ${(event.data as any)?.damage} 点伤害`
-    case 'heal': return `${src} 回复 ${(event.data as any)?.amount} 点生命`
-    case 'dying': return `${src} 濒死!`
-    case 'die': return `${src} 阵亡!`
+    case 'damage:deal': return `${wrap(src)} → ${wrap(tgt)} 造成 ${(event.data as any)?.damage} 点伤害`
+    case 'damage:receive': return `${wrap(src)} 受到 ${(event.data as any)?.damage} 点伤害`
+    case 'heal': return `${wrap(src)} 回复 ${(event.data as any)?.amount} 点生命`
+    case 'dying': return `${wrap(src)} 濒死!`
+    case 'die': return `${wrap(src)} 阵亡!`
     case 'skill:trigger': {
       const name = (event.data as any)?.skillName
       const effect = (event.data as any)?.effect
-      return effect ? `【${name}】触发: ${effect}` : `【${name}】触发!`
+      return effect ? `${skill(name)} 触发: ${effect}` : `${skill(name)} 触发!`
     }
     case 'equipment:equip': {
       const cardName = (event.data as any)?.cardName ?? '装备'
-      return `${src} 使用了【${cardName}】`
+      return `${wrap(src)} 使用了【${cardName}】`
     }
     case 'card:draw': return null // too noisy
     case 'card:discard': {
@@ -310,15 +312,15 @@ function eventToLog(event: GameEvent, game: Game): string | null {
       const count = (event.data as any)?.count
       const reason = (event.data as any)?.reason
       if (cardDescs && cardDescs.length > 0) {
-        return `${src} 弃了 ${count ?? cardDescs.length} 张牌: ${cardDescs.join('、')}${reason ? ` (${reason})` : ''}`
+        return `${wrap(src)} 弃了 ${count ?? cardDescs.length} 张牌: ${cardDescs.join('、')}${reason ? ` (${reason})` : ''}`
       }
       return null
     }
     case 'card:gain': {
       const cardName = (event.data as any)?.cardName
       const from = (event.data as any)?.from
-      if (from === 'wugu') return `${src} 拿走了【${cardName}】`
-      return `${src} 获得了【${cardName}】`
+      if (from === 'wugu') return `${wrap(src)} 拿走了【${cardName}】`
+      return `${wrap(src)} 获得了【${cardName}】`
     }
     case 'scheme:nullify': {
       const name = (event.data as any)?.originalCardName
@@ -328,7 +330,7 @@ function eventToLog(event: GameEvent, game: Game): string | null {
       const data = event.data as any
       const phase = data?.phase
       if (phase === 'result' && data?.judgeCardName) {
-        return `⚖ ${src} 判定【${data.judgeCardName}】: ${data?.cardName ?? ''} (${data?.suit ?? ''} ${data?.number ?? ''})`
+        return `⚖ ${wrap(src)} 判定【${data.judgeCardName}】: ${data?.cardName ?? ''} (${data?.suit ?? ''} ${data?.number ?? ''})`
       }
       if (phase === 'result') {
         return `⚖ 判定结果: ${data?.cardName ?? ''} (${data?.suit ?? ''} ${data?.number ?? ''})`
@@ -340,7 +342,7 @@ function eventToLog(event: GameEvent, game: Game): string | null {
     }
     case 'wugu:pickStart': {
       const playerName = (event.data as any)?.playerName
-      return `🌾 ${playerName ?? src} 选择要拿的牌...`
+      return `🌾 ${playerName ? wrap(playerName) : wrap(src)} 选择要拿的牌...`
     }
     case 'wugu:reveal': return null
     default: return null
@@ -672,15 +674,21 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         return holderId
       },
       jieDaoAttackTargetHandler: async (game: Game, attacker: Player, borrower: Player, candidates: Player[]) => {
+        // 借刀 step 2: 走 pending+confirm 流程, 与手牌一致
+        // 复用pending状态 + jieDaoCandidates作为合法目标列表
         set({
-          phase: 'selectJieDaoTarget',
+          phase: 'playing',
+          jieDaoHolders: [],
           jieDaoCandidates: candidates.map(p => ({ id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() })),
+          pendingCardId: '__jieDaoStep2__',  // 标记 (card已离手, 但banner需知道显示)
+          pendingCardType: 'scheme',
+          selectedTargetId: null,
           game,
         })
         const targetId = await new Promise<string | null>(resolve => {
           set({ resolveJieDaoTarget: resolve })
         })
-        set({ resolveJieDaoTarget: null, jieDaoCandidates: [], phase: 'playing' })
+        set({ resolveJieDaoTarget: null, jieDaoCandidates: [], phase: 'playing', pendingCardId: null, pendingCardType: null })
         return targetId
       },
       tanNangTargetHandler: async (game: Game, attacker: Player, candidates: Player[]) => {
@@ -1149,7 +1157,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (!card) return
 
     if (card.name === '借刀杀人') {
-      // 借刀: 选持武器的玩家 (1阶段); 引擎收到holder后再开2阶段选攻击目标
+      // 借刀: 走 pending+confirm 流程 (1阶段选持武器玩家), 与其他牌一致
       const { game } = get()
       if (!game) return
       const player = game.getPlayer()
@@ -1158,11 +1166,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         p.isAlive() && p.getId() !== player.getId() && p.getEquippedCard('weapon'),
       ).map(p => ({ id: p.getId(), name: p.getName() }))
       set({
-        phase: 'selectJieDaoHolder',
+        phase: 'playing',
         pendingCardId: cardId,
         pendingCardType: 'scheme',
         selectedTargetId: null,
         jieDaoHolders: holders,
+        jieDaoCandidates: [],
       })
       return
     }
@@ -1197,8 +1206,40 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   confirmPlay: () => {
-    const { pendingCardId, pendingCardType, selectedTargetId, resolveAction } = get()
-    if (!pendingCardId || !resolveAction) return
+    const { pendingCardId, pendingCardType, selectedTargetId, jieDaoHolders, jieDaoCandidates, resolveAction, resolveJieDaoTarget } = get()
+    if (!pendingCardId) return
+
+    // 借刀杀人 step 2: 走 engine handler (无 resolveAction, 用 resolveJieDaoTarget)
+    if (pendingCardType === 'scheme' && jieDaoCandidates.length > 0) {
+      if (!resolveJieDaoTarget || !selectedTargetId) return
+      const targetId = selectedTargetId
+      set({
+        pendingCardId: null,
+        pendingCardType: null,
+        selectedTargetId: null,
+        resolveJieDaoTarget: null,
+        jieDaoCandidates: [],
+      })
+      resolveJieDaoTarget(targetId)
+      return
+    }
+
+    if (!resolveAction) return
+
+    // 借刀杀人 step 1: 走 action resolution
+    if (pendingCardType === 'scheme' && jieDaoHolders.length > 0) {
+      if (!selectedTargetId || !jieDaoHolders.some(h => h.id === selectedTargetId)) return
+      resolveAction(`jieDao:${pendingCardId}:${selectedTargetId}`)
+      set({
+        pendingCardId: null,
+        pendingCardType: null,
+        selectedTargetId: null,
+        resolveAction: null,
+        jieDaoHolders: [],
+      })
+      return
+    }
+
     if (pendingCardType === 'kill' || pendingCardType === 'scheme') {
       if (!selectedTargetId) return  // 需选目标但未选
       const prefix = pendingCardType === 'scheme' ? 'scheme' : 'kill'
@@ -1221,11 +1262,18 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   cancelPlay: () => {
+    const { resolveJieDaoTarget } = get()
     set({
       pendingCardId: null,
       pendingCardType: null,
       selectedTargetId: null,
+      jieDaoHolders: [],
+      jieDaoCandidates: [],
     })
+    if (resolveJieDaoTarget) {
+      set({ resolveJieDaoTarget: null })
+      resolveJieDaoTarget(null)
+    }
   },
 
   playHeal: (cardId: string) => {
@@ -1417,42 +1465,26 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     set({ resolveLongLin: null, longLinTargetInfo: null, longLinSelectedCards: [], phase: 'playing' })
   },
 
-  // 借刀杀人
-  selectJieDaoHolder: (holderId: string) => {
-    // 2阶段: 引擎回调 (用户已选holder, 进入选攻击目标)
-    const { resolveJieDaoHolder } = get()
-    if (resolveJieDaoHolder) {
-      resolveJieDaoHolder(holderId)
-      set({ resolveJieDaoHolder: null, jieDaoHolders: [] })
-      return
-    }
-    // 1阶段: UI预选holder, 启动引擎
-    const { pendingCardId, resolveAction } = get()
-    if (!pendingCardId || !resolveAction) return
-    resolveAction(`jieDao:${pendingCardId}:${holderId}`)
-    set({ resolveAction: null, pendingCardId: null, pendingCardType: null, jieDaoHolders: [] })
+  // 借刀杀人 (pending+confirm 流程统一通过 confirmTarget/confirmPlay/cancelPlay 处理)
+  // 保留以下方法仅为兼容旧调用, 实际不再使用 (UI 已切到 confirmTarget)
+  selectJieDaoHolder: (_holderId: string) => {
+    // noop: 借刀 step 1 由 confirmPlay 处理
   },
   cancelJieDaoHolder: () => {
-    const { resolveJieDaoHolder } = get()
-    if (resolveJieDaoHolder) {
-      resolveJieDaoHolder(null)
-      set({ resolveJieDaoHolder: null, jieDaoHolders: [] })
-      return
-    }
-    // 1阶段取消: 重置phase, 牌保留
-    set({ phase: 'playing', pendingCardId: null, pendingCardType: null, jieDaoHolders: [] })
+    // 兼容: 清除step 1的holders
+    set({ jieDaoHolders: [] })
   },
-  selectJieDaoTarget: (targetId: string) => {
-    const { resolveJieDaoTarget } = get()
-    if (!resolveJieDaoTarget) return
-    resolveJieDaoTarget(targetId)
-    set({ resolveJieDaoTarget: null, jieDaoCandidates: [] })
+  selectJieDaoTarget: (_targetId: string) => {
+    // noop: 借刀 step 2 由 confirmPlay 处理
   },
   cancelJieDaoTarget: () => {
+    // 兼容: 走cancelPlay统一处理 (会 resolveJieDaoTarget(null))
     const { resolveJieDaoTarget } = get()
-    if (!resolveJieDaoTarget) return
-    resolveJieDaoTarget(null)
-    set({ resolveJieDaoTarget: null, jieDaoCandidates: [] })
+    set({ jieDaoCandidates: [], pendingCardId: null, pendingCardType: null, selectedTargetId: null })
+    if (resolveJieDaoTarget) {
+      set({ resolveJieDaoTarget: null })
+      resolveJieDaoTarget(null)
+    }
   },
 
   // 探囊取物
