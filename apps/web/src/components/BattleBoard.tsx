@@ -157,11 +157,13 @@ export function BattleBoard() {
 
   // 选目标阶段: 判断某英雄是否合法目标 (用于高亮可杀/可探囊的目标, 其他玩家变暗)
   const pendingSchemeName = (() => {
-    if (phase !== 'selectTarget' || pendingCardType !== 'scheme' || !pendingCardId) return null
+    if (pendingCardType !== 'scheme' || !pendingCardId) return null
+    if (pendingCardId === '__jieDaoStep2__') return '借刀杀人'
     return playerHand.find(c => c.id === pendingCardId)?.name ?? null
   })()
   const pendingSchemeCard = (() => {
-    if (phase !== 'selectTarget' || pendingCardType !== 'scheme' || !pendingCardId) return null
+    if (pendingCardType !== 'scheme' || !pendingCardId) return null
+    if (pendingCardId === '__jieDaoStep2__') return null
     return playerHand.find(c => c.id === pendingCardId) ?? null
   })()
   const isValidTarget = (heroId: string): boolean => {
@@ -175,12 +177,12 @@ export function BattleBoard() {
       return game.isInAttackRange(attacker, target)
     }
     // 借刀杀人 step 1: 选持武器玩家
-    if (inPendingSelect && pendingCardType === 'scheme' && jieDaoCandidates.length === 0) {
+    if (inPendingSelect && pendingCardType === 'scheme' && pendingSchemeName === '借刀杀人' && jieDaoCandidates.length === 0) {
       if (jieDaoHolders.length === 0) return false
       return jieDaoHolders.some(h => h.id === heroId)
     }
     // 借刀杀人 step 2: 选攻击目标 (在holder攻击范围内)
-    if (inPendingSelect && pendingCardType === 'scheme' && jieDaoCandidates.length > 0) {
+    if (inPendingSelect && pendingCardType === 'scheme' && pendingSchemeName === '借刀杀人' && jieDaoCandidates.length > 0) {
       return jieDaoCandidates.some(c => c.id === heroId)
     }
     if (inPendingSelect && pendingCardType === 'scheme' && pendingSchemeName === '探囊取物') {
@@ -417,7 +419,7 @@ export function BattleBoard() {
                   '烽火狼烟': '除你以外的所有其他角色须各打出1张【杀】, 否则受到你1点伤害',
                   '五谷丰登': '亮出牌堆顶8张牌, 所有角色依次拿取其中1张',
                   '探囊取物': '获得攻击范围内1名其他角色的1张手牌/判定/装备',
-                  '釜底抽薪': '弃攻击范围内1名其他角色的1张手牌/判定/装备',
+                  '釜底抽薪': '弃任意1名其他角色的1张手牌/判定/装备 (无距离限制)',
                   '借刀杀人': isJieDaoStep2
                     ? '选择被借刀玩家的攻击目标 (在holder攻击范围内)'
                     : '选择1名装备武器的其他角色, 该角色需对其攻击范围内的另一名角色使用【杀】',
