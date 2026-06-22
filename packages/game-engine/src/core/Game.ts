@@ -20,6 +20,8 @@ export interface GameConfig {
   playerActionHandler?: (game: Game, player: Player) => Promise<GameAction | null>
   /** 变法/判定交互：返回要替换的手牌ID，null表示不替换 */
   judgeActionHandler?: (game: Game, player: Player, judgeCard: Card) => Promise<string | null>
+  /** 超脱: 判定时用黑色手牌或装备替换, 返回 cardId (hand或装备均可). null=不替换 */
+  chaoTuoHandler?: (game: Game, player: Player, judgeCard: Card, blackCardIds: { hand: string[]; equipment: Array<{ cardId: string; slot: string }> }) => Promise<string | null>
   /** 响应交互：例如决斗中打杀/南蛮入侵出杀，返回要打的牌ID, null表示不响应 */
   responseActionHandler?: (game: Game, player: Player, responseType: 'kill' | 'nullify' | 'dodge', context: { sourceHeroId: string, schemeName: string, needCount?: number; targetHeroId?: string }) => Promise<string | null>
   /** 拼点交互：选择1张手牌参与拼点，返回null=取消 */
@@ -64,6 +66,8 @@ export interface GameConfig {
   ciKeHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
   /** 蝶魂: 群体锦囊目标是否发动 (true=跳过结算并摸1张; false=走正常逻辑) */
   dieHunHandler?: (game: Game, target: Player, schemeName: string) => Promise<boolean>
+  /** 后主: 使用闪后是否发动 + 选目标. 返回 null=不发动; 否则为目标id */
+  houZhuHandler?: (game: Game, dodger: Player, candidates: Player[]) => Promise<string | null>
   /** 天香: 判定开始前是否发动 (返回cardId=弃1张手牌免判; null=不发动, 正常判定) */
   tianXiangHandler?: (game: Game, player: Player, judgeCard: Card) => Promise<string | null>
   /** 曼舞: 受伤时选择弃哪张红桃/黑桃手牌 (返回cardId; null=取消/不发动) */
@@ -88,6 +92,8 @@ export interface GameConfig {
   fuChouChooseHandler?: (game: Game, attacker: Player, handCards: Card[]) => Promise<'discard' | 'damage'>
   /** 复仇: 来源选弃2张手牌时, 选哪2张 (返回2个cardId, 至少2个; 不足时引擎补齐) */
   fuChouPickHandler?: (game: Game, attacker: Player, handCards: Card[]) => Promise<string[]>
+  /** 濒死救援: 救者是否用药救濒死目标 (返回要弃的药cardIds数组; null/[]=不救). AI由引擎自行决策 */
+  dyingRescueHandler?: (game: Game, savior: Player, dyingTarget: Player, yaoHandCards: Card[]) => Promise<string[] | null>
 }
 
 export class Game {
@@ -295,12 +301,8 @@ export class Game {
   private async onKillDamageDealt(attacker: Player, defender: Player): Promise<void> {
     // 强化: 30%几率伤害+1
     if (this.rollSubTreasure(attacker, 'treasure-qiang-hua')) {
-      const extraDmg = defender.takeDamage(1)
       this.emitSkillTrigger(attacker, '强化', '伤害+1')
-      this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: defender.getId(), data: { damage: 1 } })
-      if (!defender.isAlive()) {
-        this.eventBus.emit({ type: 'die', sourceHeroId: defender.getId(), data: { killedBy: attacker.getId(), extraDamage: true } })
-      }
+      await this.applyDamage(attacker, defender, 1)
     }
     // 吸血: 30%几率回复1点体力
     if (this.rollSubTreasure(attacker, 'treasure-xi-xue')) {
@@ -339,12 +341,8 @@ export class Game {
       if (await this.promptManWu(attacker, victim, 1)) {
         this.emitSkillTrigger(victim, '伤之仇', '反弹被转移')
       } else {
-        const dmg = attacker.takeDamage(1)
         this.emitSkillTrigger(victim, '伤之仇', '反击1点伤害')
-        this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
-        if (!attacker.isAlive()) {
-          this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
-        }
+        await this.applyDamage(victim, attacker, 1)
       }
     }
     // 伤之贪: 30%几率摸1张牌
@@ -407,6 +405,35 @@ export class Game {
     return true
   }
 
+  /** 后主: 使用闪后可令另一名角色判定, 若黑桃则其掉2血 */
+  async triggerHouZhu(dodger: Player): Promise<void> {
+    if (!dodger.hasSkillOrTreasure('hou-zhu')) return
+    if (!dodger.isAlive()) return
+    const candidates = this.players.filter(p => p.isAlive() && p.getId() !== dodger.getId())
+    if (candidates.length === 0) return
+
+    let targetId: string | null = null
+    if (dodger.getRole() === 'player' && this.config.houZhuHandler) {
+      targetId = await this.config.houZhuHandler(this, dodger, candidates)
+    } else {
+      // AI: 50% 概率触发, 随机选目标
+      if (Math.random() < 0.5) {
+        targetId = candidates[Math.floor(Math.random() * candidates.length)].getId()
+      }
+    }
+
+    if (!targetId) return
+    const target = this.getPlayerById(targetId)
+    if (!target || !target.isAlive()) return
+
+    this.emitSkillTrigger(dodger, '后主', `令${target.getName()}判定`)
+    const result = await this.judge(target)
+    if (result.suit === 'spade') {
+      this.emitSkillTrigger(dodger, '后主', `${target.getName()}判定黑桃, 掉2血`)
+      await this.applyDamage(dodger, target, 2)
+    }
+  }
+
   /** 抽取一张手牌（用于法家、起义等） */
   private stealRandomCard(from: Player, to: Player): void {
     const hand = from.getHand()
@@ -433,25 +460,73 @@ export class Game {
       : alivePlayers
 
     for (const player of orderedPlayers) {
-      if (!player.hasSkillOrTreasure('bian-fa')) continue
-      if (!player.useSkill('bian-fa')) continue
-      if (player.getHandSize() === 0) continue
+      // 变法: 替换判定牌
+      if (player.hasSkillOrTreasure('bian-fa') && player.useSkill('bian-fa') && player.getHandSize() > 0) {
+        let replaceCardId: string | null = null
+        if (player.getRole() === 'player' && this.config.judgeActionHandler) {
+          replaceCardId = await this.config.judgeActionHandler(this, player, card)
+        } else {
+          // AI: 50%概率替换（简化逻辑）
+          replaceCardId = Math.random() < 0.5 ? player.getHand()[0].id : null
+        }
 
-      let replaceCardId: string | null = null
-      if (player.getRole() === 'player' && this.config.judgeActionHandler) {
-        replaceCardId = await this.config.judgeActionHandler(this, player, card)
-      } else {
-        // AI: 50%概率替换（简化逻辑）
-        replaceCardId = Math.random() < 0.5 ? player.getHand()[0].id : null
+        if (replaceCardId) {
+          const replacement = this.removeHandCard(player,replaceCardId)
+          if (replacement) {
+            this.cardDeck.discard([card])
+            this.emitSkillTrigger(player, '变法', `用${replacement.name}替换${card.name}`)
+            card = replacement
+            this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'replace' } })
+          }
+        }
       }
 
-      if (replaceCardId) {
-        const replacement = this.removeHandCard(player,replaceCardId)
-        if (replacement) {
-          this.cardDeck.discard([card])
-          this.emitSkillTrigger(player, '变法', `用${replacement.name}替换${card.name}`)
-          card = replacement
-          this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'replace' } })
+      // 超脱: 用黑色手牌或装备替换判定牌
+      if (player.hasSkillOrTreasure('chao-tuo')) {
+        const blackHandIds = player.getHand().filter(c => isBlackSuit(c.suit)).map(c => c.id)
+        const blackEquipment: Array<{ cardId: string; slot: string }> = []
+        for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
+          const eq = player.getEquippedCard(slot)
+          if (eq && isBlackSuit(eq.suit)) blackEquipment.push({ cardId: eq.id, slot })
+        }
+        if (blackHandIds.length > 0 || blackEquipment.length > 0) {
+          let replaceCardId: string | null = null
+          if (player.getRole() === 'player' && this.config.chaoTuoHandler) {
+            replaceCardId = await this.config.chaoTuoHandler(this, player, card, { hand: blackHandIds, equipment: blackEquipment })
+          } else {
+            // AI: 50%概率替换
+            if (Math.random() < 0.5) {
+              if (blackHandIds.length > 0) replaceCardId = blackHandIds[0]
+              else if (blackEquipment.length > 0) replaceCardId = blackEquipment[0].cardId
+            }
+          }
+
+          if (replaceCardId) {
+            let replacement: Card | undefined
+            // 尝试从手牌取
+            const handCard = player.getHand().find(c => c.id === replaceCardId)
+            if (handCard) {
+              replacement = this.removeHandCard(player, replaceCardId) ?? undefined
+            } else {
+              // 从装备区取
+              for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
+                const eq = player.getEquippedCard(slot)
+                if (eq && eq.id === replaceCardId) {
+                  replacement = player.unequip(slot) ?? undefined
+                  if (replacement) {
+                    this.eventBus.emit({ type: 'equipment:unequip', sourceHeroId: player.getId(), data: { cardId: replacement.id, slot } })
+                  }
+                  break
+                }
+              }
+            }
+            if (replacement) {
+              this.cardDeck.discard([card])
+              this.emitSkillTrigger(player, '超脱', `用${replacement.name}(${replacement.suit})替换${card.name}`)
+              card = replacement
+              this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'replace' } })
+            }
+          }
         }
       }
     }
@@ -1034,6 +1109,7 @@ export class Game {
           dodgeCount++
           const dodgeSkill = dodgeCard.name !== '闪'
           this.eventBus.emit({ type: 'damage:prevent', sourceHeroId: defender.getId(), data: { cardId: dodgeCard.id } })
+          if (dodgeCard.name === '闪') await this.triggerHouZhu(defender)
           if (dodgeSkill) {
             let dName = '轻影'
             if (dodgeCard.name === '杀' && defender.hasSkillOrTreasure('wu-mu')) dName = '武穆'
@@ -1101,18 +1177,13 @@ export class Game {
         if (await this.promptManWu(defender, attacker, damage)) {
           // 伤害已转移, 不触发受伤害后效果
         } else {
-          const actualDamage = defender.takeDamage(damage)
-          this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: defender.getId(), data: { damage } })
-          this.eventBus.emit({ type: 'damage:receive', sourceHeroId: defender.getId(), data: { damage, from: attacker.getId() } })
-
-          // 受伤触发
-          await this.onDamageReceived(defender, attacker, killCard)
-
-          // 杀造成伤害后: 攻击类辅印触发
-          await this.onKillDamageDealt(attacker, defender)
-
-          // 受到杀的伤害后: 防御类辅印触发
-          await this.onKillDamageReceived(defender, attacker)
+          // 杀伤害: 走统一伤害处理 (含濒死救援 + 受伤触发 + 杀辅印)
+          await this.applyDamage(attacker, defender, damage, killCard, {
+            afterOnDamageReceived: async () => {
+              await this.onKillDamageDealt(attacker, defender)
+              await this.onKillDamageReceived(defender, attacker)
+            },
+          })
         }
 
         // 霸王弓: 杀命中后拆对方一匹马
@@ -1200,15 +1271,12 @@ export class Game {
             if (await this.promptManWu(defender, attacker, 1)) {
               // 伤害已转移
             } else {
-              const dmg = defender.takeDamage(1)
-              this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: defender.getId(), data: { damage: 1 } })
-              this.eventBus.emit({ type: 'damage:receive', sourceHeroId: defender.getId(), data: { damage: 1, from: attacker.getId() } })
-              await this.onDamageReceived(defender, attacker, killCard)
-              await this.onKillDamageDealt(attacker, defender)
-              await this.onKillDamageReceived(defender, attacker)
-              if (!defender.isAlive()) {
-                this.eventBus.emit({ type: 'die', sourceHeroId: defender.getId(), data: { killedBy: attacker.getId() } })
-              }
+              await this.applyDamage(attacker, defender, 1, killCard, {
+                afterOnDamageReceived: async () => {
+                  await this.onKillDamageDealt(attacker, defender)
+                  await this.onKillDamageReceived(defender, attacker)
+                },
+              })
             }
           }
         }
@@ -1231,6 +1299,12 @@ export class Game {
 
   /** 受伤后的被动技能触发 */
   private async onDamageReceived(victim: Player, attacker: Player, sourceCard?: Card): Promise<void> {
+    // 濒死救援: HP≤0 时先进入濒死阶段 (鸩杀→救援→诀别). 若未救活则不再走下面的技能触发
+    if (victim.getCurrentHp() <= 0 && victim.isAlive()) {
+      const saved = await this.rescueDyingPlayer(victim)
+      if (!saved) return
+    }
+
     // 补刀: 关羽回合外, 攻击范围内的角色被【杀】掉血后, 可对该角色补杀, 造成伤害则继续
     if (sourceCard?.name === '杀' && victim.isAlive()) {
       const guanYu = this.players.find(p => p.hero.hero.id === 'guan-yu' && p.isAlive())
@@ -1241,14 +1315,6 @@ export class Game {
           guanYu.getHand().some(c => this.canUseAsKill(c, guanYu))) {
         await this.executeBuDao(guanYu, victim)
       }
-    }
-    // 诀别: 虞姬进入濒死(HP=0)时, 可指定一名男性英雄, 阵亡后所有牌归其
-    if (victim.hero.hero.id === 'yu-ji' && victim.getCurrentHp() <= 0 && !this.jueBieTarget) {
-      await this.promptJueBieTarget(victim)
-    }
-    // 鸩杀: 吕雉有药时, 可对濒死目标使用【药】使其立即阵亡
-    if (victim.getCurrentHp() <= 0 && victim.hero.hero.id !== 'lv-zhi') {
-      await this.promptZhenSha(victim)
     }
 
     // 集权: 获得造成伤害的牌
@@ -1534,17 +1600,19 @@ export class Game {
     // 找目标
     const target = this.players.find(p => p.getId() === targetId)
     if (!target || !target.isAlive() || target.getId() === victim.getId()) return false
-    // 目标承受伤害
-    const actualDamage = target.takeDamage(damage)
-    this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: target.getId(), data: { damage } })
-    this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: attacker.getId() } })
-    // 目标摸X张牌, X=目标(被转移者)损失的血量 (target alive 时自然 ≤ maxHp-1)
-    const hpLoss = target.getMaxHp() - target.getCurrentHp()
-    if (hpLoss > 0) {
-      const drawn = this.cardDeck.draw(hpLoss)
-      target.drawCards(drawn)
-    }
-    this.emitSkillTrigger(victim, '曼舞', `转移${damage}点伤害给${target.getName()},摸${hpLoss}张牌`)
+    // 目标承受伤害 (走统一处理, 含濒死救援)
+    await this.applyDamage(attacker, target, damage, undefined, {
+      skipOnDamageReceived: true,  // 转移伤害不重复触发受伤技能 (原victim已触发过)
+      afterOnDamageReceived: async () => {
+        // 目标摸X张牌, X=目标(被转移者)损失的血量 (target alive 时自然 ≤ maxHp-1)
+        const hpLoss = target.getMaxHp() - target.getCurrentHp()
+        if (hpLoss > 0) {
+          const drawn = this.cardDeck.draw(hpLoss)
+          target.drawCards(drawn)
+        }
+      },
+    })
+    this.emitSkillTrigger(victim, '曼舞', `转移${damage}点伤害给${target.getName()}`)
     return true
   }
 
@@ -1634,11 +1702,8 @@ export class Game {
       this.emitSkillTrigger(victim, '复仇', '反弹被转移')
       return
     }
-    const dmg = attacker.takeDamage(1)
-    this.eventBus.emit({ type: 'damage:deal', sourceHeroId: victim.getId(), targetHeroId: attacker.getId(), data: { damage: dmg } })
-    if (!attacker.isAlive()) {
-      this.eventBus.emit({ type: 'die', sourceHeroId: attacker.getId(), data: { killedBy: victim.getId() } })
-    }
+    // 走统一伤害处理 (含濒死救援). skipOnDamageReceived避免attacker死后再次触发复仇死循环
+    await this.applyDamage(victim, attacker, 1, undefined, { skipOnDamageReceived: true })
   }
 
   private async dealDuelDamage(loser: Player, source: Player): Promise<void> {
@@ -1652,16 +1717,8 @@ export class Game {
       // 伤害已转移
       return
     }
-    const actual = loser.takeDamage(damage)
-    this.eventBus.emit({ type: 'damage:deal', sourceHeroId: source.getId(), targetHeroId: loser.getId(), data: { damage } })
-    this.eventBus.emit({ type: 'damage:receive', sourceHeroId: loser.getId(), data: { damage, from: source.getId() } })
-
-    // 受伤触发 (法家、还击/反击、复仇等)
-    await this.onDamageReceived(loser, source)
-
-    if (!loser.isAlive()) {
-      this.eventBus.emit({ type: 'die', sourceHeroId: loser.getId(), data: { killedBy: source.getId() } })
-    }
+    // 走统一伤害处理 (含濒死救援)
+    await this.applyDamage(source, loser, damage)
   }
 
   // --- 无懈可击 (锦囊抵消) ---
@@ -1788,6 +1845,187 @@ export class Game {
     return this.players.filter(p => (p.getRole() === 'player' || p.getRole() === 'ally') && p.isAlive())
   }
 
+  /** 同阵营判定: player/ally 是一方, enemy 是另一方 */
+  isSameSide(a: Player, b: Player): boolean {
+    const aFriendly = a.getRole() !== 'enemy'
+    const bFriendly = b.getRole() !== 'enemy'
+    return aFriendly === bFriendly
+  }
+
+  /**
+   * 濒死救援阶段: 当某玩家HP≤0时, 进入濒死
+   * - 鸩杀: 吕雉可先用【药】让目标立即阵亡 (先发制人)
+   * - 救援: 仅询问濒死者的友方, 从濒死者开始顺时针, 每个友方可选择用【药】救 (每人可弃任意张药)
+   * - 诀别: 若濒死者是虞姬且未获救, 询问指定继承男性
+   * - 返回 true = 已救活 (HP>0); false = 未救活 (将阵亡, 由调用方emit die)
+   */
+  async rescueDyingPlayer(dyingTarget: Player): Promise<boolean> {
+    if (dyingTarget.getCurrentHp() > 0 || !dyingTarget.isAlive()) return true
+    this.eventBus.emit({ type: 'dying', sourceHeroId: dyingTarget.getId(), data: {} })
+
+    // 1. 鸩杀: 吕雉是否先发制人
+    await this.promptZhenSha(dyingTarget)
+    if (dyingTarget.getCurrentHp() > 0) return true
+    if (!dyingTarget.isAlive()) return false
+
+    // 2. 仅询问濒死者的友方 (同阵营): 从濒死者开始顺时针, 每个友方可弃药救人
+    const friends = this.players.filter(p =>
+      (p.isAlive() || p.getId() === dyingTarget.getId()) && this.isSameSide(p, dyingTarget)
+    )
+    const startIdx = friends.findIndex(p => p.getId() === dyingTarget.getId())
+    if (startIdx < 0) return false
+    for (let i = 0; i < friends.length; i++) {
+      if (dyingTarget.getCurrentHp() > 0) break
+      const savior = friends[(startIdx + i) % friends.length]
+      const yaoHandCards = savior.getHand().filter(c => c.name === '药')
+      // 回春: 扁鹊的红桃手牌或装备也可当药 (救援场景下不限制"回合外"条件)
+      const hasHuiChun = savior.hasSkillOrTreasure('hui-chun')
+      const huiChunCards: Card[] = hasHuiChun
+        ? [
+          ...savior.getHand().filter(c => c.suit === 'heart'),
+          ...['weapon', 'armor', 'attackMount', 'defenseMount']
+            .map(s => savior.getEquippedCard(s as any))
+            .filter((c): c is Card => !!c && c.suit === 'heart'),
+        ]
+        : []
+      const allRescueCards = [...yaoHandCards, ...huiChunCards]
+      if (allRescueCards.length === 0) continue
+
+      let cardIds: string[] = []
+      if (savior.getRole() === 'player' && this.config.dyingRescueHandler) {
+        cardIds = (await this.config.dyingRescueHandler(this, savior, dyingTarget, allRescueCards)) ?? []
+      } else if (yaoHandCards.length > 0) {
+        // AI 友方: 自动弃1张药救 (优先用药, 回春卡当备选)
+        cardIds = [yaoHandCards[0].id]
+      } else if (huiChunCards.length > 0) {
+        cardIds = [huiChunCards[0].id]
+      }
+
+      if (cardIds.length > 0) {
+        this.useYaoToSave(savior, dyingTarget, cardIds)
+      }
+    }
+
+    if (dyingTarget.getCurrentHp() > 0) return true
+
+    // 3. 诀别: 虞姬濒死时指定继承男性
+    if (dyingTarget.hero.hero.id === 'yu-ji' && !this.jueBieTarget) {
+      await this.promptJueBieTarget(dyingTarget)
+    }
+    return false
+  }
+
+  /** 用药救濒死目标: 救者弃药 (或扁鹊的红桃回春卡), 给目标回血 */
+  useYaoToSave(savior: Player, target: Player, cardIds: string[]): void {
+    let usedCount = 0
+    const hasHuiChun = savior.hasSkillOrTreasure('hui-chun')
+    for (const cardId of cardIds) {
+      // 先尝试手牌 (药 或 回春用的红桃)
+      let card: Card | undefined = savior.getHand().find(c => c.id === cardId)
+      let fromEquipment = false
+      let equipmentSlot: EquipmentSlot | null = null
+      if (!card) {
+        // 尝试装备区 (回春用的红桃装备)
+        for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
+          const eq = savior.getEquippedCard(slot)
+          if (eq && eq.id === cardId) {
+            card = eq
+            fromEquipment = true
+            equipmentSlot = slot
+            break
+          }
+        }
+      }
+      if (!card) continue
+      // 校验: 药 或 (回春 + 红桃)
+      const valid = card.name === '药' || (hasHuiChun && card.suit === 'heart')
+      if (!valid) continue
+
+      if (fromEquipment && equipmentSlot) {
+        const removed = savior.unequip(equipmentSlot)
+        if (removed) {
+          this.cardDeck.discard([removed])
+          this.eventBus.emit({ type: 'equipment:unequip', sourceHeroId: savior.getId(), data: { cardId: removed.id, slot: equipmentSlot } })
+        }
+      } else {
+        this.removeHandCard(savior, cardId)
+        this.cardDeck.discard([card])
+      }
+      const healed = target.heal(1)
+      if (healed > 0) {
+        this.eventBus.emit({
+          type: 'heal',
+          sourceHeroId: target.getId(),
+          data: { amount: healed, from: savior.getId(), reason: 'dying-rescue' },
+        })
+        usedCount++
+      }
+    }
+    if (usedCount > 0) {
+      this.emitSkillTrigger(savior, '救援', `用${usedCount}张【药】救${target.getName()}`)
+    }
+  }
+
+  /**
+   * 统一伤害处理: takeDamage → damage events → 濒死救援 → onDamageReceived → 死亡判定
+   * @param skipOnDamageReceived 复仇反弹等场景不需要触发 onDamageReceived (避免死循环)
+   * @param afterOnDamageReceived 杀伤害额外逻辑 (强化/吸血/伤之仇等)
+   */
+  async applyDamage(
+    attacker: Player,
+    defender: Player,
+    damage: number,
+    sourceCard?: Card,
+    options?: {
+      skipOnDamageReceived?: boolean
+      afterOnDamageReceived?: () => Promise<void>
+    }
+  ): Promise<void> {
+    const actual = defender.takeDamage(damage)
+    if (actual <= 0) return
+
+    this.eventBus.emit({
+      type: 'damage:deal',
+      sourceHeroId: attacker.getId(),
+      targetHeroId: defender.getId(),
+      data: { damage: actual },
+    })
+    this.eventBus.emit({
+      type: 'damage:receive',
+      sourceHeroId: defender.getId(),
+      data: { damage: actual, from: attacker.getId() },
+    })
+
+    // 濒死救援: 若HP≤0, 进入濒死阶段
+    if (!defender.isAlive()) {
+      const saved = await this.rescueDyingPlayer(defender)
+      if (!saved) {
+        this.eventBus.emit({
+          type: 'die',
+          sourceHeroId: defender.getId(),
+          data: { killedBy: attacker.getId() },
+        })
+        return
+      }
+    }
+
+    if (!options?.skipOnDamageReceived) {
+      await this.onDamageReceived(defender, attacker, sourceCard)
+    }
+
+    if (options?.afterOnDamageReceived) {
+      await options.afterOnDamageReceived()
+    }
+
+    if (!defender.isAlive()) {
+      this.eventBus.emit({
+        type: 'die',
+        sourceHeroId: defender.getId(),
+        data: { killedBy: attacker.getId() },
+      })
+    }
+  }
+
   getAlivePlayers(): Player[] {
     return this.players.filter(p => p.isAlive())
   }
@@ -1876,6 +2114,7 @@ export class Game {
       this.removeHandCard(defender, dodgeCard.id)
       this.cardDeck.discard([dodgeCard])
       this.eventBus.emit({ type: 'damage:prevent', sourceHeroId: defender.getId(), data: { cardId: dodgeCard.id } })
+      if (dodgeCard.name === '闪') await this.triggerHouZhu(defender)
       if (defender.hasSkillOrTreasure('tu-qiang')) {
         const drawn = this.cardDeck.draw(1)
         defender.drawCards(drawn)
@@ -1917,15 +2156,11 @@ export class Game {
     }
   }
 
-  /** 应用伤害并触发受击效果 (含曼舞) */
+  /** 应用伤害并触发受击效果 (含曼舞, 含濒死救援) */
   private async applyDamageWithManWu(victim: Player, attacker: Player, damage: number, sourceCard?: Card): Promise<void> {
     if (this.zuijiuActive) { damage += 1; this.zuijiuActive = false }
     if (await this.promptManWu(victim, attacker, damage)) return
-    const actual = victim.takeDamage(damage)
-    if (actual <= 0) return
-    this.eventBus.emit({ type: 'damage:deal', sourceHeroId: attacker.getId(), targetHeroId: victim.getId(), data: { damage } })
-    this.eventBus.emit({ type: 'damage:receive', sourceHeroId: victim.getId(), data: { damage, from: attacker.getId() } })
-    await this.onDamageReceived(victim, attacker, sourceCard)
+    await this.applyDamage(attacker, victim, damage, sourceCard)
   }
 
   /**
@@ -2169,12 +2404,7 @@ export class Game {
           if (await this.promptManWu(target, player, damage)) {
             // 伤害已转移
           } else {
-            target.takeDamage(damage)
-            this.eventBus.emit({ type: 'damage:deal', sourceHeroId: player.getId(), targetHeroId: target.getId(), data: { damage } })
-            this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: player.getId() } })
-            if (!target.isAlive()) {
-              this.eventBus.emit({ type: 'die', sourceHeroId: target.getId(), data: { killedBy: player.getId() } })
-            }
+            await this.applyDamage(player, target, damage, card)
           }
         }
       }
@@ -2200,6 +2430,7 @@ export class Game {
             targetHeroId: player.getId(),
             data: { cardName: dodgeCard.name },
           })
+          if (dodgeCard.name === '闪') await this.triggerHouZhu(target)
           // 轻灵: 使用闪后30%几率摸一张
           if (this.rollSubTreasure(target, 'treasure-qing-ling')) {
             const drawn = this.cardDeck.draw(1)
@@ -2214,12 +2445,7 @@ export class Game {
           if (await this.promptManWu(target, player, damage)) {
             // 伤害已转移
           } else {
-            target.takeDamage(damage)
-            this.eventBus.emit({ type: 'damage:deal', sourceHeroId: player.getId(), targetHeroId: target.getId(), data: { damage } })
-            this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: player.getId() } })
-            if (!target.isAlive()) {
-              this.eventBus.emit({ type: 'die', sourceHeroId: target.getId(), data: { killedBy: player.getId() } })
-            }
+            await this.applyDamage(player, target, damage, card)
           }
         }
       }
@@ -2248,6 +2474,54 @@ export class Game {
     this.cardDeck.discard([card])
     this.eventBus.emit({ type: 'heal', sourceHeroId: player.getId(), data: { amount: healAmount } })
     this.lastPlayedCardName = '药'
+  }
+
+  /** 回春: 扁鹊在自己回合外用红桃手牌或装备当药 */
+  playerHuiChunHeal(player: Player, cardId: string): void {
+    if (!player.hasSkillOrTreasure('hui-chun')) return
+    // 只能在回合外使用
+    if (this.players[this.currentPlayerIndex]?.getId() === player.getId()) return
+    if (player.getCurrentHp() >= player.getMaxHp()) return
+
+    // 找卡 (手牌或装备)
+    let card: Card | undefined
+    let fromEquipment = false
+    let equipmentSlot: EquipmentSlot | null = null
+    card = player.getHand().find(c => c.id === cardId)
+    if (!card) {
+      for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
+        const eq = player.getEquippedCard(slot)
+        if (eq && eq.id === cardId) {
+          card = eq
+          fromEquipment = true
+          equipmentSlot = slot
+          break
+        }
+      }
+    }
+    if (!card || card.suit !== 'heart') return
+
+    // 弃卡
+    if (fromEquipment && equipmentSlot) {
+      const removed = player.unequip(equipmentSlot)
+      if (removed) {
+        this.cardDeck.discard([removed])
+        this.eventBus.emit({ type: 'equipment:unequip', sourceHeroId: player.getId(), data: { cardId: removed.id, slot: equipmentSlot } })
+      }
+    } else {
+      this.removeHandCard(player, cardId)
+      this.cardDeck.discard([card])
+    }
+
+    // 治疗
+    let healAmount = 1
+    if (this.rollSubTreasure(player, 'yi-xin')) {
+      healAmount += 1
+      this.emitSkillTrigger(player, '医心', '治疗+1')
+    }
+    player.heal(healAmount)
+    this.eventBus.emit({ type: 'heal', sourceHeroId: player.getId(), data: { amount: healAmount } })
+    this.emitSkillTrigger(player, '回春', `用${card.name}当药`)
   }
 
   playerEquipCard(player: Player, cardId: string): void {
@@ -2514,12 +2788,7 @@ export class Game {
         let damage = 1
         if (langYanBoost) damage += 1
         if (this.zuijiuActive) { damage += 1; this.zuijiuActive = false }
-        target.takeDamage(damage)
-        this.eventBus.emit({ type: 'damage:deal', sourceHeroId: player.getId(), targetHeroId: target.getId(), data: { damage } })
-        this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage, from: player.getId() } })
-        if (!target.isAlive()) {
-          this.eventBus.emit({ type: 'die', sourceHeroId: target.getId(), data: { killedBy: player.getId() } })
-        }
+        await this.applyDamage(player, target, damage, fengHuoCard)
       }
     }
     if (langYanBoost) this.emitSkillTrigger(player, '狼烟', '烽火狼烟伤害+1')
@@ -2621,23 +2890,14 @@ export class Game {
         this.emitSkillTrigger(player, '绝击', `弃置手牌${handCard.name}`)
       }
     } else {
-      const dmg = player.takeDamage(1)
-      this.eventBus.emit({ type: 'damage:receive', sourceHeroId: player.getId(), data: { damage: dmg, from: '绝击' } })
-      if (!player.isAlive()) {
-        this.eventBus.emit({ type: 'die', sourceHeroId: player.getId(), data: { killedBy: '绝击' } })
-        return
-      }
+      await this.applyDamage(player, player, 1, undefined, { skipOnDamageReceived: true })
+      if (!player.isAlive()) return
     }
     // 曼舞: 目标有曼舞可转移绝击伤害
     if (await this.promptManWu(target, player, 1)) {
       // 伤害已转移
     } else {
-      target.takeDamage(1)
-      this.eventBus.emit({ type: 'damage:deal', sourceHeroId: player.getId(), targetHeroId: target.getId(), data: { damage: 1 } })
-      this.eventBus.emit({ type: 'damage:receive', sourceHeroId: target.getId(), data: { damage: 1, from: player.getId() } })
-      if (!target.isAlive()) {
-        this.eventBus.emit({ type: 'die', sourceHeroId: target.getId(), data: { killedBy: player.getId() } })
-      }
+      await this.applyDamage(player, target, 1, undefined, { skipOnDamageReceived: true })
       this.emitSkillTrigger(player, '绝击', `${target.getName()}受1伤害`)
     }
   }
@@ -2763,7 +3023,7 @@ export class Game {
   canTanNang(player: Player, target: Player): boolean {
     if (!target.isAlive() || target.getId() === player.getId()) return false
     const effectiveDistance = this.getEffectiveDistance(player, target)
-    const range = player.getAttackRange()
+    const range = player.getSchemeRange()
     if (range <= 0 || effectiveDistance > range) return false
     if (target.getHandSize() === 0 && this.collectEquipmentCards(target).length === 0 && target.getJudgeCards().length === 0) {
       return false

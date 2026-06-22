@@ -116,6 +116,14 @@ export class Player {
     return range
   }
 
+  /** 锦囊(探囊取物)距离: 基础1+进攻马+骑射/单骑, 不含武器范围 */
+  getSchemeRange(): number {
+    let range = 1
+    if (this.hero.equipment.attackMount) range += 1
+    if (this.hasSkillOrTreasure('qi-she') || this.hasSkillOrTreasure('dan-qi')) range += 1
+    return range
+  }
+
   getDefenseRange(): number {
     let range = 0
     if (this.hero.equipment.defenseMount) range += 1
