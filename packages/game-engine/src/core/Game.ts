@@ -2959,8 +2959,9 @@ export class Game {
 
   /**
    * 侠胆: 与另一名角色拼点
-   * 流程: 双方同时选牌 (玩家通过 xiaDanPlayerCardHandler, 目标通过 pinDianHandler / AI 自动选最小),
-   *       双方都选完后系统同时揭示并比较: 玩家点数 >= 目标点数 即胜 (杀次数设为2), 否则本回合不能出杀
+   * 流程: 双方同时选牌 (玩家通过 xiaDanPlayerCardHandler, 目标通过 pinDianHandler / AI 按角色选牌策略),
+   *       双方都选完后系统同时揭示并比较: 玩家点数 >= 目标点数 即胜, 否则本回合不能出杀
+   * AI 选牌策略: 敌方选最大牌(求胜), 友方选最小牌(让玩家赢)
    */
   async playerXiaDan(player: Player, targetId: string): Promise<void> {
     if (!player.hasSkillOrTreasure('xia-dan')) return
@@ -2977,14 +2978,15 @@ export class Game {
       return
     }
 
-    // 双方同时选牌 (玩家: xiaDanPlayerCardHandler; 目标: pinDianHandler 或 AI 自动选最小)
+    // 双方同时选牌 (玩家: xiaDanPlayerCardHandler; 目标: pinDianHandler 或 AI 按角色选牌策略)
     const targetPickPromise = (async (): Promise<Card | null> => {
       if (this.config.pinDianHandler) {
         const cid = await this.config.pinDianHandler(this, target, player, '侠胆')
         if (cid) return target.getHand().find(c => c.id === cid) ?? null
       }
-      // AI: 选最小的牌
-      return [...target.getHand()].sort((a, b) => a.number - b.number)[0] ?? null
+      // AI: 敌方选最大牌(求胜, 不让玩家拼点成功), 友方选最小牌(让玩家赢)
+      const sorted = [...target.getHand()].sort((a, b) => a.number - b.number)
+      return (target.getRole() === 'enemy' ? sorted[sorted.length - 1] : sorted[0]) ?? null
     })()
 
     const playerPickPromise = (async (): Promise<Card | null> => {
