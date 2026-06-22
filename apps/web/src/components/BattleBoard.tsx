@@ -9,6 +9,7 @@ import type { Card } from '@hero-legend/shared-types'
 
 export function BattleBoard() {
   const [resultOverlayDismissed, setResultOverlayDismissed] = useState(false)
+  const [hoveredHandCardId, setHoveredHandCardId] = useState<string | null>(null)
   const {
     gameState, phase, playerHand, actionLog, result, equippedCards, pendingCardId, pendingCardType, selectedTargetId,
     playKill, playScheme, playSchemeSelf, confirmTarget, confirmPlay, cancelPlay, playHeal, equipCard, endPlayPhase, cancelSelection, game,
@@ -1020,15 +1021,17 @@ export function BattleBoard() {
 
             {/* 右侧: 手牌 + 技能按钮行 (提示已移到上方浮动容器) */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, gap: '6px' }}>
-          {/* Hand cards */}
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: '6px', flexWrap: 'wrap', alignContent: 'flex-start' }}>
-            {playerHand.map(card => {
+          {/* Hand cards — 扑克牌式叠放 */}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', overflowY: 'hidden', alignItems: 'flex-end', padding: '0 4px 8px 0' }}>
+            {playerHand.map((card, idx) => {
               const isSelectedDual = selectedDualCards.includes(card.id)
               const isSelectedTreasure = treasureCardIds.includes(card.id)
               const isSelectedYuRen = treasureSkill === 'yu-ren' && yuRenCardIds.includes(card.id)
               const isSelectedDiscard = selectedDiscardCards.includes(card.id)
               const isSelectedFuChou = phase === 'selectFuChouDiscard' && fuChouPickSelected.includes(card.id)
               const isSelectedManWu = manWuSelectedCardId === card.id
+              const isHovered = hoveredHandCardId === card.id
+              const isPending = pendingCardId === card.id
               return (
                 <div
                   key={card.id}
@@ -1057,10 +1060,18 @@ export function BattleBoard() {
                       selectBuDaoCard(card.id)
                     }
                   }}
+                  onMouseEnter={() => setHoveredHandCardId(card.id)}
+                  onMouseLeave={() => setHoveredHandCardId(prev => prev === card.id ? null : prev)}
                   style={{
+                    flexShrink: 0,
+                    marginLeft: idx === 0 ? 0 : -45,
                     outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu) ? '3px solid #b8860b' : 'none',
                     borderRadius: '6px',
                     cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
+                    transform: isHovered && !isPending ? 'translateY(-12px)' : 'none',
+                    transition: 'transform 0.12s',
+                    zIndex: isHovered ? 100 : isPending ? 2 : 0,
+                    position: 'relative',
                   }}
                 >
                   <HandCard
@@ -1073,8 +1084,8 @@ export function BattleBoard() {
                     hasLeiInJudge={hasLeiInJudge}
                     isResponse={phase === 'awaitingResponse'}
                     isJudgeReplace={phase === 'judgeReplace'}
-                    isPending={pendingCardId === card.id}
-                    isLifted={pendingCardId === card.id}
+                    isPending={isPending}
+                    isLifted={isPending || isHovered}
                     treasureSelectMode={phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'xiaDanPickCard'}
                     selectDualMode={phase === 'selectDualCards'}
                     selectDiscardMode={phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard'}
