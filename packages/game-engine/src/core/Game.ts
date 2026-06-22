@@ -2187,15 +2187,17 @@ export class Game {
   }
 
   /**
-   * 侠胆: 一张杀指定多个目标(每张最多xiaDanWinTargetsPerKill个)
-   * 侠胆胜出期间无视距离限制, 一次多杀只消耗一次 win-kill(无论命中几个目标)
+   * 侠胆/狼牙棒: 一张杀指定多个目标(每张最多 maxTargets 个)
+   * 侠胆胜出期间无视距离限制, 狼牙棒按正常距离; 一次多杀只消耗一次杀次数
    * 注: 复用狼牙棒的多目标模式 — 首次真实从手牌移除, 后续以同一 cardId 引用作用于其他目标
    */
-  async playerPlayKillMulti(player: Player, cardId: string, targetIds: string[]): Promise<void> {
+  async playerPlayKillMulti(player: Player, cardId: string, targetIds: string[], maxTargetsOverride?: number): Promise<void> {
     if (this.xiaDanLossThisTurn.has(player.getId())) return
     const winKills = this.xiaDanWinKillsLeft.get(player.getId()) ?? 0
-    const maxTargets = this.xiaDanWinTargetsPerKill.get(player.getId()) ?? 0
-    if (winKills <= 0 || maxTargets <= 0) return
+    const maxTargets = maxTargetsOverride ?? this.xiaDanWinTargetsPerKill.get(player.getId()) ?? 0
+    // 触发条件: 侠胆胜出 OR 狼牙棒最后一杀 (maxTargetsOverride 由调用方保证)
+    if (winKills <= 0 && !maxTargetsOverride) return
+    if (maxTargets <= 0) return
     let killCard = player.getHand().find(c => c.id === cardId)
     if (!killCard) {
       for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
@@ -2204,12 +2206,13 @@ export class Game {
       }
     }
     if (!killCard || !this.canUseAsKill(killCard, player)) return
+    const ignoreRange = winKills > 0  // 侠胆胜出期间无视距离限制
     // 限定: 目标数 ≤ maxTargets
     const limited = targetIds.slice(0, maxTargets)
     for (const tid of limited) {
       const target = this.players.find(p => p.getId() === tid)
       if (!target || !target.isAlive()) continue
-      if (!this.isInAttackRange(player, target)) continue
+      if (!ignoreRange && !this.isInAttackRange(player, target)) continue
       // 后续迭代时牌已不在手牌/装备区, 复用初始引用
       await this.executeKill(player, target, killCard)
     }
@@ -2219,6 +2222,7 @@ export class Game {
       this.killUsedThisTurn = true
       player.setUsedKillThisTurn(true)
     }
+    if (winKills > 0) this.xiaDanWinKillsLeft.set(player.getId(), winKills - 1)
   }
 
   async playerPlayScheme(player: Player, cardId: string, targetId?: string): Promise<void> {

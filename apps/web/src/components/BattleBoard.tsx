@@ -143,7 +143,7 @@ export function BattleBoard() {
           (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id))
         )
       }
-      isSelected={selectedTargetId === h.hero.id}
+      isSelected={selectedTargetId === h.hero.id || selectedTargets.includes(h.hero.id)}
       dimmed={(!!dimInvalidTargets && !isValidTarget(h.hero.id)) || (shouldDimInvalidTargets && !isValidTarget(h.hero.id))}
       onClick={() => {
         if (isPendingTargeting) {

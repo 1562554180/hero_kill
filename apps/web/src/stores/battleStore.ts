@@ -980,10 +980,14 @@ export const useBattleStore = create<BattleState>((set, get) => ({
             const [, cardId, targetId] = action.split(':')
             if (targetId) await game.playerPlayKill(player, targetId, cardId)
           } else if (action.startsWith('killMulti:')) {
-            // 侠胆多杀: 形如 killMulti:cardId:targetId1,targetId2
-            const [, cardId, idsRaw] = action.split(':')
-            const targetIds = (idsRaw ?? '').split(',').filter(Boolean)
-            if (targetIds.length > 0) await game.playerPlayKillMulti(player, cardId, targetIds)
+            // 侠胆多杀: 形如 killMulti:cardId:targetId1,targetId2[:maxTargets]
+            // 狼牙棒: 末尾带 :3 表示 maxTargets=3
+            const parts = action.split(':')
+            const cardId = parts[1]
+            const idsRaw = parts[2] ?? ''
+            const maxTargetsOverride = parts[3] ? Number(parts[3]) : undefined
+            const targetIds = idsRaw.split(',').filter(Boolean)
+            if (targetIds.length > 0) await game.playerPlayKillMulti(player, cardId, targetIds, maxTargetsOverride)
           } else if (action.startsWith('jieDao:')) {
             // 借刀: jieDao:cardId:holderId (UI预选holder)
             const parts = action.split(':')
@@ -1130,6 +1134,26 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           killMultiCardId: cardId,
           killMultiMax: maxTargetsP,
           killMultiRemaining: winKillsP,
+          multiTargetCandidates: enemies.map(p => ({ id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() })),
+          selectedTargets: [],
+        })
+        return
+      }
+    }
+    // 狼牙棒: 最后一张手牌出杀时最多3目标
+    if (game) {
+      const player = game.getPlayer()
+      const card = player.getHand().find(c => c.id === cardId)
+      const isKill = card?.name === '杀' || card?.name === '血杀' || card?.name === '暗杀'
+      if (isKill && player.getWeaponName() === '狼牙棒' && player.getHandSize() === 1) {
+        const enemies = game.players.filter(p => p.getRole() !== 'player' && p.getRole() !== 'ally' && p.isAlive())
+        set({
+          phase: 'selectKillMultiTargets',
+          pendingCardId: cardId,
+          pendingCardType: 'kill',
+          killMultiCardId: cardId,
+          killMultiMax: 3,
+          killMultiRemaining: 1,
           multiTargetCandidates: enemies.map(p => ({ id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() })),
           selectedTargets: [],
         })
@@ -1380,7 +1404,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     }
   },
   confirmKillMultiTarget: () => {
-    const { selectedTargets, killMultiCardId, resolveAction, killMultiRemaining } = get()
+    const { selectedTargets, killMultiCardId, resolveAction, killMultiRemaining, killMultiMax, game } = get()
     if (!killMultiCardId || !resolveAction) return
     if (selectedTargets.length === 0) {
       // 取消: 退回到playing
@@ -1388,8 +1412,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       set({ resolveAction: null, phase: 'playing', multiTargetCandidates: [], selectedTargets: [], killMultiCardId: null, pendingCardId: null, pendingCardType: null })
       return
     }
-    // 用killMulti前缀传多个目标(逗号分隔)
-    resolveAction(`killMulti:${killMultiCardId}:${selectedTargets.join(',')}`)
+    // 用killMulti前缀传多个目标(逗号分隔); 狼牙棒额外传maxTargets参数
+    const isWolfFang = game && game.getPlayer().getWeaponName() === '狼牙棒' && killMultiMax === 3 && killMultiRemaining === 1
+    const payload = isWolfFang
+      ? `killMulti:${killMultiCardId}:${selectedTargets.join(',')}:3`
+      : `killMulti:${killMultiCardId}:${selectedTargets.join(',')}`
+    resolveAction(payload)
     set({ resolveAction: null, phase: 'waiting', multiTargetCandidates: [], selectedTargets: [], killMultiCardId: null, pendingCardId: null, pendingCardType: null, killMultiRemaining: Math.max(0, killMultiRemaining - 1) })
   },
   cancelKillMultiTarget: () => {
