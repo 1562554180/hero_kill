@@ -2722,7 +2722,9 @@ export class Game {
         p.isAlive() &&
         this.canBeSchemeTarget(p, card) &&
         // 控局: 手牌数<体力上限时免疫釜底抽薪
-        !(p.hasSkillOrTreasure('kong-ju') && p.getHandSize() < p.getMaxHp())
+        !(p.hasSkillOrTreasure('kong-ju') && p.getHandSize() < p.getMaxHp()) &&
+        // 必须有可弃的牌 (手牌/装备/判定区)
+        (p.getHandSize() > 0 || this.collectEquipmentCards(p).length > 0 || p.getJudgeCards().length > 0)
       )
       if (candidates.length === 0) return
       const chosenId = await this.config.fudiTargetHandler(this, player, candidates)

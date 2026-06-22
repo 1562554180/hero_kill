@@ -139,6 +139,7 @@ export function BattleBoard() {
           (phase === 'selectLuYeQiangTarget' && luYeQiangCandidates.some(lc => lc.id === h.hero.id)) ||
           (phase === 'treasureSelectTarget') ||
           (phase === 'treasureSelectTargets') ||
+          (phase === 'selectFudiTarget' && isValidTarget(h.hero.id)) ||
           (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id))
         )
       }
@@ -231,12 +232,18 @@ export function BattleBoard() {
       const tSkill = useBattleStore.getState().treasureSkill
       if (tSkill === 'jue-ji') return game.isInAttackRange(attacker, target)
     }
+    if (phase === 'selectFudiTarget') {
+      // 釜底抽薪: 目标必须有牌可弃 (手牌/装备/判定)
+      const hasAny = target.getHandSize() > 0 || game.collectEquipmentCards(target).length > 0 || target.getJudgeCards().length > 0
+      return hasAny
+    }
     return true
   }
   // 选目标阶段是否应启用 dim 效果 (出杀/锦囊)
   const dimInvalidTargets = !!(game && player && (
     (phase === 'selectTarget' && (pendingCardType === 'kill' || (pendingCardType === 'scheme' && pendingSchemeName === '探囊取物'))) ||
-    (phase === 'treasureSelectTarget' && useBattleStore.getState().treasureSkill === 'jue-ji')
+    (phase === 'treasureSelectTarget' && useBattleStore.getState().treasureSkill === 'jue-ji') ||
+    (phase === 'selectFudiTarget')
   ))
 
   const isPlayerTurn = phase === 'playing' || phase === 'selectTarget' || phase === 'selectDualCards' || phase === 'selectLuYeQiangTarget'
