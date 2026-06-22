@@ -214,6 +214,29 @@ export const heroes: Hero[] = [
       { id: 'fu-chou', name: '复仇', type: 'passive', description: '你受到伤害后，你可以对伤害来源造成1点伤害', triggerEvent: 'damage:receive' },
     ],
   },
+  {
+    id: 'mu-rong', name: '慕容', faction: '君', starLevel: 3, baseHp: 4,
+    description: '鲜卑慕容，复国之志',
+    skills: [
+      { id: 'die-hun', name: '蝶魂', type: 'passive', description: '当你成为五谷丰登/万箭齐发/烽火狼烟/休养生息的目标时，可以发动并跳过本次效果，然后摸一张牌', triggerEvent: 'card:play' },
+    ],
+  },
+  {
+    id: 'li-yu', name: '李煜', faction: '君', starLevel: 3, baseHp: 3,
+    description: '南唐后主，问君能有几多愁',
+    skills: [
+      { id: 'chao-tuo', name: '超脱', type: 'passive', description: '任何判定生效前，你可以用一张黑色手牌或装备牌替换原来的判定牌', triggerEvent: 'judge' },
+      { id: 'hou-zhu', name: '后主', type: 'passive', description: '每当你使用一张闪时（结算前），可以令任意一名其他角色进行判定，若判定为黑桃，则该角色掉2点血', triggerEvent: 'damage:prevent' },
+    ],
+  },
+  {
+    id: 'bian-que', name: '扁鹊', faction: '君', starLevel: 3, baseHp: 3,
+    description: '神医，妙手回春',
+    skills: [
+      { id: 'liao-shang', name: '疗伤', type: 'active', description: '出牌阶段，你可以弃1张手牌令1名角色回复1点体力', maxUsesPerTurn: 1 },
+      { id: 'hui-chun', name: '回春', type: 'passive', description: '在自己的回合外，你可以将任意一张红桃手牌或装备牌当作【药】使用', triggerEvent: 'heal' },
+    ],
+  },
 ]
 
 export function getHeroById(id: string): Hero | undefined {

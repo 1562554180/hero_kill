@@ -1,6 +1,7 @@
 import type { BattleHero, Card, Treasure } from '@hero-legend/shared-types'
 import { isRedSuit, getTreasureSlots } from '@hero-legend/shared-types'
 import { useBattleStore } from '../stores/battleStore'
+import { HeroPortrait } from './HeroPortrait'
 
 interface Props {
   hero: BattleHero
@@ -50,13 +51,14 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
         background: bgColor,
         border: `2px solid ${borderColor}`,
         borderRadius: '8px',
-        padding: '8px 10px',
-        minWidth: '170px',
+        padding: '6px',
+        minWidth: '130px',
         height: '100%',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
+        gap: '4px',
         opacity: currentHp > 0 ? (dimmed ? 0.4 : 1) : 0.4,
         cursor: isSelectable ? 'pointer' : 'default',
         transition: 'border-color 0.2s, box-shadow 0.2s, opacity 0.2s',
@@ -70,24 +72,19 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
               : 'none',
       }}
     >
-      {/* 头部: 角色名 + AI徽章 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-        <span style={{
-          color: role === 'enemy' ? '#ef5350' : role === 'ally' ? '#81c784' : 'var(--text-light)',
-          fontWeight: 'bold',
-          fontSize: '14px',
-        }}>
-          {config.name}
-        </span>
+      {/* 头像区: SVG 武将像 + 右上 AI 徽章 */}
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+        <HeroPortrait hero={hero} size={118} />
         {(role === 'ally' || role === 'enemy') && (
           <span style={{
+            position: 'absolute', top: '4px', right: '4px',
             fontSize: '9px',
             color: role === 'ally' ? '#a5d6a7' : '#ef9a9a',
-            background: role === 'ally' ? 'rgba(46,125,50,0.18)' : 'rgba(198,40,40,0.18)',
+            background: role === 'ally' ? 'rgba(46,125,50,0.85)' : 'rgba(198,40,40,0.85)',
             padding: '1px 5px',
             borderRadius: '3px',
             fontWeight: 'bold',
-            border: `1px solid ${role === 'ally' ? 'rgba(46,125,50,0.5)' : 'rgba(198,40,40,0.5)'}`,
+            border: `1px solid ${role === 'ally' ? 'rgba(46,125,50,0.9)' : 'rgba(198,40,40,0.9)'}`,
           }}>AI</span>
         )}
       </div>

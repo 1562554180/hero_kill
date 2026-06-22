@@ -47,7 +47,7 @@ export type GameEventType =
   | 'phase:start' | 'phase:end'
   | 'card:play' | 'card:draw' | 'card:discard' | 'card:gain'
   | 'damage:deal' | 'damage:receive' | 'damage:prevent'
-  | 'heal' | 'die'
+  | 'heal' | 'die' | 'dying'
   | 'skill:trigger' | 'skill:resolve'
   | 'judge' | 'equipment:equip' | 'equipment:unequip'
   | 'scheme:nullify' | 'wugu:reveal' | 'wugu:pickStart'
