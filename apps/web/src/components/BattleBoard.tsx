@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { CSSProperties } from 'react'
 import { useBattleStore } from '../stores/battleStore'
 
@@ -49,6 +49,23 @@ export function BattleBoard() {
     huiChunHeal,
     lastJudgeResult,
   } = useBattleStore()
+
+  // 手牌容器宽度 — 用于判断是否启用叠放
+  const handContainerRef = useRef<HTMLDivElement>(null)
+  const [handContainerWidth, setHandContainerWidth] = useState(0)
+  useEffect(() => {
+    const el = handContainerRef.current
+    if (!el) return
+    setHandContainerWidth(el.offsetWidth)
+    const ro = new ResizeObserver(entries => {
+      for (const e of entries) setHandContainerWidth(e.contentRect.width)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [playerHand.length])
+  // HandCard 宽度约 76px (minWidth 60 + padding 16). 放不下时启用叠放
+  const HAND_CARD_WIDTH = 76
+  const handNeedsOverlap = playerHand.length > 0 && playerHand.length * HAND_CARD_WIDTH > handContainerWidth
 
   if (!gameState) return null
 
@@ -1021,8 +1038,16 @@ export function BattleBoard() {
 
             {/* 右侧: 手牌 + 技能按钮行 (提示已移到上方浮动容器) */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, gap: '6px' }}>
-          {/* Hand cards — 扑克牌式叠放 */}
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', overflowY: 'hidden', alignItems: 'flex-end', padding: '0 4px 8px 0' }}>
+          {/* Hand cards — 数量多时扑克牌式叠放, 否则正常并排 */}
+          <div ref={handContainerRef} style={{
+            flex: 1, minHeight: 0, display: 'flex',
+            flexWrap: handNeedsOverlap ? 'nowrap' : 'wrap',
+            overflowX: handNeedsOverlap ? 'auto' : 'visible',
+            overflowY: 'hidden',
+            alignItems: handNeedsOverlap ? 'flex-end' : 'stretch',
+            gap: handNeedsOverlap ? 0 : '6px',
+            padding: handNeedsOverlap ? '0 4px 8px 0' : 0,
+          }}>
             {playerHand.map((card, idx) => {
               const isSelectedDual = selectedDualCards.includes(card.id)
               const isSelectedTreasure = treasureCardIds.includes(card.id)
@@ -1063,8 +1088,8 @@ export function BattleBoard() {
                   onMouseEnter={() => setHoveredHandCardId(card.id)}
                   onMouseLeave={() => setHoveredHandCardId(prev => prev === card.id ? null : prev)}
                   style={{
-                    flexShrink: 0,
-                    marginLeft: idx === 0 ? 0 : -45,
+                    flexShrink: handNeedsOverlap ? 0 : 1,
+                    marginLeft: handNeedsOverlap && idx > 0 ? -45 : 0,
                     outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu) ? '3px solid #b8860b' : 'none',
                     borderRadius: '6px',
                     cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
