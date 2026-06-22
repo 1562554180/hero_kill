@@ -1045,7 +1045,7 @@ export function BattleBoard() {
             overflowY: 'hidden',
             alignItems: handNeedsOverlap ? 'flex-end' : 'stretch',
             gap: handNeedsOverlap ? 0 : '6px',
-            padding: handNeedsOverlap ? '0 4px 8px 0' : 0,
+            padding: handNeedsOverlap ? '10px 4px 8px 0' : '6px 0 6px 0',
           }}>
             {playerHand.map((card, idx) => {
               const isSelectedDual = selectedDualCards.includes(card.id)
