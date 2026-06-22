@@ -36,77 +36,114 @@ function getArchetype(heroId: string): Archetype {
   return HERO_ARCHETYPE[heroId] ?? 'warrior'
 }
 
-// archetype 装饰 (在头像内绘制)
+// archetype 装饰 — 粗实 SVG 图形 (类似手牌图标, 醒目)
 function ArchetypeDecor({ archetype }: { archetype: Archetype }) {
   switch (archetype) {
     case 'emperor':
+      // 玉玺 (右上): 方形印 + 龙钮
       return (
         <g>
-          {/* 冕旒 冠 */}
-          <path d="M 28 22 L 35 14 L 42 20 L 50 10 L 58 20 L 65 14 L 72 22 L 72 28 L 28 28 Z"
-                fill="url(#gold-grad)" stroke="#5d4037" strokeWidth="0.5" />
-          <circle cx="35" cy="18" r="1.3" fill="#c62828" />
-          <circle cx="50" cy="14" r="1.8" fill="#1565c0" />
-          <circle cx="65" cy="18" r="1.3" fill="#2e7d32" />
-          {/* 冕旒 珠串 */}
-          {[0,1,2,3,4,5,6].map(i => (
-            <circle key={i} cx={30 + i*7} cy="31" r="0.8" fill="#ffd54f" />
-          ))}
+          <rect x="60" y="14" width="28" height="22" rx="2" fill="url(#gold-grad)" stroke="#5d4037" strokeWidth="1" />
+          <rect x="64" y="18" width="20" height="14" fill="none" stroke="#5d4037" strokeWidth="0.8" />
+          <text x="74" y="29" fontSize="9" fill="#5d4037" textAnchor="middle" fontFamily="'KaiTi','STKaiti',serif" fontWeight="bold">受命</text>
+          <text x="74" y="36" fontSize="6" fill="#5d4037" textAnchor="middle" fontFamily="'KaiTi','STKaiti',serif" fontWeight="bold">于天</text>
+          {/* 龙钮 */}
+          <ellipse cx="74" cy="13" rx="6" ry="3" fill="url(#gold-grad)" stroke="#5d4037" strokeWidth="0.8" />
+          <circle cx="71" cy="12" r="1" fill="#c62828" />
+          <circle cx="77" cy="12" r="1" fill="#c62828" />
         </g>
       )
     case 'female':
+      // 凤簪 (右上): 凤凰轮廓 + 花
       return (
         <g>
-          {/* 头饰花 */}
-          <circle cx="76" cy="20" r="3" fill="#e91e63" opacity="0.9" />
-          <circle cx="76" cy="20" r="1.3" fill="#fce4ec" />
-          <circle cx="22" cy="20" r="2.2" fill="#f48fb1" opacity="0.85" />
-          {/* 流苏 */}
-          <line x1="76" y1="23" x2="76" y2="34" stroke="#e91e63" strokeWidth="0.7" />
+          {/* 簪杆 */}
+          <line x1="76" y1="14" x2="76" y2="40" stroke="#ffd54f" strokeWidth="2.5" />
+          {/* 凤凰头 */}
+          <circle cx="76" cy="14" r="4" fill="#e91e63" stroke="#880e4f" strokeWidth="0.8" />
+          {/* 凤冠 */}
+          <path d="M 73 11 Q 76 8 79 11 L 79 13 L 73 13 Z" fill="#f48fb1" stroke="#880e4f" strokeWidth="0.5" />
+          {/* 凤喙 */}
+          <polygon points="76,18 80,18 76,20" fill="#ffd54f" />
+          {/* 流苏坠 */}
+          <circle cx="76" cy="42" r="2.5" fill="#c62828" />
+          <line x1="76" y1="44" x2="76" y2="50" stroke="#c62828" strokeWidth="1" />
+          <circle cx="76" cy="51" r="1" fill="#c62828" />
         </g>
       )
     case 'scholar':
+      // 羽扇 (右下): 扇面 + 扇骨
       return (
         <g>
-          {/* 纶巾 */}
-          <ellipse cx="50" cy="14" rx="14" ry="5" fill="#37474f" />
-          <path d="M 36 14 Q 50 18 64 14" stroke="#263238" strokeWidth="0.5" fill="none" />
-          {/* 帛带 */}
-          <path d="M 36 14 Q 28 22 26 30" stroke="#37474f" strokeWidth="1.5" fill="none" />
-          {/* 卷轴 */}
-          <rect x="68" y="58" width="14" height="6" rx="3" fill="#f4e4bc" stroke="#8b6914" strokeWidth="0.5" />
-          <line x1="70" y1="60" x2="80" y2="60" stroke="#5d4037" strokeWidth="0.3" />
+          {/* 扇柄 */}
+          <line x1="86" y1="50" x2="86" y2="68" stroke="#5d4037" strokeWidth="1.8" />
+          {/* 扇面 (扇形) */}
+          <path d="M 86 50 L 70 56 Q 64 62 70 66 L 86 60 Z"
+                fill="#f4e4bc" stroke="#8b6914" strokeWidth="1" />
+          {/* 扇骨 */}
+          <line x1="86" y1="50" x2="70" y2="56" stroke="#8b6914" strokeWidth="0.6" />
+          <line x1="86" y1="55" x2="68" y2="60" stroke="#8b6914" strokeWidth="0.6" />
+          <line x1="86" y1="60" x2="70" y2="66" stroke="#8b6914" strokeWidth="0.6" />
+          {/* 扇坠 */}
+          <line x1="86" y1="68" x2="86" y2="76" stroke="#c62828" strokeWidth="1.2" />
+          <circle cx="86" cy="78" r="2" fill="#c62828" />
         </g>
       )
     case 'assassin':
+      // 匕首 (右上): 刀刃 + 握柄
       return (
         <g>
-          {/* 黑罩 */}
-          <path d="M 22 14 Q 50 6 78 14 L 78 38 Q 50 30 22 38 Z"
-                fill="rgba(0,0,0,0.85)" />
-          {/* 匕首 */}
-          <line x1="80" y1="50" x2="92" y2="62" stroke="#bdbdbd" strokeWidth="1.5" />
-          <polygon points="92,62 96,66 94,68 88,64" fill="#c62828" />
-          <rect x="78" y="48" width="3" height="3" fill="#5d4037" />
+          {/* 刀刃 (亮银, 菱形) */}
+          <polygon points="62,16 84,32 78,38 58,22" fill="#e0e0e0" stroke="#212121" strokeWidth="0.8" />
+          <polygon points="62,16 84,32 78,36 60,20" fill="#f5f5f5" />
+          {/* 刀尖 */}
+          <polygon points="84,32 90,38 86,40 80,36" fill="#9e9e9e" stroke="#212121" strokeWidth="0.6" />
+          {/* 护手 */}
+          <rect x="56" y="20" width="6" height="3" fill="#5d4037" transform="rotate(-45 59 21.5)" />
+          {/* 握柄 */}
+          <rect x="48" y="26" width="10" height="4" fill="#3e2723" transform="rotate(-45 53 28)" />
+          {/* 柄尾 */}
+          <circle cx="47" cy="29" r="1.8" fill="#c62828" />
         </g>
       )
     case 'berserker':
+      // 战斧 (左上): 斧头 + 斧柄
       return (
         <g>
-          {/* 斧 */}
-          <line x1="22" y1="22" x2="22" y2="62" stroke="#5d4037" strokeWidth="2.5" />
-          <path d="M 14 24 L 30 24 L 30 38 L 14 38 Z" fill="#9e9e9e" stroke="#212121" strokeWidth="0.5" />
-          <path d="M 16 28 L 28 28" stroke="#212121" strokeWidth="0.5" />
+          {/* 斧头 (大铁块) */}
+          <path d="M 12 18 L 32 14 L 36 30 L 30 42 L 12 38 Z"
+                fill="#9e9e9e" stroke="#212121" strokeWidth="1" />
+          {/* 斧刃高光 */}
+          <path d="M 14 20 L 32 17 L 34 26 L 14 26 Z" fill="#bdbdbd" opacity="0.7" />
+          {/* 斧刃刃边 */}
+          <path d="M 12 18 L 8 28 L 12 38" fill="none" stroke="#f5f5f5" strokeWidth="1.5" />
+          {/* 斧柄 (深棕) */}
+          <rect x="22" y="14" width="4" height="48" fill="#5d4037" stroke="#3e2723" strokeWidth="0.5" transform="rotate(8 24 38)" />
+          {/* 柄尾包铁 */}
+          <rect x="20" y="60" width="8" height="3" fill="#212121" />
         </g>
       )
     case 'warrior':
     default:
+      // 长剑 (右上): 剑身 + 护手 + 握柄
       return (
         <g>
-          {/* 剑 (右侧) */}
-          <line x1="82" y1="22" x2="82" y2="68" stroke="#e0e0e0" strokeWidth="2.5" />
-          <rect x="76" y="32" width="12" height="3" fill="#5d4037" />
-          <rect x="80" y="65" width="4" height="3" fill="#5d4037" />
+          {/* 剑身 */}
+          <polygon points="76,12 80,12 79,60 77,60" fill="#e0e0e0" stroke="#212121" strokeWidth="0.8" />
+          {/* 剑刃高光 */}
+          <line x1="78.5" y1="14" x2="77.5" y2="58" stroke="#ffffff" strokeWidth="0.5" />
+          {/* 剑尖 */}
+          <polygon points="76,12 80,12 78,8" fill="#bdbdbd" stroke="#212121" strokeWidth="0.5" />
+          {/* 护手 */}
+          <rect x="72" y="60" width="12" height="3" fill="#5d4037" />
+          <rect x="72" y="60" width="12" height="3" fill="none" stroke="#3e2723" strokeWidth="0.5" />
+          {/* 握柄 (缠绕) */}
+          <rect x="76" y="63" width="4" height="10" fill="#3e2723" />
+          <line x1="76" y1="65" x2="80" y2="65" stroke="#ffd54f" strokeWidth="0.5" />
+          <line x1="76" y1="68" x2="80" y2="68" stroke="#ffd54f" strokeWidth="0.5" />
+          <line x1="76" y1="71" x2="80" y2="71" stroke="#ffd54f" strokeWidth="0.5" />
+          {/* 剑首 (圆球) */}
+          <circle cx="78" cy="75" r="2.5" fill="url(#gold-grad)" stroke="#5d4037" strokeWidth="0.5" />
         </g>
       )
   }
