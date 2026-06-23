@@ -46,10 +46,12 @@ export class SaveService {
       save.dailyRecruitGuarantee = { qianliDate: null, wanliDate: null } as any
       patched = true
     }
-    // 老存档无抽卡券,seed 10 张百里卡作为新手补偿
-    if (!save.materials.find((m: any) => m.type === 'bailiTicket')) {
-      save.materials.push({ type: 'bailiTicket', amount: 10 })
-      patched = true
+    // 老存档缺哪种抽卡券就 seed 99 张 (新手补偿)
+    for (const t of ['bailiTicket', 'qianliTicket', 'wanliTicket']) {
+      if (!save.materials.find((m: any) => m.type === t)) {
+        save.materials.push({ type: t, amount: 99 })
+        patched = true
+      }
     }
 
     if (patched) await save.save()
@@ -72,7 +74,9 @@ export class SaveService {
       treasures: generateInitialTreasures(),
       materials: [
         { type: 'gold', amount: 1000 },
-        { type: 'bailiTicket', amount: 10 },   // 新存档给 10 张百里卡开局
+        { type: 'bailiTicket', amount: 99 },   // 新存档给 99 张百里卡开局
+        { type: 'qianliTicket', amount: 99 },  // 新存档给 99 张千里卡开局
+        { type: 'wanliTicket', amount: 99 },   // 新存档给 99 张万里卡开局
       ],
       heroStones: [],
       dailyRecruitGuarantee: { qianliDate: null, wanliDate: null },
