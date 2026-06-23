@@ -115,6 +115,7 @@ export class Game {
   private skipNextTurnPlayerId: string | null = null  // 蓄谋：跳过指定玩家的下一回合
   private skipCurrentTurnPlayerId: string | null = null  // 画地为牢：跳过指定玩家的当前回合
   private aoJianActive = new Set<string>()  // 傲剑主动模式: 玩家id集合, 回合结束清空
+  private emittedDie = new Set<string>()   // 已emit过 'die' 的玩家id, 防止强化/补刀等递归伤害重复emit
   // 侠胆: 胜→本回合所有杀可指定2目标 + 杀次数+1 (天狼/虎符不增加次数但保留2目标)
   //      负→本回合不能出杀
   private xiaDanLossThisTurn = new Set<string>()             // 输了侠胆的玩家集合
@@ -289,6 +290,14 @@ export class Game {
 
   private findKillCard(player: Player): Card | undefined {
     return player.getHand().find(c => this.canUseAsKill(c, player))
+  }
+
+  /** 是否有"潜在"可当杀的牌 (考虑傲剑/武穆, 不要求傲剑已激活) — 用于补刀触发判定 */
+  private hasPotentialKillCard(player: Player): boolean {
+    if (player.getHand().some(c => c.name === '杀')) return true
+    if (player.hasSkillOrTreasure('ao-jian') && player.getHand().some(c => this.isEffectivelyRed(c, player))) return true
+    if (player.hasSkillOrTreasure('wu-mu') && player.getHand().some(c => c.name === '闪')) return true
+    return false
   }
 
   private findDodgeCard(player: Player): Card | undefined {
@@ -661,6 +670,7 @@ export class Game {
     this.lastPlayedCardName = null
     this.zuijiuActive = false
     this.aoJianActive.clear()  // 傲剑主动模式: 每个玩家回合开始时清空
+    this.emittedDie.clear()     // 重置死亡去重集合 (为可能的复活机制留余地)
     // 门神: 秦琼的下回合开始时清除自己上回合指定的保护
     this.menShenMap.delete(player.getId())
     // 侠胆: 每个玩家回合开始时重置
@@ -1386,7 +1396,7 @@ export class Game {
           guanYu.getId() !== victim.getId() &&
           attacker.getId() !== guanYu.getId() &&
           this.isInAttackRange(guanYu, victim) &&
-          guanYu.getHand().some(c => this.canUseAsKill(c, guanYu))) {
+          this.hasPotentialKillCard(guanYu)) {
         await this.executeBuDao(guanYu, victim)
       }
     }
@@ -2014,6 +2024,7 @@ export class Game {
           sourceHeroId: defender.getId(),
           data: { killedBy: attacker.getId() },
         })
+        this.emittedDie.add(defender.getId())
         return
       }
     }
@@ -2026,12 +2037,13 @@ export class Game {
       await options.afterOnDamageReceived()
     }
 
-    if (!defender.isAlive()) {
+    if (!defender.isAlive() && !this.emittedDie.has(defender.getId())) {
       this.eventBus.emit({
         type: 'die',
         sourceHeroId: defender.getId(),
         data: { killedBy: attacker.getId() },
       })
+      this.emittedDie.add(defender.getId())
     }
   }
 
@@ -2177,9 +2189,12 @@ export class Game {
    * 不消耗回合杀次数, 但每张杀会单独走executeKill完整流程
    */
   private async executeBuDao(guanYu: Player, victim: Player): Promise<void> {
+    const hasAoJian = guanYu.hasSkillOrTreasure('ao-jian')
     let continueKill = true
     while (continueKill && guanYu.isAlive() && victim.isAlive()) {
       if (!this.isInAttackRange(guanYu, victim)) break
+      // 补刀时若有傲剑, 自动激活 (executeKill 每次出杀后会 deactivate, 所以每轮重新激活)
+      if (hasAoJian) this.aoJianActive.add(guanYu.getId())
       // 玩家: 询问是否补刀 + 选卡; AI: 自动
       let killCardId: string | null = null
       if (guanYu.getRole() === 'player' && this.config.buDaoHandler) {
