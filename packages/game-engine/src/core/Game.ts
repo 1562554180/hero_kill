@@ -3428,8 +3428,9 @@ export class Game {
 
   private advanceToNextAlive(): void {
     let attempts = 0
+    // 出牌顺序: 逆时针 (从玩家右侧→顶部→玩家左侧→玩家)
     do {
-      this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length
+      this.currentPlayerIndex = (this.currentPlayerIndex - 1 + this.players.length) % this.players.length
       attempts++
     } while (!this.players[this.currentPlayerIndex].isAlive() && attempts < this.players.length)
   }
