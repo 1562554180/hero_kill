@@ -17,7 +17,7 @@ const POOL_LABEL: Record<string, string> = {
  * 抽卡动画: 单抽=1 张直接翻牌, 十连=10 张依次飞入后逐张翻开
  * 全部展示完才可关闭 (防止节奏太快)
  */
-export function DrawAnimation({ stones, heroes, onClose }: Props) {
+export function DrawAnimation({ stones = [], heroes = [], onClose }: Props) {
   const heroMap = new Map(heroes.map(h => [h.id, h]))
   const [revealedCount, setRevealedCount] = useState(0)
   const [enteredCount, setEnteredCount] = useState(0)

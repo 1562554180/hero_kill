@@ -90,8 +90,10 @@ export function RecruitPage() {
         body: JSON.stringify({ count }),
       })
       const data = await res.json()
-      if (data.error) {
-        setMessage(data.error)
+      if (!res.ok || data.error) {
+        setMessage(data.error ?? data.message ?? `抽卡失败 (${res.status})`)
+      } else if (!Array.isArray(data.stones)) {
+        setMessage('抽卡返回数据格式异常')
       } else {
         setDrawing({ stones: data.stones })
         await refreshSave()

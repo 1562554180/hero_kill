@@ -70,16 +70,21 @@ export function rollStar(weights: Record<1 | 2 | 3 | 4 | 5, number>): 1 | 2 | 3 
   return 5
 }
 
-/** 从池子里某星级的英雄里随机抽一个. 若该池该星级无英雄 (数据缺失) 则降级到该池最低星级的英雄 */
+/** 从池子里某星级的英雄里随机抽一个. 若该池该星级无英雄,降级到该池最低星,再降级到任意英雄. */
 export function rollHero(pool: RecruitPool, starLevel: 1 | 2 | 3 | 4 | 5): Hero {
   let candidates = getHeroesForPool(pool, starLevel)
   if (candidates.length === 0) {
-    // 降级: 找该池最高星级的英雄 (即 poolMinStar)
     candidates = getHeroesForPool(pool, poolMinStar(pool))
   }
   if (candidates.length === 0) {
-    // 兜底: 任意一个 1 星英雄 (极端情况: 数据完全缺失)
-    candidates = heroes.filter(h => h.starLevel === 1)
+    // 兜底: 该池内任意英雄 (按距离目标星级最近的优先, 然后随机)
+    candidates = heroes.filter(h => {
+      const minStar = poolMinStar(pool)
+      return h.starLevel >= minStar
+    })
+  }
+  if (candidates.length === 0) {
+    candidates = heroes
   }
   if (candidates.length === 0) {
     throw new Error('英雄数据为空,无法抽卡')
