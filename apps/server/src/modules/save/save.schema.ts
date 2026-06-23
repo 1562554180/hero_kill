@@ -22,8 +22,8 @@ export class HeroStoneDoc {
 
 @Schema()
 export class DailyRecruitGuaranteeDoc {
-  @Prop({ default: null }) qianliDate: string | null
-  @Prop({ default: null }) wanliDate: string | null
+  @Prop({ type: String, default: null }) qianliDate: string | null
+  @Prop({ type: String, default: null }) wanliDate: string | null
 }
 
 @Schema()
