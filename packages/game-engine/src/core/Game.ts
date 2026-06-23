@@ -1877,7 +1877,7 @@ export class Game {
    * - 返回 true = 已救活 (HP>0); false = 未救活 (将阵亡, 由调用方emit die)
    */
   async rescueDyingPlayer(dyingTarget: Player): Promise<boolean> {
-    if (dyingTarget.getCurrentHp() > 0 || !dyingTarget.isAlive()) return true
+    if (dyingTarget.getCurrentHp() > 0) return true
     this.eventBus.emit({ type: 'dying', sourceHeroId: dyingTarget.getId(), data: {} })
 
     // 1. 鸩杀: 吕雉是否先发制人
