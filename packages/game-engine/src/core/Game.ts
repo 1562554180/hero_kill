@@ -2200,8 +2200,14 @@ export class Game {
       if (guanYu.getRole() === 'player' && this.config.buDaoHandler) {
         killCardId = await this.config.buDaoHandler(this, guanYu, victim)
       } else if (guanYu.getRole() !== 'player') {
-        // AI: 自动找一张可当杀的卡
-        const c = guanYu.getHand().find(card => this.canUseAsKill(card, guanYu))
+        // AI: 自动找一张可当杀的卡 (手牌优先, 傲剑时也允许装备区红牌)
+        let c = guanYu.getHand().find(card => this.canUseAsKill(card, guanYu))
+        if (!c && hasAoJian) {
+          for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
+            const eq = guanYu.getEquippedCard(slot)
+            if (eq && this.isEffectivelyRed(eq, guanYu)) { c = eq; break }
+          }
+        }
         killCardId = c?.id ?? null
       }
       if (!killCardId) break
