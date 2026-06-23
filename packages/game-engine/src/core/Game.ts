@@ -311,13 +311,9 @@ export class Game {
     return Math.random() < treasure.triggerRate + bonus
   }
 
-  /** 杀造成伤害后：攻击类辅印触发（强化/吸血/杀之贪/杀之卸） */
+  /** 杀造成伤害后：攻击类辅印触发（吸血/杀之贪/杀之卸） */
   private async onKillDamageDealt(attacker: Player, defender: Player): Promise<void> {
-    // 强化: 30%几率伤害+1
-    if (this.rollSubTreasure(attacker, 'treasure-qiang-hua')) {
-      this.emitSkillTrigger(attacker, '强化', '伤害+1')
-      await this.applyDamage(attacker, defender, 1)
-    }
+    // 强化 已在 executeKill 伤害计算阶段上移 (作为伤害修正, 领先于复仇/补刀/反击)
     // 吸血: 30%几率回复1点体力
     if (this.rollSubTreasure(attacker, 'treasure-xi-xue')) {
       if (attacker.getCurrentHp() < attacker.getMaxHp()) {
@@ -1187,6 +1183,11 @@ export class Game {
           damage += 1
           this.zuijiuActive = false
         }
+        // 强化: 30%几率伤害+1 (前置为伤害修正, 领先于复仇/补刀/反击等受击后技能)
+        if (this.rollSubTreasure(attacker, 'treasure-qiang-hua')) {
+          damage += 1
+          this.emitSkillTrigger(attacker, '强化', `伤害+1 (总计${damage})`)
+        }
         // 曼舞: 受伤前检查, 可转移伤害
         if (await this.promptManWu(defender, attacker, damage)) {
           // 伤害已转移, 不触发受伤害后效果
@@ -1283,7 +1284,13 @@ export class Game {
             if (await this.promptManWu(defender, attacker, 1)) {
               // 伤害已转移
             } else {
-              await this.applyDamage(attacker, defender, 1, killCard, {
+              let damage = 1
+              // 强化: 30%几率伤害+1 (前置为伤害修正, 领先于复仇/补刀/反击)
+              if (this.rollSubTreasure(attacker, 'treasure-qiang-hua')) {
+                damage += 1
+                this.emitSkillTrigger(attacker, '强化', `伤害+1 (总计${damage})`)
+              }
+              await this.applyDamage(attacker, defender, damage, killCard, {
                 sourceAction: 'kill',
                 afterOnDamageReceived: async () => {
                   await this.onKillDamageDealt(attacker, defender)
@@ -2029,12 +2036,12 @@ export class Game {
       }
     }
 
-    if (!options?.skipOnDamageReceived) {
-      await this.onDamageReceived(defender, attacker, sourceCard, options?.sourceAction)
-    }
-
     if (options?.afterOnDamageReceived) {
       await options.afterOnDamageReceived()
+    }
+
+    if (!options?.skipOnDamageReceived) {
+      await this.onDamageReceived(defender, attacker, sourceCard, options?.sourceAction)
     }
 
     if (!defender.isAlive() && !this.emittedDie.has(defender.getId())) {
