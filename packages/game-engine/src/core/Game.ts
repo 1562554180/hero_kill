@@ -1782,7 +1782,7 @@ export class Game {
         continue
       }
 
-      const wxCard = await this.promptNullifyResponse(candidate, schemePlayer, schemeCard)
+      const wxCard = await this.promptNullifyResponse(candidate, schemePlayer, schemeCard, lastActor)
       if (!wxCard) {
         position = (position + 1) % alivePlayers.length
         idleCount++
@@ -1816,7 +1816,7 @@ export class Game {
     return nullified
   }
 
-  private async promptNullifyResponse(candidate: Player, schemePlayer: Player, schemeCard: Card): Promise<Card | null> {
+  private async promptNullifyResponse(candidate: Player, schemePlayer: Player, schemeCard: Card, lastActor: Player): Promise<Card | null> {
     const wxCard = candidate.getHand().find(c => c.name === '无懈可击')
     if (!wxCard) return null
 
@@ -1833,19 +1833,40 @@ export class Game {
     }
 
     // AI
-    return this.aiNullifyDecision(candidate, schemePlayer, schemeCard, wxCard)
+    return this.aiNullifyDecision(candidate, schemePlayer, schemeCard, wxCard, lastActor)
   }
 
-  private aiNullifyDecision(candidate: Player, schemePlayer: Player, schemeCard: Card, wxCard: Card): Card | null {
+  private aiNullifyDecision(candidate: Player, schemePlayer: Player, schemeCard: Card, wxCard: Card, lastActor: Player): Card | null {
     const candidateRole = candidate.getRole()
     const schemePlayerRole = schemePlayer.getRole()
-    const isEnemy = (candidateRole === 'player' || candidateRole === 'ally') && schemePlayerRole === 'enemy'
-      || candidateRole === 'enemy' && (schemePlayerRole === 'player' || schemePlayerRole === 'ally')
+    const candidateIsEnemy = candidateRole === 'enemy'
+    const schemeIsEnemy = schemePlayerRole === 'enemy'
+    const isEnemy = candidateIsEnemy !== schemeIsEnemy
+
+    // 链式: 不要破坏队友的无懈可击 (lastActor != schemePlayer 表示已有人无懈可击)
+    // 例如: 队友已无懈抵消敌方锦囊, 我方再无懈会把抵消状态翻转回去, 等于浪费
+    if (lastActor !== schemePlayer && this.isSameSide(candidate, lastActor)) {
+      return null
+    }
+
+    // 判定区无懈场景(judgment): 该函数被 checkJudgeNullify 调用, schemePlayer 是延时锦囊原使用者
+    // 我方AI判定目的是"让友方判定不触发", 判定区有手捧雷/画地为牢时应当无懈
+    // 这种情况下 schemePlayer 是敌方, 与 harmful 列表重叠, isEnemy 已正确覆盖
+
+    const isFirstWuXie = lastActor === schemePlayer
+    const harmful = ['决斗', '釜底抽薪', '探囊取物', '画地为牢', '手捧雷', '万箭齐发', '南蛮入侵']
+    const isHarmfulToMySide = isEnemy && harmful.includes(schemeCard.name)
 
     let probability = 0
-    if (isEnemy) {
-      const harmful = ['决斗', '釜底抽薪', '探囊取物', '画地为牢', '手捧雷', '万箭齐发', '南蛮入侵']
-      probability = harmful.includes(schemeCard.name) ? 0.6 : 0.2
+    if (isFirstWuXie) {
+      // 第一次无懈: 防止敌方锦囊生效 (或友方判定触发伤害)
+      if (isHarmfulToMySide) probability = 0.6
+      else if (isEnemy) probability = 0.2
+    } else {
+      // 反制无懈: 当前已被抵消(nullified=true), 再无懈会把链翻回不抵消
+      // - 原始锦囊对我方有害, 翻转回去等于让有害锦囊生效, 不反制
+      // - 原始锦囊对我方无害/有利, 翻转没事, 可以反制帮队友补刀
+      if (!isHarmfulToMySide) probability = 0.5
     }
     if (candidate.getHandSize() <= 2) probability *= 0.5
 
@@ -2338,7 +2359,15 @@ export class Game {
     const schemeNullified = await this.checkNullification(player, schemeTarget, card)
     if (schemeNullified) {
       // 被抵消, 不执行效果
-    } else if (card.name === '无中生有') {
+    } else {
+      // 妙计: 立即摸1张 (放在效果执行前, 决斗等长效果也能立即触发)
+      // 釜底抽薪/借刀 在各自的execute函数中触发, 这里跳过避免重复
+      if (player.hasSkillOrTreasure('miao-ji') && card.name !== '釜底抽薪' && card.name !== '借刀杀人') {
+        const drawn = this.cardDeck.draw(1)
+        player.drawCards(drawn)
+        this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
+      }
+      if (card.name === '无中生有') {
       const drawn = this.cardDeck.draw(2)
       player.drawCards(drawn)
       this.eventBus.emit({ type: 'card:draw', sourceHeroId: player.getId(), data: { count: 2, reason: '无中生有' } })
@@ -2500,13 +2529,8 @@ export class Game {
       }
       if (wanJianBoost) this.emitSkillTrigger(player, '万箭', '万箭齐发伤害+1')
     }
-
-    // 妙计: 使用锦囊牌时摸一张
-    if (player.hasSkillOrTreasure('miao-ji')) {
-      const drawn = this.cardDeck.draw(1)
-      player.drawCards(drawn)
-      this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
     }
+
   }
 
   playerPlayHeal(player: Player, cardId: string): void {
