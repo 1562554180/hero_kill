@@ -159,8 +159,8 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{num}</span>
       </div>
 
-      {/* 角落花色+数字 (右下, 旋转180) */}
-      <div style={{ position: 'absolute', bottom: '3px', right: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: suitFontColor(card.suit), transform: 'rotate(180deg)' }}>
+      {/* 角落花色+数字 (右下, 正向) */}
+      <div style={{ position: 'absolute', bottom: '3px', right: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: suitFontColor(card.suit) }}>
         <span style={{ fontSize: '8px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
         <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{num}</span>
       </div>
