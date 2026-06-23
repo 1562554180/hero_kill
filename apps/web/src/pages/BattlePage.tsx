@@ -102,7 +102,7 @@ export function BattlePage() {
           stageId: stage.id,
           battleIdx,
           result: battleResult,
-          playerHeroId: heroInstance.heroId,
+          playerInstanceId: heroInstance.instanceId,
         }),
       })
 

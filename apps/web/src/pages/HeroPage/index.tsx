@@ -10,10 +10,9 @@ export function HeroPage() {
   const [myHeroes, setMyHeroes] = useState<HeroInstance[]>([])
   const [inventory, setInventory] = useState<Treasure[]>([])
   const [userId, setUserId] = useState<string>('')
-  const [selectedHero, setSelectedHero] = useState<string | null>(null)
-  const [selectedTreasure, setSelectedTreasure] = useState<string | null>(null)
+  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
-  // 镶嵌凹槽选中状态：点击槽位时展开可镶嵌列表
+  // 镶嵌凹槽选中状态: 点击槽位时展开可镶嵌列表
   const [activeSlot, setActiveSlot] = useState<{ slotType: 'main' | 'sub'; slotIndex: number } | null>(null)
 
   useEffect(() => {
@@ -37,34 +36,10 @@ export function HeroPage() {
     setInventory(data?.treasures ?? [])
   }
 
-  const isOwned = (heroId: string) => myHeroes.some(h => h.heroId === heroId)
-
   const getStarDisplay = (level: number) => '★'.repeat(level) + '☆'.repeat(5 - level)
 
-  const recruit = async (heroId: string) => {
-    const res = await fetch(`${API}/hero/recruit/${userId}/${heroId}`, { method: 'POST' })
-    const data = await res.json()
-    if (data.success) {
-      setMessage(`招募成功: ${allHeroes.find(h => h.id === heroId)?.name}`)
-      await refreshSave()
-    } else {
-      setMessage(data.error ?? '招募失败')
-    }
-  }
-
-  const upgradeStar = async (heroId: string) => {
-    const res = await fetch(`${API}/hero/upgrade-star/${userId}/${heroId}`, { method: 'POST' })
-    const data = await res.json()
-    if (data.success) {
-      setMessage('升星成功!')
-      await refreshSave()
-    } else {
-      setMessage(data.error ?? '升星失败')
-    }
-  }
-
-  const equipTreasure = async (heroId: string, slotType: 'main' | 'sub', slotIndex: number, treasureId: string) => {
-    const res = await fetch(`${API}/hero/equip-treasure/${userId}/${heroId}`, {
+  const equipTreasure = async (instanceId: string, slotType: 'main' | 'sub', slotIndex: number, treasureId: string) => {
+    const res = await fetch(`${API}/hero/equip-treasure/${userId}/${instanceId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slotType, slotIndex, treasureId }),
@@ -72,15 +47,15 @@ export function HeroPage() {
     const data = await res.json()
     if (data.success) {
       setMessage('镶嵌成功!')
-      setSelectedTreasure(null)
+      setActiveSlot(null)
       await refreshSave()
     } else {
       setMessage(data.error ?? '镶嵌失败')
     }
   }
 
-  const unequipTreasure = async (heroId: string, slotType: 'main' | 'sub', slotIndex: number) => {
-    const res = await fetch(`${API}/hero/unequip-treasure/${userId}/${heroId}`, {
+  const unequipTreasure = async (instanceId: string, slotType: 'main' | 'sub', slotIndex: number) => {
+    const res = await fetch(`${API}/hero/unequip-treasure/${userId}/${instanceId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slotType, slotIndex }),
@@ -94,15 +69,20 @@ export function HeroPage() {
     }
   }
 
-  const selectedInstance = myHeroes.find(h => h.heroId === selectedHero)
-  const selectedConfig = allHeroes.find(h => h.id === selectedHero)
+  // 按 instanceId 选 (同名多份时区分)
+  const selectedInstance = myHeroes.find(h => h.instanceId === selectedInstanceId)
+  const selectedConfig = selectedInstance
+    ? allHeroes.find(h => h.id === selectedInstance.heroId)
+    : null
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2 style={{ color: 'var(--text-gold)' }}>英雄管理</h2>
+        <h2 style={{ color: 'var(--text-gold)' }}>英雄管理 ({myHeroes.length})</h2>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button onClick={() => navigate('/city')}>主城</button>
+          <button onClick={() => navigate('/backpack')}>背包</button>
+          <button onClick={() => navigate('/recruit')}>招贤馆</button>
           <button onClick={() => navigate('/stages')}>关卡</button>
         </div>
       </div>
@@ -113,22 +93,33 @@ export function HeroPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', flex: 1, minHeight: 0 }}>
         {/* Left: hero list */}
-        <div>
-          <h3 style={{ color: 'var(--text-gold)', marginBottom: '12px' }}>我的英雄 ({myHeroes.length})</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {myHeroes.map(h => {
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <h3 style={{ color: 'var(--text-gold)', marginBottom: '12px' }}>我的英雄</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto', minHeight: 0, paddingRight: '4px' }}>
+            {myHeroes.length === 0 && (
+              <div style={{ color: 'var(--text-muted)', padding: '20px', textAlign: 'center' }}>
+                还没有英雄 — 去招贤馆抽卡获得英雄石, 在背包"使用"获得英雄
+              </div>
+            )}
+            {myHeroes.map((h, idx) => {
               const cfg = allHeroes.find(c => c.id === h.heroId)
               if (!cfg) return null
+              // 同名多份时加序号标记
+              const sameNameCount = myHeroes.filter(x => x.heroId === h.heroId).length
+              const showIndex = sameNameCount > 1
+              const sameNameIdx = myHeroes.slice(0, idx + 1).filter(x => x.heroId === h.heroId).length
               return (
-                <div key={h.heroId} onClick={() => { setSelectedHero(h.heroId); setSelectedTreasure(null) }} style={{
-                  background: selectedHero === h.heroId ? 'var(--bg-light)' : 'var(--bg-medium)',
-                  border: `1px solid ${selectedHero === h.heroId ? 'var(--border-gold)' : 'var(--border-wood)'}`,
+                <div key={h.instanceId ?? `${h.heroId}-${idx}`} onClick={() => { setSelectedInstanceId(h.instanceId ?? null); setActiveSlot(null) }} style={{
+                  background: selectedInstanceId === h.instanceId ? 'var(--bg-light)' : 'var(--bg-medium)',
+                  border: `1px solid ${selectedInstanceId === h.instanceId ? 'var(--border-gold)' : 'var(--border-wood)'}`,
                   borderRadius: '6px', padding: '10px', cursor: 'pointer',
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--text-light)', fontWeight: 'bold' }}>{cfg.name}</span>
+                    <span style={{ color: 'var(--text-light)', fontWeight: 'bold' }}>
+                      {cfg.name}{showIndex && <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginLeft: '4px' }}>#{sameNameIdx}</span>}
+                    </span>
                     <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>{getStarDisplay(h.starLevel)}</span>
                   </div>
                   <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '4px' }}>
@@ -138,31 +129,10 @@ export function HeroPage() {
               )
             })}
           </div>
-
-          <h3 style={{ color: 'var(--text-gold)', margin: '20px 0 12px' }}>可招募</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {allHeroes.filter(h => !isOwned(h.id)).map(h => (
-              <div key={h.id} style={{
-                background: 'var(--bg-medium)', border: '1px solid #3a2a1a',
-                borderRadius: '6px', padding: '10px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <div>
-                  <span style={{ color: 'var(--text-muted)' }}>{h.name}</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginLeft: '8px' }}>
-                    {getStarDisplay(h.starLevel)} | {h.faction}
-                  </span>
-                </div>
-                <button style={{ fontSize: '12px', padding: '4px 12px' }} onClick={() => recruit(h.id)}>
-                  招募
-                </button>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Right: hero detail */}
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto', paddingRight: '4px' }}>
           {selectedConfig && selectedInstance ? (
             <div style={{
               background: 'var(--bg-medium)', border: '1px solid var(--border-wood)',
@@ -203,7 +173,7 @@ export function HeroPage() {
               {/* Treasure slots */}
               <h4 style={{ color: 'var(--text-gold)', margin: '16px 0 8px' }}>
                 宝具槽
-                {activeSlot && <span style={{ fontSize: '12px', color: '#ff6b6b', marginLeft: '8px' }}>双击宝具镶嵌</span>}
+                {activeSlot && <span style={{ fontSize: '12px', color: '#ff6b6b', marginLeft: '8px' }}>点击宝具镶嵌 (从背包)</span>}
               </h4>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {selectedInstance.treasures.main.map((t, i) => {
@@ -211,17 +181,16 @@ export function HeroPage() {
                   return (
                     <div key={`main-${i}`}
                       onClick={() => setActiveSlot(isActive ? null : { slotType: 'main', slotIndex: i })}
-                      onDoubleClick={() => { if (t) unequipTreasure(selectedInstance.heroId, 'main', i) }}
+                      onDoubleClick={() => { if (t) unequipTreasure(selectedInstance.instanceId!, 'main', i) }}
                       style={{
                         background: isActive ? '#3a2a1a' : 'var(--bg-dark)',
                         border: `1px ${isActive ? 'solid #ff6b6b' : t ? 'solid var(--border-wood)' : 'dashed var(--border-wood)'}`,
                         borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
                         color: t ? 'var(--text-light)' : 'var(--text-muted)',
-                        cursor: 'pointer',
-                        userSelect: 'none',
+                        cursor: 'pointer', userSelect: 'none',
                       }}
                     >
-                      主印{i + 1}: {t ? `${(t as any).name} (双击卸下)` : '空'}
+                      {t ? (t as any).name : '空'}
                     </div>
                   )
                 })}
@@ -230,36 +199,32 @@ export function HeroPage() {
                   return (
                     <div key={`sub-${i}`}
                       onClick={() => setActiveSlot(isActive ? null : { slotType: 'sub', slotIndex: i })}
-                      onDoubleClick={() => { if (t) unequipTreasure(selectedInstance.heroId, 'sub', i) }}
+                      onDoubleClick={() => { if (t) unequipTreasure(selectedInstance.instanceId!, 'sub', i) }}
                       style={{
                         background: isActive ? '#3a2a1a' : 'var(--bg-dark)',
                         border: `1px ${isActive ? 'solid #ff6b6b' : t ? 'solid #3a2a1a' : 'dashed #3a2a1a'}`,
                         borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
                         color: t ? 'var(--text-light)' : 'var(--text-muted)',
-                        cursor: 'pointer',
-                        userSelect: 'none',
+                        cursor: 'pointer', userSelect: 'none',
                       }}
                     >
-                      辅印{i + 1}: {t ? `${(t as any).name} (双击卸下)` : '空'}
+                      {t ? (t as any).name : '空'}
                     </div>
                   )
                 })}
               </div>
 
-              {/* 可镶嵌列表：点击槽位后展示匹配类型的宝具 */}
+              {/* 可镶嵌列表: 点击槽位后展示匹配类型的宝具 */}
               {activeSlot && (() => {
                 const candidates = inventory.filter(t => t.type === activeSlot.slotType)
                 return candidates.length > 0 ? (
                   <div style={{ marginTop: '8px', background: 'var(--bg-dark)', borderRadius: '4px', padding: '10px' }}>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px' }}>
-                      可镶嵌的{activeSlot.slotType === 'main' ? '主印' : '辅印'}：
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '210px', overflowY: 'auto' }}>
                       {candidates.map(t => {
                         const n = t.count ?? 1
                         return (
                           <div key={t.id}
-                            onDoubleClick={() => equipTreasure(selectedInstance.heroId, activeSlot.slotType, activeSlot.slotIndex, t.id)}
+                            onDoubleClick={() => equipTreasure(selectedInstance.instanceId!, activeSlot.slotType, activeSlot.slotIndex, t.id)}
                             style={{
                               background: 'var(--bg-medium)', border: '1px solid var(--border-wood)',
                               borderRadius: '4px', padding: '6px 10px', fontSize: '12px',
@@ -286,13 +251,6 @@ export function HeroPage() {
                   </div>
                 )
               })()}
-
-              {selectedInstance.starLevel < 5 && (
-                <button style={{ marginTop: '16px', width: '100%' }}
-                  onClick={() => upgradeStar(selectedInstance.heroId)}>
-                  升星 ({getStarDisplay(selectedInstance.starLevel)} → {getStarDisplay(selectedInstance.starLevel + 1)})
-                </button>
-              )}
             </div>
           ) : (
             <div style={{

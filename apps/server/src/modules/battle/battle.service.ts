@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { Game } from '@hero-legend/game-engine'
 import type { HeroInstance, BattleResult, Treasure } from '@hero-legend/shared-types'
+import { getMaxLevelByStar } from '@hero-legend/shared-types'
 import { SaveService } from '../save/save.service'
 import { stages, generateTreasureDrop } from '@hero-legend/game-data'
 
@@ -24,9 +25,9 @@ export class BattleService {
     stageId: string
     battleIdx: number
     result: BattleResult
-    playerHeroId?: string
+    playerInstanceId?: string   // 改为 instanceId, 同名多份时才能正确定位
   }) {
-    const { userId, stageId, battleIdx, result, playerHeroId } = body
+    const { userId, stageId, battleIdx, result, playerInstanceId } = body
     const save = await this.saveService.getSave(userId)
     if (!save) return { success: false, error: '存档不存在' }
 
@@ -37,13 +38,14 @@ export class BattleService {
     }
 
     if (result.rewards.growthValue > 0) {
-      // Distribute growth to the hero that actually fought
-      const hero = playerHeroId
-        ? save.heroes.find((h: any) => h.heroId === playerHeroId)
+      // 定位出战的 HeroInstance
+      const hero = playerInstanceId
+        ? save.heroes.find((h: any) => h.instanceId === playerInstanceId)
         : save.heroes[0]
       if (hero) {
         hero.growthValue += result.rewards.growthValue
-        hero.level = Math.min(50, Math.floor(hero.growthValue / 100) + 1)
+        const cap = getMaxLevelByStar(hero.starLevel as 1 | 2 | 3 | 4 | 5)
+        hero.level = Math.min(cap, Math.floor(hero.growthValue / 100) + 1)
       }
     }
 
@@ -74,7 +76,6 @@ export class BattleService {
       const isBoss = stage.battles[battleIdx]?.isBoss ?? false
       droppedTreasure = generateTreasureDrop(stage.rewards, isBoss)
       if (droppedTreasure) {
-        // 合并到背包堆叠: 找到同类则 count++, 否则 push
         const existing = save.treasures.find((t: any) =>
           t.name === droppedTreasure!.name
           && t.type === droppedTreasure!.type
@@ -89,6 +90,23 @@ export class BattleService {
       }
     }
 
+    // 关卡胜利后掉落抽卡券 (MVP: 普通 20% 百里, BOSS 100% 千里 + 5% 万里)
+    let cardDrops: Array<{ type: string; amount: number }> = []
+    if (result.won && stage) {
+      const isBoss = stage.battles[battleIdx]?.isBoss ?? false
+      if (isBoss) {
+        cardDrops.push({ type: 'qianliTicket', amount: 1 })
+        if (Math.random() < 0.05) cardDrops.push({ type: 'wanliTicket', amount: 1 })
+      } else {
+        if (Math.random() < 0.20) cardDrops.push({ type: 'bailiTicket', amount: 1 })
+      }
+      for (const drop of cardDrops) {
+        const mat = save.materials.find((m: any) => m.type === drop.type)
+        if (mat) mat.amount += drop.amount
+        else save.materials.push({ type: drop.type, amount: drop.amount })
+      }
+    }
+
     await this.saveService.updateSave(userId, {
       materials: save.materials,
       heroes: save.heroes,
@@ -96,6 +114,6 @@ export class BattleService {
       treasures: save.treasures,
     })
 
-    return { success: true, rewards: result.rewards, droppedTreasure }
+    return { success: true, rewards: result.rewards, droppedTreasure, cardDrops }
   }
 }

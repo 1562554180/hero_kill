@@ -13,6 +13,8 @@ export interface Hero {
 }
 
 export interface HeroInstance {
+  /** uuid, 唯一标识一份英雄实例(同名多份必须不同). 老存档/旧测试可能缺失, 服务端 save.service.ts getSave 时 backfill. */
+  instanceId?: string
   heroId: string
   level: number
   growthValue: number
@@ -68,4 +70,12 @@ export function getTreasureSlots(starLevel: number): { main: number; sub: number
 // 5星英雄辅印额外触发率
 export function getSubTriggerBonus(starLevel: number): number {
   return starLevel === 5 ? 0.1 : 0
+}
+
+// 根据星级返回等级上限: 1★20 / 2★30 / 3★40 / 4★50 / 5★50
+export function getMaxLevelByStar(starLevel: 1 | 2 | 3 | 4 | 5): number {
+  const caps: Record<1 | 2 | 3 | 4 | 5, number> = {
+    1: 20, 2: 30, 3: 40, 4: 50, 5: 50,
+  }
+  return caps[starLevel] ?? 50
 }

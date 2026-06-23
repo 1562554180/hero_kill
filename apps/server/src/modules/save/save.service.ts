@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
+import { randomUUID } from 'crypto'
 import { SaveDoc } from './save.schema'
 import { generateInitialTreasures } from '@hero-legend/game-data'
+import type { HeroInstance, HeroStone } from '@hero-legend/shared-types'
+import { getTreasureSlots } from '@hero-legend/shared-types'
 
 @Injectable()
 export class SaveService {
@@ -13,6 +16,7 @@ export class SaveService {
     if (!save) return null
     // 补全旧文档缺失的字段
     let patched = false
+
     if (!save.materials || save.materials.length === 0) {
       save.materials = [{ type: 'gold', amount: 1000 }] as any
       patched = true
@@ -25,6 +29,29 @@ export class SaveService {
       ] as any
       patched = true
     }
+    // 老存档的 heroes 缺 instanceId → backfill
+    if (save.heroes && save.heroes.length > 0) {
+      for (const h of save.heroes as any[]) {
+        if (!h.instanceId) {
+          h.instanceId = randomUUID()
+          patched = true
+        }
+      }
+    }
+    if (!save.heroStones) {
+      save.heroStones = [] as any
+      patched = true
+    }
+    if (!save.dailyRecruitGuarantee) {
+      save.dailyRecruitGuarantee = { qianliDate: null, wanliDate: null } as any
+      patched = true
+    }
+    // 老存档无抽卡券,seed 10 张百里卡作为新手补偿
+    if (!save.materials.find((m: any) => m.type === 'bailiTicket')) {
+      save.materials.push({ type: 'bailiTicket', amount: 10 })
+      patched = true
+    }
+
     if (patched) await save.save()
     return save
   }
@@ -43,7 +70,12 @@ export class SaveService {
       ],
       heroes: [],
       treasures: generateInitialTreasures(),
-      materials: [{ type: 'gold', amount: 1000 }],
+      materials: [
+        { type: 'gold', amount: 1000 },
+        { type: 'bailiTicket', amount: 10 },   // 新存档给 10 张百里卡开局
+      ],
+      heroStones: [],
+      dailyRecruitGuarantee: { qianliDate: null, wanliDate: null },
       stageProgress: [
         { stageId: 'xu-zhou', battlesCompleted: 0, stars: 0, unlocked: true },
         { stageId: 'yang-zhou', battlesCompleted: 0, stars: 0, unlocked: false },
@@ -61,7 +93,8 @@ export class SaveService {
     ).exec()
   }
 
-  async addHero(userId: string, hero: any): Promise<SaveDoc | null> {
+  async addHero(userId: string, hero: HeroInstance): Promise<SaveDoc | null> {
+    if (!hero.instanceId) hero.instanceId = randomUUID()
     return this.saveModel.findOneAndUpdate(
       { userId },
       { $push: { heroes: hero }, updatedAt: Date.now() },
@@ -75,5 +108,84 @@ export class SaveService {
       { $inc: { 'materials.$.amount': amount }, updatedAt: Date.now() },
     ).exec()
     return this.getSave(userId)
+  }
+
+  /** 消耗门票 (允许负数, 若余额不足则返回 null 由调用方处理) */
+  async spendMaterial(userId: string, type: string, amount: number): Promise<{ save: SaveDoc; newAmount: number } | null> {
+    const save = await this.getSave(userId)
+    if (!save) return null
+    const mat = save.materials.find((m: any) => m.type === type)
+    const current = mat?.amount ?? 0
+    if (current < amount) return null
+    const newAmount = current - amount
+    if (mat) {
+      mat.amount = newAmount
+    } else {
+      save.materials.push({ type, amount: newAmount } as any)
+    }
+    await this.saveModel.findOneAndUpdate(
+      { userId },
+      { $set: { materials: save.materials, updatedAt: Date.now() } },
+      { new: true },
+    ).exec()
+    return { save, newAmount }
+  }
+
+  /** 把一批抽到的英雄石加入存档 */
+  async addHeroStones(userId: string, stones: HeroStone[]): Promise<SaveDoc | null> {
+    return this.saveModel.findOneAndUpdate(
+      { userId },
+      { $push: { heroStones: { $each: stones } }, updatedAt: Date.now() },
+      { new: true },
+    ).exec()
+  }
+
+  /** 更新每日保底字段 (qianliDate 或 wanliDate 之一) */
+  async updateDailyGuarantee(userId: string, key: 'qianliDate' | 'wanliDate', dateStr: string): Promise<SaveDoc | null> {
+    return this.saveModel.findOneAndUpdate(
+      { userId },
+      { $set: { [`dailyRecruitGuarantee.${key}`]: dateStr, updatedAt: Date.now() } },
+      { new: true },
+    ).exec()
+  }
+
+  /**
+   * 使用一颗英雄石 → 生成 HeroInstance
+   * 返回 { hero: 新生成的实例, remainingStones: 剩余石头数 } 或 null (石头不存在)
+   */
+  async useHeroStone(userId: string, stoneId: string): Promise<{ hero: HeroInstance; remainingStones: number } | null> {
+    const save = await this.getSave(userId)
+    if (!save) return null
+    const idx = (save.heroStones as any[]).findIndex(s => s.stoneId === stoneId)
+    if (idx < 0) return null
+    const stone = save.heroStones[idx]
+    const starLevel = stone.starLevel as 1 | 2 | 3 | 4 | 5
+
+    // 同名可多份: 直接新建一份 instance, instanceId 用新 uuid
+    const slots = getTreasureSlots(starLevel)
+    const newHero: HeroInstance = {
+      instanceId: randomUUID(),
+      heroId: stone.heroId,
+      level: 1,
+      growthValue: 0,
+      starLevel,
+      treasures: {
+        main: new Array(slots.main).fill(null),
+        sub: new Array(slots.sub).fill(null),
+      },
+    }
+
+    // 原子操作: $push hero + $pull stone
+    await this.saveModel.findOneAndUpdate(
+      { userId },
+      {
+        $push: { heroes: newHero },
+        $pull: { heroStones: { stoneId } },
+        $set: { updatedAt: Date.now() },
+      },
+      { new: true },
+    ).exec()
+
+    return { hero: newHero, remainingStones: (save.heroStones as any[]).length - 1 }
   }
 }

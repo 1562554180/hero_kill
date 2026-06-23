@@ -11,41 +11,31 @@ export class HeroController {
     return { heroes, bossHeroes }
   }
 
-  @Post('recruit/:userId/:heroId')
-  async recruitHero(@Param('userId') userId: string, @Param('heroId') heroId: string) {
-    return this.heroService.recruitHero(userId, heroId)
+  @Post('levelup/:userId/:instanceId')
+  async levelUp(@Param('userId') userId: string, @Param('instanceId') instanceId: string, @Body() body: { growthAmount: number }) {
+    return this.heroService.levelUp(userId, instanceId, body?.growthAmount ?? 100)
   }
 
-  @Post('levelup/:userId/:heroId')
-  async levelUp(@Param('userId') userId: string, @Param('heroId') heroId: string, @Body() body: { growthAmount: number }) {
-    return this.heroService.levelUp(userId, heroId, body.growthAmount ?? 100)
-  }
-
-  @Post('upgrade-star/:userId/:heroId')
-  async upgradeStar(@Param('userId') userId: string, @Param('heroId') heroId: string) {
-    return this.heroService.upgradeStar(userId, heroId)
-  }
-
-  @Post('equip-treasure/:userId/:heroId')
+  @Post('equip-treasure/:userId/:instanceId')
   async equipTreasure(
     @Param('userId') userId: string,
-    @Param('heroId') heroId: string,
+    @Param('instanceId') instanceId: string,
     @Body() body: { slotType: 'main' | 'sub'; slotIndex: number; treasureId: string },
   ) {
-    return this.heroService.equipTreasure(userId, heroId, body.slotType, body.slotIndex, body.treasureId)
+    return this.heroService.equipTreasure(userId, instanceId, body.slotType, body.slotIndex, body.treasureId)
   }
 
-  @Post('unequip-treasure/:userId/:heroId')
+  @Post('unequip-treasure/:userId/:instanceId')
   async unequipTreasure(
     @Param('userId') userId: string,
-    @Param('heroId') heroId: string,
+    @Param('instanceId') instanceId: string,
     @Body() body: { slotType: 'main' | 'sub'; slotIndex: number },
   ) {
-    return this.heroService.unequipTreasure(userId, heroId, body.slotType, body.slotIndex)
+    return this.heroService.unequipTreasure(userId, instanceId, body.slotType, body.slotIndex)
   }
 
-  @Post('smelt/:userId')
-  async smeltHeroes(@Param('userId') userId: string, @Body() body: { heroIds: string[] }) {
-    return this.heroService.smeltHeroes(userId, body.heroIds)
+  @Post('use-stone/:userId/:stoneId')
+  async useStone(@Param('userId') userId: string, @Param('stoneId') stoneId: string) {
+    return this.heroService.useHeroStone(userId, stoneId)
   }
 }

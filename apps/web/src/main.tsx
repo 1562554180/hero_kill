@@ -5,7 +5,9 @@ import { MainPage } from './pages/MainPage'
 import { StageSelectPage } from './pages/StageSelectPage'
 import { BattlePage } from './pages/BattlePage'
 import { HeroPage } from './pages/HeroPage'
+import { RecruitPage } from './pages/RecruitPage'
 import { CityPage } from './pages/CityPage'
+import { BackpackPage } from './pages/BackpackPage'
 import './styles/global.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -16,6 +18,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/stages" element={<StageSelectPage />} />
         <Route path="/battle/:stageId" element={<BattlePage />} />
         <Route path="/heroes" element={<HeroPage />} />
+        <Route path="/recruit" element={<RecruitPage />} />
+        <Route path="/backpack" element={<BackpackPage />} />
         <Route path="/city" element={<CityPage />} />
       </Routes>
     </BrowserRouter>

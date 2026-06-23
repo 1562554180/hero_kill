@@ -67,6 +67,8 @@ export function CityPage() {
           <span style={{ color: 'var(--text-gold)' }}>金币: {gold}</span>
           <button onClick={() => navigate('/stages')}>关卡</button>
           <button onClick={() => navigate('/heroes')}>英雄</button>
+          <button onClick={() => navigate('/backpack')}>背包</button>
+          <button onClick={() => navigate('/recruit')}>招贤馆</button>
         </div>
       </div>
 
@@ -100,6 +102,12 @@ export function CityPage() {
               <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '12px' }}>
                 {buildingDescs[b.type] || ''}
               </p>
+              {b.type === 'recruit' && (
+                <button style={{ width: '100%', fontSize: '12px', marginBottom: '8px' }}
+                  onClick={() => navigate('/recruit')}>
+                  进入招贤馆
+                </button>
+              )}
               <button style={{ width: '100%', fontSize: '12px' }}
                 onClick={() => upgradeBuilding(b.type)}>
                 升级 (需 {cost} 金币)
