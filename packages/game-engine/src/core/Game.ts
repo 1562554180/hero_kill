@@ -1402,6 +1402,8 @@ export class Game {
       if (guanYu && currentPlayer && guanYu.getId() !== currentPlayer.getId() &&
           guanYu.getId() !== victim.getId() &&
           attacker.getId() !== guanYu.getId() &&
+          // 补刀只对敌方: 关羽补刀目标是关羽的敌人 (不补队友/玩家)
+          this.getEnemies(guanYu).some(e => e.getId() === victim.getId()) &&
           this.isInAttackRange(guanYu, victim) &&
           this.hasPotentialKillCard(guanYu)) {
         await this.executeBuDao(guanYu, victim)
@@ -3443,7 +3445,8 @@ export class Game {
   }
 
   private checkGameEnd(): void {
-    const playerAlive = this.players.some(p => (p.getRole() === 'player' || p.getRole() === 'ally') && p.isAlive())
+    // 失败判定: 玩家阵亡即失败, 不依赖友方 AI 是否存活
+    const playerAlive = this.players.some(p => p.getRole() === 'player' && p.isAlive())
     const enemyAlive = this.players.some(p => p.getRole() === 'enemy' && p.isAlive())
 
     if (!playerAlive) {
