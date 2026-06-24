@@ -140,7 +140,7 @@ interface SmeltAnimationProps {
 
 **单次融合流程:**
 1. idle → 点"融合" → 立即 fetch `/api/recruit/smelt/:userId`
-2. 成功 → phase=brewing → 0.8s 酝酿 → phase=revealed → 用户点"收下" → phase=idle
+2. 成功 → phase=brewing (≈700ms 酝酿) → phase=revealed (从点融合到 revealed 升起共 ≈800ms) → 用户点"收下" → phase=idle
 3. 失败 → 直接回 phase=idle + 顶部错误 toast (不进入 brewing)
 
 **取消 brewing:** 不允许. 一旦点融合就播完 (避免半中断状态).
@@ -176,9 +176,10 @@ SmelterPage
 ├── state: resultStone?: HeroStone
 │
 ├── handler: handleSlotClick(idx)
-│   - 如果槽空 + pendingStoneId: 投入 (slots[idx] = pending)
-│   - 如果槽有: 弹出菜单 (取出 / 替换)
-│   - 取空后 pending 仍保留, 用户可继续投入另两个槽
+│   - 槽空 + pendingStoneId: 投入 (slots[idx] = pending, pending 保留, 用户可继续投入另两个槽)
+│   - 槽空 + 无 pending: toast "请先在右侧池中选一颗"
+│   - 槽有 + pendingStoneId 与槽内不同: 替换 (用 pending 替换槽内石头, 旧石头回池)
+│   - 槽有 + 无 pending: 取出 (回池, 该 stoneId 重新可选)
 │
 ├── handler: handlePickFromPool(stoneId)
 │   - 切换 pendingStoneId (toggle, 再点同一行取消)
