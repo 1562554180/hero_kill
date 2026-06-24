@@ -5,6 +5,7 @@ import { HeroModule } from './modules/hero/hero.module'
 import { StageModule } from './modules/stage/stage.module'
 import { SaveModule } from './modules/save/save.module'
 import { RecruitModule } from './modules/recruit/recruit.module'
+import { TreasureModule } from './modules/treasure/treasure.module'
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { RecruitModule } from './modules/recruit/recruit.module'
     StageModule,
     SaveModule,
     RecruitModule,
+    TreasureModule,
   ],
 })
 export class AppModule {}
