@@ -90,17 +90,23 @@ export class BattleService {
       }
     }
 
-    // 关卡胜利后掉落抽卡券 (MVP: 普通 20% 百里, BOSS 100% 千里 + 5% 万里)
-    let cardDrops: Array<{ type: string; amount: number }> = []
+    // 关卡胜利后发奖: 抽卡券 + 强化符 + 幸运石 + 转移符
+    const allDrops: Array<{ type: string; amount: number }> = []
     if (result.won && stage) {
       const isBoss = stage.battles[battleIdx]?.isBoss ?? false
       if (isBoss) {
-        cardDrops.push({ type: 'qianliTicket', amount: 1 })
-        if (Math.random() < 0.05) cardDrops.push({ type: 'wanliTicket', amount: 1 })
+        allDrops.push({ type: 'qianliTicket', amount: 1 })
+        if (Math.random() < 0.05) allDrops.push({ type: 'wanliTicket', amount: 1 })
+        allDrops.push({ type: 'enhancementTalisman', amount: 2 })
+        if (Math.random() < 0.33) allDrops.push({ type: 'luckyStone', amount: 1 })
+        if (Math.random() < 0.33) allDrops.push({ type: 'transferTalisman', amount: 1 })
       } else {
-        if (Math.random() < 0.20) cardDrops.push({ type: 'bailiTicket', amount: 1 })
+        if (Math.random() < 0.20) allDrops.push({ type: 'bailiTicket', amount: 1 })
+        if (Math.random() < 0.30) allDrops.push({ type: 'enhancementTalisman', amount: 1 })
+        if (Math.random() < 0.10) allDrops.push({ type: 'luckyStone', amount: 1 })
+        if (Math.random() < 0.10) allDrops.push({ type: 'transferTalisman', amount: 1 })
       }
-      for (const drop of cardDrops) {
+      for (const drop of allDrops) {
         const mat = save.materials.find((m: any) => m.type === drop.type)
         if (mat) mat.amount += drop.amount
         else save.materials.push({ type: drop.type, amount: drop.amount })
@@ -114,6 +120,6 @@ export class BattleService {
       treasures: save.treasures,
     })
 
-    return { success: true, rewards: result.rewards, droppedTreasure, cardDrops }
+    return { success: true, rewards: result.rewards, droppedTreasure, drops: allDrops }
   }
 }
