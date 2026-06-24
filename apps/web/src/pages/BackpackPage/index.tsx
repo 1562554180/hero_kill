@@ -7,9 +7,9 @@ const API = '/api'
 type Tab = 'stones' | 'tickets' | 'treasures' | 'materials'
 
 const TICKET_LABEL: Record<string, string> = {
-  bailiTicket: '百里抽卡券',
-  qianliTicket: '千里抽卡券',
-  wanliTicket: '万里抽卡券',
+  bailiTicket: '初级英雄令',
+  qianliTicket: '中级英雄令',
+  wanliTicket: '高级英雄令',
 }
 
 const MAT_LABEL: Record<string, string> = {

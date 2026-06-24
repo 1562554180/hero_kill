@@ -8,9 +8,9 @@ interface Props {
 }
 
 const POOL_LABEL: Record<string, string> = {
-  baili: '百里',
-  qianli: '千里',
-  wanli: '万里',
+  baili: '初级',
+  qianli: '中级',
+  wanli: '高级',
 }
 
 /**

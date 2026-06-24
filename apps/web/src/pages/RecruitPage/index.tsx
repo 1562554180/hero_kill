@@ -11,9 +11,9 @@ interface SaveData {
 }
 
 const POOLS: Array<{ pool: RecruitPool; name: string; ticket: string }> = [
-  { pool: 'baili', name: '名扬百里', ticket: 'bailiTicket' },
-  { pool: 'qianli', name: '名扬千里', ticket: 'qianliTicket' },
-  { pool: 'wanli', name: '名扬万里', ticket: 'wanliTicket' },
+  { pool: 'baili', name: '初级酒馆', ticket: 'bailiTicket' },
+  { pool: 'qianli', name: '中级酒馆', ticket: 'qianliTicket' },
+  { pool: 'wanli', name: '高级酒馆', ticket: 'wanliTicket' },
 ]
 
 const POOL_PROBS: Record<RecruitPool, string> = {
