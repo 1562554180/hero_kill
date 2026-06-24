@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { randomUUID } from 'crypto'
 import { SaveDoc } from './save.schema'
-import { generateInitialTreasures } from '@hero-legend/game-data'
+import { generateInitialTreasures, treasureDefinitions } from '@hero-legend/game-data'
 import type { HeroInstance, HeroStone } from '@hero-legend/shared-types'
 import { getTreasureSlots } from '@hero-legend/shared-types'
 
@@ -64,6 +64,59 @@ export class SaveService {
           patched = true
         }
       }
+    }
+    // 老数据迁移: 拆 count>1 的 entry 成独立实例 (每个 count=1, id 加 #N 后缀)
+    if (save.treasures && save.treasures.length > 0) {
+      const newTreasures: any[] = []
+      for (const t of save.treasures as any[]) {
+        const count = t.count ?? 1
+        if (count <= 1) {
+          newTreasures.push(t)
+          continue
+        }
+        // 拆成 count 个 count=1 的实例
+        for (let i = 0; i < count; i++) {
+          newTreasures.push({
+            ...t,
+            id: `${t.id}#${i}`,
+            count: 1,
+          })
+        }
+      }
+      if (newTreasures.length !== save.treasures.length) {
+        save.treasures = newTreasures
+        patched = true
+      }
+    }
+    // 补全新加入的辅印变体 (老存档只有 18 条旧数据, 现在每个缺失的 def 都补一条 count=1)
+    if (save.treasures && Array.isArray(save.treasures)) {
+      const subDefs = (treasureDefinitions as any[]).filter((d: any) => d.type === 'sub')
+      const existingDefIds = new Set(
+        (save.treasures as any[])
+          .filter((t: any) => t.type === 'sub')
+          .map((t: any) => String(t.id).split('#')[0]),
+      )
+      let added = false
+      for (const def of subDefs) {
+        if (!existingDefIds.has(def.id)) {
+          save.treasures.push({
+            id: `t-migrate-${def.id}-0`,
+            name: def.name,
+            type: 'sub',
+            sourceHeroId: def.sourceHeroId ?? undefined,
+            skill: { id: def.sourceSkillId ?? def.id, name: def.name, type: 'passive', description: def.description },
+            triggerRate: def.baseTriggerRate,
+            starLevel: def.starLevel,
+            count: 1,
+            category: def.category,
+            level: 0,
+            enhanceCount: 0,
+            effect: def.effect,
+          })
+          added = true
+        }
+      }
+      if (added) patched = true
     }
     // 老存档 seed 强化符 20 张 (新手补偿)
     if (!save.materials.find((m: any) => m.type === 'enhancementTalisman')) {
