@@ -117,36 +117,46 @@ export function BackpackPage() {
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
-              {stones.map(s => {
-                const hero = heroMap.get(s.heroId)
-                const isHigh = s.starLevel >= 4
-                return (
-                  <div key={s.stoneId} style={{
-                    background: isHigh ? 'linear-gradient(135deg, #ff6b6b22, #c6282822)' : 'var(--bg-dark)',
-                    border: `1px solid ${isHigh ? '#ff6b6b' : 'var(--border-wood)'}`,
-                    borderRadius: '6px', padding: '10px',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ color: 'var(--text-light)', fontWeight: 'bold' }}>
-                        {hero?.name ?? s.heroId}
-                      </span>
-                      <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>
-                        {'★'.repeat(s.starLevel)}
-                      </span>
+              {(() => {
+                // 按 (starLevel, heroId) 分组, 池子不再展示
+                const groups = new Map<string, { stoneId: string; starLevel: number; heroId: string; count: number }>()
+                for (const s of stones) {
+                  const key = `${s.starLevel}|${s.heroId}`
+                  const g = groups.get(key)
+                  if (g) g.count++
+                  else groups.set(key, { stoneId: s.stoneId, starLevel: s.starLevel, heroId: s.heroId, count: 1 })
+                }
+                return Array.from(groups.values()).map(g => {
+                  const hero = heroMap.get(g.heroId)
+                  const isHigh = g.starLevel >= 4
+                  return (
+                    <div key={`${g.starLevel}-${g.heroId}`} style={{
+                      background: isHigh ? 'linear-gradient(135deg, #ff6b6b22, #c6282822)' : 'var(--bg-dark)',
+                      border: `1px solid ${isHigh ? '#ff6b6b' : 'var(--border-wood)'}`,
+                      borderRadius: '6px', padding: '10px',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ color: 'var(--text-light)', fontWeight: 'bold' }}>
+                          {hero?.name ?? g.heroId}{g.count > 1 && <span style={{ color: 'var(--text-gold)', marginLeft: '6px' }}>× {g.count}</span>}
+                        </span>
+                        <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>
+                          {'★'.repeat(g.starLevel)}
+                        </span>
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '8px' }}>
+                        {hero?.faction ?? '?'} | 英雄石
+                      </div>
+                      <button
+                        disabled={busy}
+                        onClick={() => useStone(g.stoneId)}
+                        style={{ width: '100%', fontSize: '12px', padding: '6px' }}
+                      >
+                        使用 (生成英雄)
+                      </button>
                     </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '8px' }}>
-                      {hero?.faction ?? '?'} | {s.pool === 'baili' ? '百里' : s.pool === 'qianli' ? '千里' : '万里'} | 英雄石
-                    </div>
-                    <button
-                      disabled={busy}
-                      onClick={() => useStone(s.stoneId)}
-                      style={{ width: '100%', fontSize: '12px', padding: '6px' }}
-                    >
-                      使用 (生成英雄)
-                    </button>
-                  </div>
-                )
-              })}
+                  )
+                })
+              })()}
             </div>
           )
         )}
