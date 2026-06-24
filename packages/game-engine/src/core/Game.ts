@@ -308,7 +308,8 @@ export class Game {
     const treasure = [...player.hero.instance.treasures.sub].find(t => t?.skill.id === skillId)
     if (!treasure) return false
     const bonus = getSubTriggerBonus(player.hero.instance.starLevel)
-    return Math.random() < treasure.triggerRate + bonus
+    const levelBonus = (treasure.level ?? 0) * 0.01
+    return Math.random() < treasure.triggerRate + levelBonus + bonus
   }
 
   /** 杀造成伤害后：攻击类辅印触发（吸血/杀之贪/杀之卸） */
