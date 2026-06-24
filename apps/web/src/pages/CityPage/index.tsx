@@ -108,6 +108,12 @@ export function CityPage() {
                   进入招贤馆
                 </button>
               )}
+              {b.type === 'smelt' && (
+                <button style={{ width: '100%', fontSize: '12px', marginBottom: '8px' }}
+                  onClick={() => navigate('/smelter')}>
+                  进入熔炼炉
+                </button>
+              )}
               <button style={{ width: '100%', fontSize: '12px' }}
                 onClick={() => upgradeBuilding(b.type)}>
                 升级 (需 {cost} 金币)
