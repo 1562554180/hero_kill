@@ -150,6 +150,14 @@ export function SmelterPage() {
       setTimeout(() => {
         setResultStone(data.stone)
         setPhase('revealed')
+        // revealed 持续 1500ms 让用户看到结果, 自动收下
+        setTimeout(() => {
+          setSlots([null, null, null])
+          setPendingStoneId(null)
+          setResultStone(null)
+          setPhase('idle')
+          refresh()
+        }, 1500)
       }, 800)
     } catch (e: any) {
       setToast('网络错误: ' + (e?.message ?? ''))
@@ -157,14 +165,6 @@ export function SmelterPage() {
     } finally {
       setBusy(false)
     }
-  }
-
-  const handleCollect = async () => {
-    setSlots([null, null, null])
-    setPendingStoneId(null)
-    setResultStone(null)
-    setPhase('idle')
-    await refresh()
   }
 
   const resultHeroName = resultStone ? heroMap.get(resultStone.heroId)?.name ?? resultStone.heroId : ''
@@ -207,7 +207,6 @@ export function SmelterPage() {
             phase={phase}
             resultStone={resultStone}
             heroName={resultHeroName}
-            onCollect={handleCollect}
           />
         </div>
 
