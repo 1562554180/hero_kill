@@ -14,4 +14,12 @@ export class RecruitController {
   ) {
     return this.recruitService.draw(userId, pool, body?.count ?? 1)
   }
+
+  @Post('smelt/:userId')
+  async smelt(
+    @Param('userId') userId: string,
+    @Body() body: { stoneIds: string[] },
+  ) {
+    return this.recruitService.smelt(userId, body?.stoneIds ?? [])
+  }
 }

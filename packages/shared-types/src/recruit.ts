@@ -46,3 +46,10 @@ export interface DrawError {
   success?: false
   error: string
 }
+
+/** 熔炼 API 响应: 3 颗同星英雄石 → 1 颗新石头 */
+export interface SmeltResult {
+  success: true
+  stone: HeroStone
+  consumedStoneIds: string[]
+}

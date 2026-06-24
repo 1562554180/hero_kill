@@ -144,6 +144,25 @@ export class SaveService {
     ).exec()
   }
 
+  /** 熔炼: 先 $pull 删除消耗的石头, 再 $push 新石头. Mongo 不允许同路径同时 $pull/$push, 拆两步 */
+  async smeltStones(userId: string, consumeStoneIds: string[], newStone: HeroStone): Promise<SaveDoc | null> {
+    await this.saveModel.updateOne(
+      { userId },
+      {
+        $pull: { heroStones: { stoneId: { $in: consumeStoneIds } } },
+        $set: { updatedAt: Date.now() },
+      },
+    ).exec()
+    return this.saveModel.findOneAndUpdate(
+      { userId },
+      {
+        $push: { heroStones: newStone },
+        $set: { updatedAt: Date.now() },
+      },
+      { new: true },
+    ).exec()
+  }
+
   /** 更新每日保底字段 (qianliDate 或 wanliDate 之一) */
   async updateDailyGuarantee(userId: string, key: 'qianliDate' | 'wanliDate', dateStr: string): Promise<SaveDoc | null> {
     return this.saveModel.findOneAndUpdate(
