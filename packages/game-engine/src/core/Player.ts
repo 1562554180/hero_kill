@@ -11,7 +11,11 @@ export class Player {
   private usedKillThisTurn = false
 
   constructor(hero: Hero, instance: HeroInstance, role: Role) {
-    const maxHp = getHpByStar(hero.baseHp, instance.starLevel)
+    const baseHp = getHpByStar(hero.baseHp, instance.starLevel)
+    const hpBonus = (instance.treasures.main ?? [])
+      .filter((t): t is NonNullable<typeof t> => t != null)
+      .reduce((sum, t) => sum + (t.effect?.hpBonus ?? 0), 0)
+    const maxHp = baseHp + hpBonus
     this.hero = {
       instance,
       hero,
@@ -38,6 +42,11 @@ export class Player {
     let limit = this.hero.currentHp
     // 乾坤袋: 手牌上限+1
     if (this.getArmorName() === '乾坤袋') limit += 1
+    // 运筹 主印: 手牌上限 +N
+    const handBonus = (this.hero.instance.treasures.main ?? [])
+      .filter((t): t is NonNullable<typeof t> => t != null)
+      .reduce((sum, t) => sum + (t.effect?.handBonus ?? 0), 0)
+    limit += handBonus
     return limit
   }
 
@@ -113,6 +122,11 @@ export class Player {
     if (this.hero.equipment.attackMount) range += 1
     // 骑射/单骑: 默认视为装备进攻马
     if (this.hasSkillOrTreasure('qi-she') || this.hasSkillOrTreasure('dan-qi')) range += 1
+    // 穿杨 主印: 攻击距离 +N
+    const rangeBonus = (this.hero.instance.treasures.main ?? [])
+      .filter((t): t is NonNullable<typeof t> => t != null)
+      .reduce((sum, t) => sum + (t.effect?.rangeBonus ?? 0), 0)
+    range += rangeBonus
     return range
   }
 
