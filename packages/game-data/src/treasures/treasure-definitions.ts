@@ -12,6 +12,11 @@ export interface TreasureDefinition {
   baseTriggerRate: number
   starLevel: number
   category?: SubTreasureCategory
+  effect?: {
+    hpBonus?: number
+    rangeBonus?: number
+    handBonus?: number
+  }
 }
 
 // 主印：英雄专属技能，100%触发
@@ -50,29 +55,137 @@ export const treasureDefinitions: TreasureDefinition[] = [
   { id: 'treasure-ci-ke', name: '刺客', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '当你使用【杀】指定一名目标后，你可以判定：若为红色，此【杀】不可被【闪】响应；若为黑色，此【杀】造成伤害后，你可以弃置其一张牌。', baseTriggerRate: 1.0, starLevel: 3 },
   { id: 'treasure-qing-ying', name: '轻影', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '你可以将你的黑色手牌当【闪】使用或打出。', baseTriggerRate: 1.0, starLevel: 3 },
 
-  // ===== 辅印 — 攻击类 =====
-  { id: 'treasure-qiang-hua', name: '强化', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，有30%几率令此伤害+1。', baseTriggerRate: 0.30, starLevel: 2, category: '攻击' },
-  { id: 'treasure-xi-xue', name: '吸血', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，有30%几率回复1点体力。', baseTriggerRate: 0.30, starLevel: 2, category: '攻击' },
-  { id: 'treasure-jing-zhun', name: '精准', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】指定目标后，有30%几率令此【杀】不可被【闪】响应。', baseTriggerRate: 0.30, starLevel: 2, category: '攻击' },
-  { id: 'treasure-sha-zhi-tan', name: '杀之贪', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，有30%几率摸一张牌。', baseTriggerRate: 0.30, starLevel: 2, category: '攻击' },
-  { id: 'treasure-sha-zhi-xie', name: '杀之卸', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，有30%几率弃置目标一张装备牌。', baseTriggerRate: 0.30, starLevel: 2, category: '攻击' },
+  // ===== 主印 - 身强 (HP 上限 +N) =====
+  { id: 'main_shengqiang', name: '身强', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄体力上限 +1。', baseTriggerRate: 1.0, starLevel: 1, effect: { hpBonus: 1 } },
+  { id: 'main_shengqiang_2', name: '身强·贰', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄体力上限 +2。', baseTriggerRate: 1.0, starLevel: 2, effect: { hpBonus: 2 } },
+  { id: 'main_shengqiang_3', name: '身强·叁', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄体力上限 +3。', baseTriggerRate: 1.0, starLevel: 3, effect: { hpBonus: 3 } },
+  { id: 'main_shengqiang_4', name: '身强·肆', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄体力上限 +4。', baseTriggerRate: 1.0, starLevel: 4, effect: { hpBonus: 4 } },
+  { id: 'main_shengqiang_5', name: '身强·伍', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄体力上限 +5。', baseTriggerRate: 1.0, starLevel: 5, effect: { hpBonus: 5 } },
 
-  // ===== 辅印 — 防御类 =====
-  { id: 'treasure-shang-zhi-chou', name: '伤之仇', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，有30%几率令伤害来源受到1点伤害。', baseTriggerRate: 0.30, starLevel: 2, category: '防御' },
-  { id: 'treasure-shang-zhi-tan', name: '伤之贪', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，有30%几率摸一张牌。', baseTriggerRate: 0.30, starLevel: 2, category: '防御' },
-  { id: 'treasure-yi-xin', name: '医心', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【药】时，有30%几率额外回复1点体力。', baseTriggerRate: 0.30, starLevel: 2, category: '防御' },
-  { id: 'treasure-qing-ling', name: '轻灵', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【闪】后，有30%几率摸一张牌。', baseTriggerRate: 0.30, starLevel: 2, category: '防御' },
-  { id: 'treasure-hei-sha-dun', name: '黑杀盾', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到黑色【杀】的伤害后，有30%几率防止此伤害。', baseTriggerRate: 0.30, starLevel: 2, category: '防御' },
-  { id: 'treasure-hong-sha-dun', name: '红杀盾', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到红色【杀】的伤害后，有30%几率防止此伤害。', baseTriggerRate: 0.30, starLevel: 2, category: '防御' },
-  { id: 'treasure-shang-zhi-xie', name: '伤之卸', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，有30%几率弃置伤害来源一张装备牌。', baseTriggerRate: 0.30, starLevel: 2, category: '防御' },
-  { id: 'treasure-shang-zhi-xue', name: '伤之削', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，有30%几率弃置伤害来源一张手牌。', baseTriggerRate: 0.30, starLevel: 2, category: '防御' },
+  // ===== 主印 - 穿杨 (攻击距离 +N) =====
+  { id: 'main_chuanyang', name: '穿杨', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄攻击距离 +1。', baseTriggerRate: 1.0, starLevel: 1, effect: { rangeBonus: 1 } },
+  { id: 'main_chuanyang_2', name: '穿杨·贰', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄攻击距离 +2。', baseTriggerRate: 1.0, starLevel: 2, effect: { rangeBonus: 2 } },
+  { id: 'main_chuanyang_3', name: '穿杨·叁', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄攻击距离 +3。', baseTriggerRate: 1.0, starLevel: 3, effect: { rangeBonus: 3 } },
+  { id: 'main_chuanyang_4', name: '穿杨·肆', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄攻击距离 +4。', baseTriggerRate: 1.0, starLevel: 4, effect: { rangeBonus: 4 } },
+  { id: 'main_chuanyang_5', name: '穿杨·伍', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄攻击距离 +5。', baseTriggerRate: 1.0, starLevel: 5, effect: { rangeBonus: 5 } },
 
-  // ===== 辅印 — 锦囊类 =====
-  { id: 'treasure-tan-shou', name: '贪手', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '摸牌阶段开始时，有30%几率额外摸一张牌。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
-  { id: 'treasure-sheng-you', name: '生有', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，有30%几率额外摸一张牌。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
-  { id: 'treasure-lang-yan', name: '狼烟', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【烽火狼烟】时，有30%几率使其伤害+1。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
-  { id: 'treasure-wan-jian', name: '万箭', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【万箭齐发】时，有30%几率使其伤害+1。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
-  { id: 'treasure-wu-xie', name: '无懈', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无懈可击】时，有30%几率摸一张牌。', baseTriggerRate: 0.30, starLevel: 2, category: '锦囊' },
+  // ===== 主印 - 运筹 (手牌上限 +N) =====
+  { id: 'main_yunchou', name: '运筹', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄手牌上限 +1。', baseTriggerRate: 1.0, starLevel: 1, effect: { handBonus: 1 } },
+  { id: 'main_yunchou_2', name: '运筹·贰', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄手牌上限 +2。', baseTriggerRate: 1.0, starLevel: 2, effect: { handBonus: 2 } },
+  { id: 'main_yunchou_3', name: '运筹·叁', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄手牌上限 +3。', baseTriggerRate: 1.0, starLevel: 3, effect: { handBonus: 3 } },
+  { id: 'main_yunchou_4', name: '运筹·肆', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄手牌上限 +4。', baseTriggerRate: 1.0, starLevel: 4, effect: { handBonus: 4 } },
+  { id: 'main_yunchou_5', name: '运筹·伍', sourceHeroId: null, sourceSkillId: null, type: 'main', description: '装备后英雄手牌上限 +5。', baseTriggerRate: 1.0, starLevel: 5, effect: { handBonus: 5 } },
+
+  // ===== 辅印 - 攻击类 (5 星) =====
+  { id: 'treasure-qiang-hua', name: '强化', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 15% 几率令此伤害+1。', baseTriggerRate: 0.15, starLevel: 1, category: '攻击' },
+  { id: 'treasure-qiang-hua-2', name: '强化·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 20% 几率令此伤害+1。', baseTriggerRate: 0.20, starLevel: 2, category: '攻击' },
+  { id: 'treasure-qiang-hua-3', name: '强化·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 25% 几率令此伤害+1。', baseTriggerRate: 0.25, starLevel: 3, category: '攻击' },
+  { id: 'treasure-qiang-hua-4', name: '强化·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 30% 几率令此伤害+1。', baseTriggerRate: 0.30, starLevel: 4, category: '攻击' },
+  { id: 'treasure-qiang-hua-5', name: '强化·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 35% 几率令此伤害+1。', baseTriggerRate: 0.35, starLevel: 5, category: '攻击' },
+
+  { id: 'treasure-xi-xue', name: '吸血', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 15% 几率回复1点体力。', baseTriggerRate: 0.15, starLevel: 1, category: '攻击' },
+  { id: 'treasure-xi-xue-2', name: '吸血·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 20% 几率回复1点体力。', baseTriggerRate: 0.20, starLevel: 2, category: '攻击' },
+  { id: 'treasure-xi-xue-3', name: '吸血·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 25% 几率回复1点体力。', baseTriggerRate: 0.25, starLevel: 3, category: '攻击' },
+  { id: 'treasure-xi-xue-4', name: '吸血·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 30% 几率回复1点体力。', baseTriggerRate: 0.30, starLevel: 4, category: '攻击' },
+  { id: 'treasure-xi-xue-5', name: '吸血·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 35% 几率回复1点体力。', baseTriggerRate: 0.35, starLevel: 5, category: '攻击' },
+
+  { id: 'treasure-jing-zhun', name: '精准', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】指定目标后，基础 15% 几率令此【杀】不可被【闪】响应。', baseTriggerRate: 0.15, starLevel: 1, category: '攻击' },
+  { id: 'treasure-jing-zhun-2', name: '精准·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】指定目标后，基础 20% 几率令此【杀】不可被【闪】响应。', baseTriggerRate: 0.20, starLevel: 2, category: '攻击' },
+  { id: 'treasure-jing-zhun-3', name: '精准·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】指定目标后，基础 25% 几率令此【杀】不可被【闪】响应。', baseTriggerRate: 0.25, starLevel: 3, category: '攻击' },
+  { id: 'treasure-jing-zhun-4', name: '精准·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】指定目标后，基础 30% 几率令此【杀】不可被【闪】响应。', baseTriggerRate: 0.30, starLevel: 4, category: '攻击' },
+  { id: 'treasure-jing-zhun-5', name: '精准·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】指定目标后，基础 35% 几率令此【杀】不可被【闪】响应。', baseTriggerRate: 0.35, starLevel: 5, category: '攻击' },
+
+  { id: 'treasure-sha-zhi-tan', name: '杀之贪', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 15% 几率摸一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '攻击' },
+  { id: 'treasure-sha-zhi-tan-2', name: '杀之贪·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 20% 几率摸一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '攻击' },
+  { id: 'treasure-sha-zhi-tan-3', name: '杀之贪·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 25% 几率摸一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '攻击' },
+  { id: 'treasure-sha-zhi-tan-4', name: '杀之贪·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 30% 几率摸一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '攻击' },
+  { id: 'treasure-sha-zhi-tan-5', name: '杀之贪·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 35% 几率摸一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '攻击' },
+
+  { id: 'treasure-sha-zhi-xie', name: '杀之卸', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 15% 几率弃置目标一张装备牌。', baseTriggerRate: 0.15, starLevel: 1, category: '攻击' },
+  { id: 'treasure-sha-zhi-xie-2', name: '杀之卸·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 20% 几率弃置目标一张装备牌。', baseTriggerRate: 0.20, starLevel: 2, category: '攻击' },
+  { id: 'treasure-sha-zhi-xie-3', name: '杀之卸·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 25% 几率弃置目标一张装备牌。', baseTriggerRate: 0.25, starLevel: 3, category: '攻击' },
+  { id: 'treasure-sha-zhi-xie-4', name: '杀之卸·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 30% 几率弃置目标一张装备牌。', baseTriggerRate: 0.30, starLevel: 4, category: '攻击' },
+  { id: 'treasure-sha-zhi-xie-5', name: '杀之卸·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 35% 几率弃置目标一张装备牌。', baseTriggerRate: 0.35, starLevel: 5, category: '攻击' },
+
+  // ===== 辅印 - 防御类 =====
+  { id: 'treasure-shang-zhi-chou', name: '伤之仇', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 15% 几率令伤害来源受到1点伤害。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
+  { id: 'treasure-shang-zhi-chou-2', name: '伤之仇·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 20% 几率令伤害来源受到1点伤害。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
+  { id: 'treasure-shang-zhi-chou-3', name: '伤之仇·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 25% 几率令伤害来源受到1点伤害。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
+  { id: 'treasure-shang-zhi-chou-4', name: '伤之仇·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 30% 几率令伤害来源受到1点伤害。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
+  { id: 'treasure-shang-zhi-chou-5', name: '伤之仇·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 35% 几率令伤害来源受到1点伤害。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
+
+  { id: 'treasure-shang-zhi-tan', name: '伤之贪', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 15% 几率摸一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
+  { id: 'treasure-shang-zhi-tan-2', name: '伤之贪·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 20% 几率摸一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
+  { id: 'treasure-shang-zhi-tan-3', name: '伤之贪·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 25% 几率摸一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
+  { id: 'treasure-shang-zhi-tan-4', name: '伤之贪·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 30% 几率摸一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
+  { id: 'treasure-shang-zhi-tan-5', name: '伤之贪·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 35% 几率摸一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
+
+  { id: 'treasure-yi-xin', name: '医心', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【药】时，基础 15% 几率额外回复1点体力。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
+  { id: 'treasure-yi-xin-2', name: '医心·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【药】时，基础 20% 几率额外回复1点体力。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
+  { id: 'treasure-yi-xin-3', name: '医心·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【药】时，基础 25% 几率额外回复1点体力。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
+  { id: 'treasure-yi-xin-4', name: '医心·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【药】时，基础 30% 几率额外回复1点体力。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
+  { id: 'treasure-yi-xin-5', name: '医心·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【药】时，基础 35% 几率额外回复1点体力。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
+
+  { id: 'treasure-qing-ling', name: '轻灵', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【闪】后，基础 15% 几率摸一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
+  { id: 'treasure-qing-ling-2', name: '轻灵·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【闪】后，基础 20% 几率摸一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
+  { id: 'treasure-qing-ling-3', name: '轻灵·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【闪】后，基础 25% 几率摸一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
+  { id: 'treasure-qing-ling-4', name: '轻灵·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【闪】后，基础 30% 几率摸一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
+  { id: 'treasure-qing-ling-5', name: '轻灵·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【闪】后，基础 35% 几率摸一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
+
+  { id: 'treasure-hei-sha-dun', name: '黑杀盾', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到黑色【杀】的伤害后，基础 15% 几率防止此伤害。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
+  { id: 'treasure-hei-sha-dun-2', name: '黑杀盾·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到黑色【杀】的伤害后，基础 20% 几率防止此伤害。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
+  { id: 'treasure-hei-sha-dun-3', name: '黑杀盾·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到黑色【杀】的伤害后，基础 25% 几率防止此伤害。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
+  { id: 'treasure-hei-sha-dun-4', name: '黑杀盾·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到黑色【杀】的伤害后，基础 30% 几率防止此伤害。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
+  { id: 'treasure-hei-sha-dun-5', name: '黑杀盾·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到黑色【杀】的伤害后，基础 35% 几率防止此伤害。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
+
+  { id: 'treasure-hong-sha-dun', name: '红杀盾', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到红色【杀】的伤害后，基础 15% 几率防止此伤害。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
+  { id: 'treasure-hong-sha-dun-2', name: '红杀盾·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到红色【杀】的伤害后，基础 20% 几率防止此伤害。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
+  { id: 'treasure-hong-sha-dun-3', name: '红杀盾·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到红色【杀】的伤害后，基础 25% 几率防止此伤害。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
+  { id: 'treasure-hong-sha-dun-4', name: '红杀盾·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到红色【杀】的伤害后，基础 30% 几率防止此伤害。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
+  { id: 'treasure-hong-sha-dun-5', name: '红杀盾·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到红色【杀】的伤害后，基础 35% 几率防止此伤害。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
+
+  { id: 'treasure-shang-zhi-xie', name: '伤之卸', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 15% 几率弃置伤害来源一张装备牌。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
+  { id: 'treasure-shang-zhi-xie-2', name: '伤之卸·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 20% 几率弃置伤害来源一张装备牌。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
+  { id: 'treasure-shang-zhi-xie-3', name: '伤之卸·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 25% 几率弃置伤害来源一张装备牌。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
+  { id: 'treasure-shang-zhi-xie-4', name: '伤之卸·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 30% 几率弃置伤害来源一张装备牌。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
+  { id: 'treasure-shang-zhi-xie-5', name: '伤之卸·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 35% 几率弃置伤害来源一张装备牌。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
+
+  { id: 'treasure-shang-zhi-xue', name: '伤之削', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 15% 几率弃置伤害来源一张手牌。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
+  { id: 'treasure-shang-zhi-xue-2', name: '伤之削·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 20% 几率弃置伤害来源一张手牌。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
+  { id: 'treasure-shang-zhi-xue-3', name: '伤之削·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 25% 几率弃置伤害来源一张手牌。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
+  { id: 'treasure-shang-zhi-xue-4', name: '伤之削·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 30% 几率弃置伤害来源一张手牌。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
+  { id: 'treasure-shang-zhi-xue-5', name: '伤之削·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 35% 几率弃置伤害来源一张手牌。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
+
+  // ===== 辅印 - 锦囊类 =====
+  { id: 'treasure-tan-shou', name: '贪手', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '摸牌阶段开始时，基础 15% 几率额外摸一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
+  { id: 'treasure-tan-shou-2', name: '贪手·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '摸牌阶段开始时，基础 20% 几率额外摸一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
+  { id: 'treasure-tan-shou-3', name: '贪手·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '摸牌阶段开始时，基础 25% 几率额外摸一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '锦囊' },
+  { id: 'treasure-tan-shou-4', name: '贪手·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '摸牌阶段开始时，基础 30% 几率额外摸一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
+  { id: 'treasure-tan-shou-5', name: '贪手·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '摸牌阶段开始时，基础 35% 几率额外摸一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
+
+  { id: 'treasure-sheng-you', name: '生有', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 15% 几率额外摸一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
+  { id: 'treasure-sheng-you-2', name: '生有·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 20% 几率额外摸一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
+  { id: 'treasure-sheng-you-3', name: '生有·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 25% 几率额外摸一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '锦囊' },
+  { id: 'treasure-sheng-you-4', name: '生有·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 30% 几率额外摸一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
+  { id: 'treasure-sheng-you-5', name: '生有·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 35% 几率额外摸一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
+
+  { id: 'treasure-lang-yan', name: '狼烟', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【烽火狼烟】时，基础 15% 几率使其伤害+1。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
+  { id: 'treasure-lang-yan-2', name: '狼烟·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【烽火狼烟】时，基础 20% 几率使其伤害+1。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
+  { id: 'treasure-lang-yan-3', name: '狼烟·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【烽火狼烟】时，基础 25% 几率使其伤害+1。', baseTriggerRate: 0.25, starLevel: 3, category: '锦囊' },
+  { id: 'treasure-lang-yan-4', name: '狼烟·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【烽火狼烟】时，基础 30% 几率使其伤害+1。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
+  { id: 'treasure-lang-yan-5', name: '狼烟·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【烽火狼烟】时，基础 35% 几率使其伤害+1。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
+
+  { id: 'treasure-wan-jian', name: '万箭', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【万箭齐发】时，基础 15% 几率使其伤害+1。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
+  { id: 'treasure-wan-jian-2', name: '万箭·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【万箭齐发】时，基础 20% 几率使其伤害+1。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
+  { id: 'treasure-wan-jian-3', name: '万箭·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【万箭齐发】时，基础 25% 几率使其伤害+1。', baseTriggerRate: 0.25, starLevel: 3, category: '锦囊' },
+  { id: 'treasure-wan-jian-4', name: '万箭·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【万箭齐发】时，基础 30% 几率使其伤害+1。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
+  { id: 'treasure-wan-jian-5', name: '万箭·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【万箭齐发】时，基础 35% 几率使其伤害+1。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
+
+  { id: 'treasure-wu-xie', name: '无懈', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无懈可击】时，基础 15% 几率摸一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
+  { id: 'treasure-wu-xie-2', name: '无懈·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无懈可击】时，基础 20% 几率摸一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
+  { id: 'treasure-wu-xie-3', name: '无懈·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无懈可击】时，基础 25% 几率摸一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '锦囊' },
+  { id: 'treasure-wu-xie-4', name: '无懈·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无懈可击】时，基础 30% 几率摸一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
+  { id: 'treasure-wu-xie-5', name: '无懈·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无懈可击】时，基础 35% 几率摸一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
 ]
 
 export function getTreasureDefinitionById(id: string): TreasureDefinition | undefined {
