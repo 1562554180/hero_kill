@@ -114,6 +114,12 @@ export function CityPage() {
                   进入熔炼炉
                 </button>
               )}
+              {b.type === 'treasureWorkshop' && (
+                <button style={{ width: '100%', fontSize: '12px', marginBottom: '8px' }}
+                  onClick={() => navigate('/treasure-workshop')}>
+                  进入宝具工坊
+                </button>
+              )}
               <button style={{ width: '100%', fontSize: '12px' }}
                 onClick={() => upgradeBuilding(b.type)}>
                 升级 (需 {cost} 金币)

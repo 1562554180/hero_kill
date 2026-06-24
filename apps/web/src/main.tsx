@@ -9,6 +9,7 @@ import { RecruitPage } from './pages/RecruitPage'
 import { CityPage } from './pages/CityPage'
 import { BackpackPage } from './pages/BackpackPage'
 import { SmelterPage } from './pages/SmelterPage'
+import { TreasureWorkshopPage } from './pages/TreasureWorkshopPage'
 import './styles/global.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/backpack" element={<BackpackPage />} />
         <Route path="/city" element={<CityPage />} />
         <Route path="/smelter" element={<SmelterPage />} />
+        <Route path="/treasure-workshop" element={<TreasureWorkshopPage />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,
