@@ -23,4 +23,10 @@ export interface Treasure {
   level?: number
   /** 强化次数 (0-50). 旧数据 backfill */
   enhanceCount?: number
+  /** 数值效果 (主印加成等). 旧数据 backfill undefined */
+  effect?: {
+    hpBonus?: number
+    rangeBonus?: number
+    handBonus?: number
+  }
 }

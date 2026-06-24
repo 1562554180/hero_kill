@@ -29,6 +29,7 @@ export function generateTreasureDrop(
     triggerRate,
     starLevel: def.starLevel,
     count: 1,
+    effect: def.effect,
   }
 
   return treasure
@@ -85,6 +86,7 @@ function pickTreasureFromPool(pool: TreasureDefinition[], starTarget: number): T
     },
     triggerRate: def.type === 'main' ? 1.0 : def.baseTriggerRate,
     starLevel: def.starLevel,
+    effect: def.effect,
   }
 }
 
@@ -138,6 +140,7 @@ export function generateInitialTreasures(): Treasure[] {
       triggerRate: 1.0,
       starLevel: def.starLevel,
       count: 50,
+      effect: def.effect,
     })
   }
 
@@ -151,6 +154,7 @@ export function generateInitialTreasures(): Treasure[] {
       triggerRate: def.baseTriggerRate,
       starLevel: def.starLevel,
       count: 50,
+      effect: def.effect,
     })
   }
 
