@@ -13,6 +13,9 @@ export interface Material {
     | 'bailiTicket'   // 百里抽卡券
     | 'qianliTicket'  // 千里抽卡券
     | 'wanliTicket'   // 万里抽卡券
+    | 'enhancementTalisman'   // 强化符
+    | 'luckyStone'            // 幸运石
+    | 'transferTalisman'      // 转移符
   itemId?: string          // 碎片对应的 hero/treasure ID
   amount: number
 }

@@ -19,4 +19,8 @@ export interface Treasure {
   starLevel: number              // 宝具星级
   /** 数量 (背包中堆叠). 装备槽中始终为 undefined. 默认 1. */
   count?: number
+  /** 强化等级 (0 = 未强化, 最大 45). 旧数据 backfill */
+  level?: number
+  /** 强化次数 (0-50). 旧数据 backfill */
+  enhanceCount?: number
 }
