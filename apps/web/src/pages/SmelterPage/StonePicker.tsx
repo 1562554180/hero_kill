@@ -24,10 +24,11 @@ interface StonePickerProps {
   pendingStoneId: string | null
   usedStoneIds: Set<string>
   onPick: (stoneId: string) => void
+  onAutoPlace?: (stoneId: string) => void
   disabled?: boolean
 }
 
-export function StonePicker({ stones, heroMap, pendingStoneId, usedStoneIds, onPick, disabled }: StonePickerProps) {
+export function StonePicker({ stones, heroMap, pendingStoneId, usedStoneIds, onPick, onAutoPlace, disabled }: StonePickerProps) {
   const groups = groupStones(stones)
 
   if (groups.length === 0) {
@@ -52,6 +53,7 @@ export function StonePicker({ stones, heroMap, pendingStoneId, usedStoneIds, onP
           <div
             key={`${g.starLevel}-${g.heroId}`}
             onClick={() => !disabled && available && onPick(g.stoneId)}
+            onDoubleClick={() => !disabled && available && onAutoPlace?.(g.stoneId)}
             style={{
               background: isPending ? '#3a2a1a' : 'var(--bg-dark)',
               border: `1px solid ${isPending ? 'var(--text-gold)' : 'var(--border-wood)'}`,

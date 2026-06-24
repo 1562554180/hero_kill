@@ -54,15 +54,34 @@ export function SmelterPage() {
   // 池中选"待用"
   const handlePickFromPool = (stoneId: string) => {
     if (phase !== 'idle') return
-    // toggle: 再点同一行取消
+    const targetStone = stones.find(s => s.stoneId === stoneId)
+    if (!targetStone) return
+    // 同组再点时: 若该组还有未投入的石头, 保持 pending 不变 (用户想继续投入同组)
+    // 若该组已全部投入, 视为 toggle off
     if (pendingStoneId === stoneId) {
+      const group = stones.filter(s => s.starLevel === targetStone.starLevel && s.heroId === targetStone.heroId)
+      const groupHasUnused = group.some(s => !usedStoneIds.has(s.stoneId))
+      if (groupHasUnused) return
       setPendingStoneId(null)
       return
     }
-    // 不能选已投入凹槽的 stoneId (取该组的第一个未用 stoneId)
-    const targetStone = stones.find(s => s.stoneId === stoneId)
-    if (!targetStone) return
     setPendingStoneId(stoneId)
+  }
+
+  // 双击池行: 把该组第一个未投入的石头放到第一个空凹槽
+  const handleAutoPlace = (stoneId: string) => {
+    if (phase !== 'idle') return
+    const target = stones.find(s => s.stoneId === stoneId)
+    if (!target) return
+    const group = stones.filter(s => s.starLevel === target.starLevel && s.heroId === target.heroId)
+    const stone = group.find(s => !usedStoneIds.has(s.stoneId))
+    if (!stone) return  // group fully used
+    const emptyIdx = slots.findIndex(s => s === null)
+    if (emptyIdx === -1) return  // all slots full
+    const newSlots = [...slots]
+    newSlots[emptyIdx] = { stoneId: stone.stoneId, starLevel: stone.starLevel, heroId: stone.heroId }
+    setSlots(newSlots)
+    // 不动 pendingStoneId: 用户可能想再放同组另一个到下一个空凹槽
   }
 
   // 凹槽点击 4 路逻辑
@@ -204,6 +223,7 @@ export function SmelterPage() {
             pendingStoneId={pendingStoneId}
             usedStoneIds={usedStoneIds}
             onPick={handlePickFromPool}
+            onAutoPlace={handleAutoPlace}
             disabled={phase !== 'idle'}
           />
         </div>
