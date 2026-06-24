@@ -53,6 +53,24 @@ export class SaveService {
         patched = true
       }
     }
+    // 老存档的 treasure 缺 level/enhanceCount/triggerRate → backfill
+    if (save.treasures && save.treasures.length > 0) {
+      for (const t of save.treasures as any[]) {
+        if (t.level == null) { t.level = 0; patched = true }
+        if (t.enhanceCount == null) { t.enhanceCount = 0; patched = true }
+        // 老 18 辅印 (硬编码 starLevel=2 + 无 triggerRate) → 新 ★2 (0.20)
+        if (t.type === 'sub' && t.triggerRate == null) {
+          t.starLevel = 2
+          t.triggerRate = 0.20
+          patched = true
+        }
+      }
+    }
+    // 老存档 seed 强化符 20 张 (新手补偿)
+    if (!save.materials.find((m: any) => m.type === 'enhancementTalisman')) {
+      save.materials.push({ type: 'enhancementTalisman', amount: 20 })
+      patched = true
+    }
 
     if (patched) await save.save()
     return save
@@ -77,6 +95,7 @@ export class SaveService {
         { type: 'bailiTicket', amount: 99 },   // 新存档给 99 张百里卡开局
         { type: 'qianliTicket', amount: 99 },  // 新存档给 99 张千里卡开局
         { type: 'wanliTicket', amount: 99 },   // 新存档给 99 张万里卡开局
+        { type: 'enhancementTalisman', amount: 20 },  // 强化符新手 20 张
       ],
       heroStones: [],
       dailyRecruitGuarantee: { qianliDate: null, wanliDate: null },
@@ -210,5 +229,21 @@ export class SaveService {
     ).exec()
 
     return { hero: newHero, remainingStones: (save.heroStones as any[]).length - 1 }
+  }
+
+  /**
+   * 更新指定 treasure 的字段 (level / enhanceCount / triggerRate 等)
+   * 用数组元素匹配定位, 然后 $set 更新
+   */
+  async updateTreasure(userId: string, treasureId: string, patch: Record<string, any>): Promise<SaveDoc | null> {
+    const setFields: Record<string, any> = { updatedAt: Date.now() }
+    for (const [k, v] of Object.entries(patch)) {
+      setFields[`treasures.$.${k}`] = v
+    }
+    return this.saveModel.findOneAndUpdate(
+      { userId, 'treasures.id': treasureId },
+      { $set: setFields },
+      { new: true },
+    ).exec()
   }
 }
