@@ -71,10 +71,9 @@ export function SmelterPage() {
     const current = slots[idx]
     if (!current && pendingStoneId) {
       // 槽空 + 待用 → 投入 (取待用对应组的 stoneId; 若该 stoneId 已投入, 取该组下一个未用的)
-      const group = stones.filter(s => s.starLevel === (() => {
-        const t = stones.find(x => x.stoneId === pendingStoneId)
-        return t?.starLevel
-      })() && s.heroId === (stones.find(x => x.stoneId === pendingStoneId)?.heroId))
+      const pending = stones.find(x => x.stoneId === pendingStoneId)
+      if (!pending) return
+      const group = stones.filter(s => s.starLevel === pending.starLevel && s.heroId === pending.heroId)
       const target = group.find(s => !usedStoneIds.has(s.stoneId))
       if (!target) return
       const newSlots = [...slots]
@@ -109,7 +108,6 @@ export function SmelterPage() {
   const handleSmelt = async () => {
     if (!canSmelt) return
     setBusy(true)
-    setPhase('brewing')
     try {
       const stoneIds = slots.filter(Boolean).map(s => s!.stoneId)
       const res = await fetch(`${API}/recruit/smelt/${userId}`, {
@@ -120,18 +118,22 @@ export function SmelterPage() {
       const data = await res.json()
       if (!res.ok || data.error) {
         setToast('熔炼失败: ' + (data.error ?? data.message ?? `${res.status}`))
-        setPhase('idle')
         setTimeout(() => setToast(''), 3000)
         return
       }
-      // 800ms 后进入 revealed
+      if (!data.stone) {
+        setToast('熔炼失败: 返回数据格式异常')
+        setTimeout(() => setToast(''), 3000)
+        return
+      }
+      // 成功 → 切到 brewing 触发 800ms 动画
+      setPhase('brewing')
       setTimeout(() => {
         setResultStone(data.stone)
         setPhase('revealed')
       }, 800)
     } catch (e: any) {
       setToast('网络错误: ' + (e?.message ?? ''))
-      setPhase('idle')
       setTimeout(() => setToast(''), 3000)
     } finally {
       setBusy(false)
@@ -183,7 +185,7 @@ export function SmelterPage() {
             slotsPulsing={phase === 'idle'}
           />
           <SmeltAnimation
-            phase={phase === 'brewing' ? 'brewing' : phase === 'revealed' ? 'revealed' : 'brewing'}
+            phase={phase}
             resultStone={resultStone}
             heroName={resultHeroName}
             onCollect={handleCollect}

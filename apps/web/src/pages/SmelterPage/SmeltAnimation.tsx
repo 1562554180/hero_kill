@@ -1,13 +1,14 @@
 import type { HeroStone } from '@hero-legend/shared-types'
 
 interface SmeltAnimationProps {
-  phase: 'brewing' | 'revealed'
+  phase: 'idle' | 'brewing' | 'revealed'
   resultStone: HeroStone | null
   heroName: string
   onCollect: () => void
 }
 
 export function SmeltAnimation({ phase, resultStone, heroName, onCollect }: SmeltAnimationProps) {
+  if (phase === 'idle') return null
   if (phase === 'brewing') {
     return (
       <div style={{
