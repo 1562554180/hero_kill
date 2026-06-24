@@ -9,7 +9,7 @@ interface SubTreasureListProps {
 }
 
 export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasureIds, onPick, disabled }: SubTreasureListProps) {
-  const subs = treasures.filter(t => t.type === 'sub')
+  const subs = treasures.filter(t => t.type !== 'main')
 
   if (subs.length === 0) {
     return (

@@ -58,9 +58,8 @@ export class SaveService {
       for (const t of save.treasures as any[]) {
         if (t.level == null) { t.level = 0; patched = true }
         if (t.enhanceCount == null) { t.enhanceCount = 0; patched = true }
-        // 老 18 辅印 (硬编码 starLevel=2 + 无 triggerRate) → 新 ★2 (0.20)
-        if (t.type === 'sub' && t.triggerRate == null) {
-          t.starLevel = 2
+        // 老 18 辅印 (硬编码 starLevel=2 + triggerRate=0.30) → 新 ★2 (0.20)
+        if (t.type === 'sub' && t.starLevel === 2 && t.triggerRate === 0.30) {
           t.triggerRate = 0.20
           patched = true
         }

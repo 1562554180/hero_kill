@@ -4,6 +4,7 @@ import type { Treasure, Material } from '@hero-legend/shared-types'
 import { Cauldron } from './Cauldron'
 import { SubTreasureList } from './SubTreasureList'
 import { TransferModal } from './TransferModal'
+import { LuckyStoneSlots } from './LuckyStoneSlots'
 import { useWorkshopKeyframes } from './animations'
 
 const API = '/api'
@@ -91,6 +92,10 @@ export function TreasureWorkshopPage() {
     }
   }
 
+  const handleLuckyStoneToggle = (n: number) => {
+    setLuckyStones(prev => (n <= prev ? n - 1 : n))
+  }
+
   const handleTransfer = async (fromId: string, toId: string) => {
     try {
       const res = await fetch(`${API}/treasure/transfer-level/${userId}`, {
@@ -150,6 +155,13 @@ export function TreasureWorkshopPage() {
             onSlotClick={() => phase === 'idle' && selectedTreasureId && setSelectedTreasureId(null)}
           />
 
+          <LuckyStoneSlots
+            used={luckyStones}
+            available={luckyStoneCount}
+            disabled={phase !== 'idle'}
+            onToggle={handleLuckyStoneToggle}
+          />
+
           {phase === 'revealed' && result && (
             <div style={{
               position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
@@ -203,24 +215,6 @@ export function TreasureWorkshopPage() {
           ) : (
             <span style={{ color: 'var(--text-muted)' }}>请从右侧选择辅印</span>
           )}
-        </div>
-
-        {/* 幸运石选择 */}
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>幸运石:</span>
-          {[0, 1, 2, 3, 4, 5, 6].map(n => (
-            <button key={n}
-              onClick={() => setLuckyStones(n)}
-              disabled={n > luckyStoneCount || phase !== 'idle'}
-              style={{
-                padding: '4px 8px', fontSize: '12px',
-                background: luckyStones === n ? 'var(--text-gold)' : 'var(--bg-dark)',
-                color: luckyStones === n ? '#000' : 'var(--text-light)',
-                opacity: n > luckyStoneCount ? 0.3 : 1,
-              }}>
-              {n}
-            </button>
-          ))}
         </div>
 
         <button onClick={() => setTransferOpen(true)} disabled={phase !== 'idle'}>
