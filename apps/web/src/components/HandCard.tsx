@@ -1,6 +1,14 @@
 import type { Card } from '@hero-legend/shared-types'
 import { isRedSuit, isBlackSuit } from '@hero-legend/shared-types'
 
+// 卡牌图片: 扫 cards/*.png, 文件名即卡名
+const cardImgModules = import.meta.glob('../images/cards/*.png', { eager: true, import: 'default' }) as Record<string, string>
+const CARD_IMAGES: Record<string, string> = {}
+for (const [path, url] of Object.entries(cardImgModules)) {
+  const filename = path.replace('../images/cards/', '').replace('.png', '')
+  CARD_IMAGES[filename] = url
+}
+
 interface Props {
   card: Card
   disabled: boolean
@@ -112,6 +120,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   const theme = TYPE_THEME[card.type] ?? TYPE_THEME.basic
   const num = card.number > 13 ? '' : card.number === 1 ? 'A' : card.number > 10 ? ['J','Q','K'][card.number - 11] : String(card.number)
   const mainChar = card.name.length > 2 ? card.name.slice(0, 2) : card.name
+  const cardImg = CARD_IMAGES[card.name]
 
   // 字号自适应: 长名字缩小
   const mainFontSize = card.name.length >= 3 ? 15 : 22
@@ -144,14 +153,28 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
       <div style={{ position: 'absolute', inset: '2px', border: `1px solid ${theme.corner}`, borderRadius: '3px', pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', inset: '3.5px', border: `1px dashed ${theme.corner}`, borderRadius: '2px', opacity: 0.55, pointerEvents: 'none' }} />
 
-      {/* 背景水印大字 */}
-      <div style={{
-        position: 'absolute', top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        fontSize: waterFontSize, color: suitWaterColor(card.suit),
-        fontWeight: 'bold', lineHeight: 1, pointerEvents: 'none',
-        letterSpacing: '0.05em',
-      }}>{mainChar}</div>
+      {/* 背景水印: 有图用 PNG (居中), 无图用大字 */}
+      {cardImg ? (
+        <img
+          src={cardImg}
+          alt={card.name}
+          draggable={false}
+          style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '46px', height: '46px', objectFit: 'contain',
+            pointerEvents: 'none',
+          }}
+        />
+      ) : (
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          fontSize: waterFontSize, color: suitWaterColor(card.suit),
+          fontWeight: 'bold', lineHeight: 1, pointerEvents: 'none',
+          letterSpacing: '0.05em',
+        }}>{mainChar}</div>
+      )}
 
       {/* 角落花色+数字 (左上) */}
       <div style={{ position: 'absolute', top: '3px', left: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: suitFontColor(card.suit) }}>
