@@ -134,7 +134,9 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         position: 'relative',
         width: '55px',
         height: '84px',
-        background: `linear-gradient(135deg, ${theme.bg1} 0%, ${theme.bg2} 50%, ${theme.bg3} 100%)`,
+        background: cardImg
+          ? `center/cover no-repeat url(${cardImg})`
+          : `linear-gradient(135deg, ${theme.bg1} 0%, ${theme.bg2} 50%, ${theme.bg3} 100%)`,
         border: `1.5px solid ${theme.border}`,
         borderRadius: '4px',
         boxShadow: '0 3px 6px rgba(0,0,0,0.5), inset 0 0 8px rgba(139,105,20,0.2)',
@@ -149,51 +151,48 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         fontFamily: "'KaiTi', 'STKaiti', serif",
       }}
     >
-      {/* 双层装饰边框 (实线+虚线) */}
-      <div style={{ position: 'absolute', inset: '2px', border: `1px solid ${theme.corner}`, borderRadius: '3px', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', inset: '3.5px', border: `1px dashed ${theme.corner}`, borderRadius: '2px', opacity: 0.55, pointerEvents: 'none' }} />
+      {/* 双层装饰边框 (实线+虚线) — PNG 模式下仍保留 */}
+      <div style={{ position: 'absolute', inset: '2px', border: `1px solid ${cardImg ? 'rgba(0,0,0,0.45)' : theme.corner}`, borderRadius: '3px', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', inset: '3.5px', border: `1px dashed ${cardImg ? 'rgba(255,255,255,0.35)' : theme.corner}`, borderRadius: '2px', opacity: cardImg ? 0.4 : 0.55, pointerEvents: 'none' }} />
 
-      {/* 背景水印大字 */}
-      <div style={{
-        position: 'absolute', top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        fontSize: waterFontSize, color: suitWaterColor(card.suit),
-        fontWeight: 'bold', lineHeight: 1, pointerEvents: 'none',
-        letterSpacing: '0.05em',
-      }}>{mainChar}</div>
+      {/* 背景水印大字 — 仅无图时显示 */}
+      {!cardImg && (
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          fontSize: waterFontSize, color: suitWaterColor(card.suit),
+          fontWeight: 'bold', lineHeight: 1, pointerEvents: 'none',
+          letterSpacing: '0.05em',
+        }}>{mainChar}</div>
+      )}
 
       {/* 角落花色+数字 (左上) */}
-      <div style={{ position: 'absolute', top: '3px', left: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: suitFontColor(card.suit) }}>
+      <div style={{ position: 'absolute', top: '3px', left: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: cardImg ? '#fff' : suitFontColor(card.suit), textShadow: cardImg ? '0 0 3px rgba(0,0,0,0.95)' : 'none' }}>
         <span style={{ fontSize: '8px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
         <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{num}</span>
       </div>
 
       {/* 角落花色+数字 (右下, 正向) */}
-      <div style={{ position: 'absolute', bottom: '3px', right: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: suitFontColor(card.suit) }}>
+      <div style={{ position: 'absolute', bottom: '3px', right: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: cardImg ? '#fff' : suitFontColor(card.suit), textShadow: cardImg ? '0 0 3px rgba(0,0,0,0.95)' : 'none' }}>
         <span style={{ fontSize: '8px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
         <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{num}</span>
       </div>
 
-      {/* 类型标签 (顶部居中) */}
-      <div style={{
-        position: 'absolute', top: '5px', left: 0, right: 0,
-        textAlign: 'center', color: theme.main,
-        fontSize: '6px', letterSpacing: '1px', fontWeight: 'bold',
-      }}>{TYPE_LABEL[card.type]}</div>
+      {/* 类型标签 (顶部居中) — 仅无图时显示 */}
+      {!cardImg && (
+        <div style={{
+          position: 'absolute', top: '5px', left: 0, right: 0,
+          textAlign: 'center', color: theme.main,
+          fontSize: '6px', letterSpacing: '1px', fontWeight: 'bold',
+        }}>{TYPE_LABEL[card.type]}</div>
+      )}
 
-      {/* 中部: PNG 图标优先, 没图则 SVG */}
-      <div style={{ position: 'absolute', top: '21px', left: 0, right: 0, textAlign: 'center' }}>
-        {cardImg ? (
-          <img
-            src={cardImg}
-            alt={card.name}
-            draggable={false}
-            style={{ width: '40px', height: '40px', objectFit: 'contain', display: 'inline-block' }}
-          />
-        ) : (
+      {/* 中部: 无图时渲染 SVG */}
+      {!cardImg && (
+        <div style={{ position: 'absolute', top: '21px', left: 0, right: 0, textAlign: 'center' }}>
           <CardIcon card={card} themeMain={theme.main} />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 主字 (底部) */}
       <div style={{
