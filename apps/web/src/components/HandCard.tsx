@@ -188,26 +188,32 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{num}</span>
       </div>
 
-      {/* 类型标签 (顶部居中) */}
-      <div style={{
-        position: 'absolute', top: '5px', left: 0, right: 0,
-        textAlign: 'center', color: theme.main,
-        fontSize: '6px', letterSpacing: '1px', fontWeight: 'bold',
-      }}>{TYPE_LABEL[card.type]}</div>
+      {/* 类型标签 (顶部居中) — 仅无图时显示 */}
+      {!cardImg && (
+        <div style={{
+          position: 'absolute', top: '5px', left: 0, right: 0,
+          textAlign: 'center', color: theme.main,
+          fontSize: '6px', letterSpacing: '1px', fontWeight: 'bold',
+        }}>{TYPE_LABEL[card.type]}</div>
+      )}
 
-      {/* SVG 图标 (中部) */}
-      <div style={{ position: 'absolute', top: '21px', left: 0, right: 0, textAlign: 'center' }}>
-        <CardIcon card={card} themeMain={theme.main} />
-      </div>
+      {/* SVG 图标 (中部) — 仅无图时显示 */}
+      {!cardImg && (
+        <div style={{ position: 'absolute', top: '21px', left: 0, right: 0, textAlign: 'center' }}>
+          <CardIcon card={card} themeMain={theme.main} />
+        </div>
+      )}
 
-      {/* 主字 (底部) */}
-      <div style={{
-        position: 'absolute', bottom: card.name.length >= 3 ? '7px' : '10px', left: 0, right: 0,
-        textAlign: 'center',
-        color: isKill && effectiveIsRed ? '#c62828' : theme.main,
-        fontSize: mainFontSize, fontWeight: 'bold', lineHeight: 1,
-        textShadow: isKill && effectiveIsRed ? '0 0 4px rgba(198,40,40,0.4)' : 'none',
-      }}>{mainChar}</div>
+      {/* 主字 (底部) — 仅无图时显示 */}
+      {!cardImg && (
+        <div style={{
+          position: 'absolute', bottom: card.name.length >= 3 ? '7px' : '10px', left: 0, right: 0,
+          textAlign: 'center',
+          color: isKill && effectiveIsRed ? '#c62828' : theme.main,
+          fontSize: mainFontSize, fontWeight: 'bold', lineHeight: 1,
+          textShadow: isKill && effectiveIsRed ? '0 0 4px rgba(198,40,40,0.4)' : 'none',
+        }}>{mainChar}</div>
+      )}
 
       {/* 响应/杀/回春 徽章 */}
       {effectiveIsRed && canUseAsKillNow && !isJudgeReplace && (aoJianActive || !isKill) && (
