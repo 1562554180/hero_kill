@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Hero, HeroInstance, Treasure } from '@hero-legend/shared-types'
+import yuJiImg from '../../images/虞姬.png'
+import zhugeLiangImg from '../../images/诸葛亮.png'
+
+const HERO_PORTRAITS: Record<string, string> = {
+  'yu-ji': yuJiImg,
+  'zhuge-liang': zhugeLiangImg,
+}
 
 const API = '/api'
 
@@ -116,14 +123,28 @@ export function HeroPage() {
                   border: `1px solid ${selectedInstanceId === h.instanceId ? 'var(--border-gold)' : 'var(--border-wood)'}`,
                   borderRadius: '6px', padding: '10px', cursor: 'pointer',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--text-light)', fontWeight: 'bold' }}>
-                      {cfg.name}{showIndex && <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginLeft: '4px' }}>#{sameNameIdx}</span>}
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                    {HERO_PORTRAITS[h.heroId] && (
+                      <img
+                        src={HERO_PORTRAITS[h.heroId]}
+                        alt={cfg.name}
+                        style={{
+                          width: '40px', height: '40px', borderRadius: '4px',
+                          objectFit: 'cover', marginRight: '10px',
+                          border: '1px solid var(--border-wood)',
+                          background: 'var(--bg-dark)',
+                        }}
+                      />
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                      <span style={{ color: 'var(--text-light)', fontWeight: 'bold' }}>
+                        {cfg.name}{showIndex && <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginLeft: '4px' }}>#{sameNameIdx}</span>}
+                      </span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '4px' }}>
+                        Lv.{h.level} | {cfg.faction} | HP {cfg.baseHp + h.starLevel - 1}
+                      </span>
+                    </div>
                     <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>{getStarDisplay(h.starLevel)}</span>
-                  </div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '4px' }}>
-                    Lv.{h.level} | {cfg.faction} | HP {cfg.baseHp + h.starLevel - 1}
                   </div>
                 </div>
               )
@@ -141,6 +162,19 @@ export function HeroPage() {
               <h3 style={{ color: 'var(--text-gold)', fontSize: '20px', marginBottom: '8px' }}>
                 {selectedConfig.name}
               </h3>
+              {HERO_PORTRAITS[selectedConfig.id] && (
+                <img
+                  src={HERO_PORTRAITS[selectedConfig.id]}
+                  alt={selectedConfig.name}
+                  style={{
+                    width: '120px', height: '120px', borderRadius: '8px',
+                    objectFit: 'cover', marginBottom: '12px',
+                    border: '2px solid var(--border-wood)',
+                    background: 'var(--bg-dark)',
+                    display: 'block',
+                  }}
+                />
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
                 <div style={{ background: 'var(--bg-dark)', padding: '8px', borderRadius: '4px' }}>
