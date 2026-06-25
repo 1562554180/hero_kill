@@ -1,4 +1,12 @@
 import type { BattleHero } from '@hero-legend/shared-types'
+import yuJiImg from '../images/虞姬.png'
+import zhugeLiangImg from '../images/诸葛亮.png'
+
+// 有 PNG 立绘的英雄: 用图片替代默认 SVG 剪影
+const HERO_PORTRAIT_IMAGES: Record<string, string> = {
+  'yu-ji': yuJiImg,
+  'zhuge-liang': zhugeLiangImg,
+}
 
 interface Props {
   hero: BattleHero
@@ -920,6 +928,7 @@ export function HeroPortrait({ hero, size = 100 }: Props) {
   const archetype = getArchetype(hero.hero.id)
   const starLevel = hero.instance.starLevel ?? 1
   const gid = `bg-${hero.hero.id}`
+  const portraitImg = HERO_PORTRAIT_IMAGES[hero.hero.id]
 
   return (
     <svg width={size} height={size} viewBox="0 0 100 100"
@@ -937,6 +946,9 @@ export function HeroPortrait({ hero, size = 100 }: Props) {
           <stop offset="0%" stopColor="#ffd54f" />
           <stop offset="100%" stopColor="#b8860b" />
         </linearGradient>
+        <clipPath id={`${gid}-clip`}>
+          <rect width="100" height="100" rx="6" />
+        </clipPath>
       </defs>
 
       {/* 背景渐变 */}
@@ -944,19 +956,32 @@ export function HeroPortrait({ hero, size = 100 }: Props) {
       {/* 暗角 */}
       <rect width="100" height="100" fill={`url(#${gid}-vignette)`} rx="6" />
 
-      {/* 装饰花纹 (背景纹理) */}
-      <g opacity="0.1" stroke="#ffd54f" strokeWidth="0.5" fill="none">
-        <path d="M 10 10 Q 25 15 30 30" />
-        <path d="M 90 10 Q 75 15 70 30" />
-        <path d="M 10 90 Q 25 85 30 70" />
-        <path d="M 90 90 Q 75 85 70 70" />
-      </g>
+      {portraitImg ? (
+        /* PNG 立绘: 替代剪影+道具,保留所有装饰边框 */
+        <g clipPath={`url(#${gid}-clip)`}>
+          <image
+            href={portraitImg}
+            x="0" y="0" width="100" height="100"
+            preserveAspectRatio="xMidYMid slice"
+          />
+        </g>
+      ) : (
+        <>
+          {/* 装饰花纹 (背景纹理) */}
+          <g opacity="0.1" stroke="#ffd54f" strokeWidth="0.5" fill="none">
+            <path d="M 10 10 Q 25 15 30 30" />
+            <path d="M 90 10 Q 75 15 70 30" />
+            <path d="M 10 90 Q 25 85 30 70" />
+            <path d="M 90 90 Q 75 85 70 70" />
+          </g>
 
-      {/* 人物剪影 (头 + 肩) */}
-      <CharacterSilhouette archetype={archetype} cloth={theme.cloth} skin={theme.skin} />
+          {/* 人物剪影 (头 + 肩) */}
+          <CharacterSilhouette archetype={archetype} cloth={theme.cloth} skin={theme.skin} />
 
-      {/* 英雄专属道具 (头饰 + 武器) — 替代 archetype 通用装饰 */}
-      <HeroItem heroId={hero.hero.id} />
+          {/* 英雄专属道具 (头饰 + 武器) — 替代 archetype 通用装饰 */}
+          <HeroItem heroId={hero.hero.id} />
+        </>
+      )}
 
       {/* 金色双层边框 */}
       <rect x="2" y="2" width="96" height="96" fill="none"
