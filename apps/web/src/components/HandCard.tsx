@@ -1,6 +1,14 @@
 import type { Card } from '@hero-legend/shared-types'
 import { isRedSuit, isBlackSuit } from '@hero-legend/shared-types'
 
+// 卡牌图片: 扫 cards/*.png, 文件名即卡名
+const cardImgModules = import.meta.glob('../images/cards/*.png', { eager: true, import: 'default' }) as Record<string, string>
+export const CARD_IMAGES: Record<string, string> = {}
+for (const [path, url] of Object.entries(cardImgModules)) {
+  const filename = path.replace('../images/cards/', '').replace('.png', '')
+  CARD_IMAGES[filename] = url
+}
+
 interface Props {
   card: Card
   disabled: boolean
@@ -112,6 +120,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   const theme = TYPE_THEME[card.type] ?? TYPE_THEME.basic
   const num = card.number > 13 ? '' : card.number === 1 ? 'A' : card.number > 10 ? ['J','Q','K'][card.number - 11] : String(card.number)
   const mainChar = card.name.length > 2 ? card.name.slice(0, 2) : card.name
+  const cardImg = CARD_IMAGES[card.name]
 
   // 字号自适应: 长名字缩小
   const mainFontSize = card.name.length >= 3 ? 15 : 22
@@ -172,9 +181,18 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         fontSize: '6px', letterSpacing: '1px', fontWeight: 'bold',
       }}>{TYPE_LABEL[card.type]}</div>
 
-      {/* SVG 图标 (中部) */}
+      {/* 中部: PNG 图标优先, 没图则 SVG */}
       <div style={{ position: 'absolute', top: '21px', left: 0, right: 0, textAlign: 'center' }}>
-        <CardIcon card={card} themeMain={theme.main} />
+        {cardImg ? (
+          <img
+            src={cardImg}
+            alt={card.name}
+            draggable={false}
+            style={{ width: '40px', height: '40px', objectFit: 'contain', display: 'inline-block' }}
+          />
+        ) : (
+          <CardIcon card={card} themeMain={theme.main} />
+        )}
       </div>
 
       {/* 主字 (底部) */}
