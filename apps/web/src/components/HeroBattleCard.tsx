@@ -1,7 +1,7 @@
 import type { BattleHero, Card, Treasure } from '@hero-legend/shared-types'
 import { isRedSuit, getTreasureSlots } from '@hero-legend/shared-types'
 import { useBattleStore } from '../stores/battleStore'
-import { HeroPortrait, HERO_PORTRAIT_IMAGES } from './HeroPortrait'
+import { HeroPortrait } from './HeroPortrait'
 
 /** 调试: 鼠标悬停AI手牌数时显示具体手牌内容. 关闭后回到原样(只显示数字) */
 const DEBUG_SHOW_AI_HAND = true
@@ -61,16 +61,12 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
   const mainTreasures = instance.treasures?.main ?? []
   const subTreasures = instance.treasures?.sub ?? []
   const slotConfig = getTreasureSlots(instance.starLevel ?? 1)
-  const cardBgImg = HERO_PORTRAIT_IMAGES[hero.hero.id]
-  const starLevel = hero.instance.starLevel ?? 1
 
   return (
     <div
       onClick={isSelectable ? onClick : undefined}
       style={{
-        background: cardBgImg
-          ? `linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.75) 100%), url(${cardBgImg}) center/cover no-repeat`
-          : bgColor,
+        background: bgColor,
         border: `1.5px solid ${borderColor}`,
         borderRadius: '6px',
         padding: '4px',
@@ -94,46 +90,22 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
               : 'none',
       }}
     >
-      {/* 头像区: 有 PNG 直接当背景,无 PNG 才渲染 SVG */}
-      {cardBgImg ? (
-        <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', minHeight: '20px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            <span style={{ color: '#ffd54f', fontSize: '9px', fontWeight: 'bold', textShadow: '0 0 3px rgba(0,0,0,0.9)' }}>
-              {config.name}
-            </span>
-            <span style={{ color: '#ffd54f', fontSize: '7px', textShadow: '0 0 2px rgba(0,0,0,0.9)' }}>
-              {'★'.repeat(starLevel)}{config.faction}
-            </span>
-          </div>
-          {(role === 'ally' || role === 'enemy') && (
-            <span style={{
-              fontSize: '7px',
-              color: role === 'ally' ? '#a5d6a7' : '#ef9a9a',
-              background: role === 'ally' ? 'rgba(46,125,50,0.85)' : 'rgba(198,40,40,0.85)',
-              padding: '0 3px',
-              borderRadius: '2px',
-              fontWeight: 'bold',
-              border: `1px solid ${role === 'ally' ? 'rgba(46,125,50,0.9)' : 'rgba(198,40,40,0.9)'}`,
-            }}>AI</span>
-          )}
-        </div>
-      ) : (
-        <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-          <HeroPortrait hero={hero} size={82} />
-          {(role === 'ally' || role === 'enemy') && (
-            <span style={{
-              position: 'absolute', top: '2px', right: '2px',
-              fontSize: '7px',
-              color: role === 'ally' ? '#a5d6a7' : '#ef9a9a',
-              background: role === 'ally' ? 'rgba(46,125,50,0.85)' : 'rgba(198,40,40,0.85)',
-              padding: '0 3px',
-              borderRadius: '2px',
-              fontWeight: 'bold',
-              border: `1px solid ${role === 'ally' ? 'rgba(46,125,50,0.9)' : 'rgba(198,40,40,0.9)'}`,
-            }}>AI</span>
-          )}
-        </div>
-      )}
+      {/* 头像区: SVG 武将像 + 右上 AI 徽章 */}
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+        <HeroPortrait hero={hero} size={82} />
+        {(role === 'ally' || role === 'enemy') && (
+          <span style={{
+            position: 'absolute', top: '2px', right: '2px',
+            fontSize: '7px',
+            color: role === 'ally' ? '#a5d6a7' : '#ef9a9a',
+            background: role === 'ally' ? 'rgba(46,125,50,0.85)' : 'rgba(198,40,40,0.85)',
+            padding: '0 3px',
+            borderRadius: '2px',
+            fontWeight: 'bold',
+            border: `1px solid ${role === 'ally' ? 'rgba(46,125,50,0.9)' : 'rgba(198,40,40,0.9)'}`,
+          }}>AI</span>
+        )}
+      </div>
 
       {/* HP区: 当前血量(淡金底白字) + 血量格子(深红/灰, 中间分割线) — 两端对齐 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
