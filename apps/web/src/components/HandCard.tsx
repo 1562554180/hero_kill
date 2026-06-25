@@ -166,16 +166,16 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         }}>{mainChar}</div>
       )}
 
-      {/* 角落花色+数字 (左上) — 红色/黑色字体 */}
-      <div style={{ position: 'absolute', top: '3px', left: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: suitFontColor(card.suit) }}>
-        <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
-        <span style={{ fontSize: '10px', fontWeight: 'bold' }}>{num}</span>
+      {/* 角落花色+数字 (左上) */}
+      <div style={{ position: 'absolute', top: '3px', left: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: cardImg ? '#fff' : suitFontColor(card.suit), textShadow: cardImg ? '0 0 3px rgba(0,0,0,0.95)' : 'none' }}>
+        <span style={{ fontSize: '8px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
+        <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{num}</span>
       </div>
 
-      {/* 角落花色+数字 (右下, 正向) — 红色/黑色字体 */}
-      <div style={{ position: 'absolute', bottom: '3px', right: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: suitFontColor(card.suit) }}>
-        <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
-        <span style={{ fontSize: '10px', fontWeight: 'bold' }}>{num}</span>
+      {/* 角落花色+数字 (右下, 正向) */}
+      <div style={{ position: 'absolute', bottom: '3px', right: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: cardImg ? '#fff' : suitFontColor(card.suit), textShadow: cardImg ? '0 0 3px rgba(0,0,0,0.95)' : 'none' }}>
+        <span style={{ fontSize: '8px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
+        <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{num}</span>
       </div>
 
       {/* 类型标签 (顶部居中) — 仅无图时显示 */}
@@ -194,16 +194,14 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         </div>
       )}
 
-      {/* 主字 (底部) — 仅无图时显示 */}
-      {!cardImg && (
-        <div style={{
-          position: 'absolute', bottom: card.name.length >= 3 ? '7px' : '10px', left: 0, right: 0,
-          textAlign: 'center',
-          color: isKill && effectiveIsRed ? '#c62828' : theme.main,
-          fontSize: mainFontSize, fontWeight: 'bold', lineHeight: 1,
-          textShadow: isKill && effectiveIsRed ? '0 0 4px rgba(198,40,40,0.4)' : 'none',
-        }}>{mainChar}</div>
-      )}
+      {/* 主字 (底部) */}
+      <div style={{
+        position: 'absolute', bottom: card.name.length >= 3 ? '7px' : '10px', left: 0, right: 0,
+        textAlign: 'center',
+        color: isKill && effectiveIsRed ? '#c62828' : theme.main,
+        fontSize: mainFontSize, fontWeight: 'bold', lineHeight: 1,
+        textShadow: isKill && effectiveIsRed ? '0 0 4px rgba(198,40,40,0.4)' : 'none',
+      }}>{mainChar}</div>
 
       {/* 响应/杀/回春 徽章 */}
       {effectiveIsRed && canUseAsKillNow && !isJudgeReplace && (aoJianActive || !isKill) && (
