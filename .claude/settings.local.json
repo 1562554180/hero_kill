@@ -96,7 +96,16 @@
       "mcp__plugin_playwright_playwright__browser_evaluate",
       "Bash(git reset *)",
       "Read(//d/work/hero-legend/**)",
-      "Bash(xargs -I {} echo {})"
+      "Bash(xargs -I {} echo {})",
+      "Bash(taskkill /PID 33556 /F)",
+      "Bash(powershell -Command \"Stop-Process -Id 33556 -Force\")",
+      "Bash(powershell -Command \"Stop-Process -Id 32424 -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; netstat -ano | Select-String ':3000.*LISTENING'\")",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\([m for m in d.get\\('materials',[]\\)]\\)\")",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('keys:', list\\(d.keys\\(\\)\\)\\); print\\('stones:', d.get\\('stones'\\)\\); print\\('stones is array:', isinstance\\(d.get\\('stones'\\), list\\)\\)\")",
+      "Bash(awk NR>=20 && NR<=40 {printf \"%d: %s\\\\n\", NR, $0} *)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('keys:', list\\(d.keys\\(\\)\\)\\); print\\('stones count:', len\\(d.get\\('stones',[]\\)\\)\\); print\\('first stone:', d.get\\('stones',[{}]\\)[0]\\)\")",
+      "Bash(git -C \"D:\\\\work\\\\hero-legend\" log --oneline -20 -- \"packages/game-engine/src/__tests__/\")",
+      "Bash(git *)"
     ]
   }
 }
