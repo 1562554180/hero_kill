@@ -930,6 +930,63 @@ export function HeroPortrait({ hero, size = 100 }: Props) {
   const gid = `bg-${hero.hero.id}`
   const portraitImg = HERO_PORTRAIT_IMAGES[hero.hero.id]
 
+  // PNG 立绘模式: 用 <img> 原生分辨率渲染 + 装饰层覆盖
+  if (portraitImg) {
+    return (
+      <div style={{
+        position: 'relative', width: size, height: size,
+        borderRadius: '6px', overflow: 'hidden', flexShrink: 0,
+        background: `linear-gradient(180deg, ${theme.bg1} 0%, ${theme.bg2} 100%)`,
+      }}>
+        <img
+          src={portraitImg}
+          alt={hero.hero.name}
+          width={size}
+          height={size}
+          draggable={false}
+          style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+
+        {/* 金色双层边框 */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          border: '1.8px solid #ffd54f',
+          borderRadius: '6px',
+          boxShadow: 'inset 0 0 0 3px rgba(184,134,11,0.6), inset 0 0 0 5px rgba(212,175,55,0.4)',
+        }} />
+
+        {/* 阵营徽章 (顶部) */}
+        <div style={{
+          position: 'absolute', top: '4%', left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.65)', color: '#ffd54f',
+          padding: '1px 5px', borderRadius: '2px',
+          fontSize: Math.max(7, size * 0.06), fontWeight: 'bold',
+          letterSpacing: '1.5px', fontFamily: "'KaiTi','STKaiti',serif",
+        }}>{faction}</div>
+
+        {/* 星级 (左上角) */}
+        <div style={{
+          position: 'absolute', top: '2%', left: '4%',
+          color: '#ffd54f', fontSize: Math.max(7, size * 0.06), fontWeight: 'bold',
+          textShadow: '0 0 2px rgba(0,0,0,0.8)',
+        }}>
+          {'★'.repeat(starLevel)}
+        </div>
+
+        {/* 底部名字条 */}
+        <div style={{
+          position: 'absolute', bottom: '2%', left: '5%', right: '5%',
+          background: 'rgba(0,0,0,0.7)', color: '#ffd54f',
+          padding: '2px 4px', borderRadius: '2px',
+          fontSize: Math.max(8, size * 0.09), fontWeight: 'bold',
+          textAlign: 'center',
+          fontFamily: "'KaiTi','STKaiti',serif",
+        }}>{hero.hero.name}</div>
+      </div>
+    )
+  }
+
+  // 默认 SVG 模式
   return (
     <svg width={size} height={size} viewBox="0 0 100 100"
          style={{ display: 'block', borderRadius: '6px', flexShrink: 0 }}>
@@ -946,9 +1003,6 @@ export function HeroPortrait({ hero, size = 100 }: Props) {
           <stop offset="0%" stopColor="#ffd54f" />
           <stop offset="100%" stopColor="#b8860b" />
         </linearGradient>
-        <clipPath id={`${gid}-clip`}>
-          <rect width="100" height="100" rx="6" />
-        </clipPath>
       </defs>
 
       {/* 背景渐变 */}
@@ -956,32 +1010,19 @@ export function HeroPortrait({ hero, size = 100 }: Props) {
       {/* 暗角 */}
       <rect width="100" height="100" fill={`url(#${gid}-vignette)`} rx="6" />
 
-      {portraitImg ? (
-        /* PNG 立绘: 替代剪影+道具,保留所有装饰边框 */
-        <g clipPath={`url(#${gid}-clip)`}>
-          <image
-            href={portraitImg}
-            x="0" y="0" width="100" height="100"
-            preserveAspectRatio="xMidYMid slice"
-          />
-        </g>
-      ) : (
-        <>
-          {/* 装饰花纹 (背景纹理) */}
-          <g opacity="0.1" stroke="#ffd54f" strokeWidth="0.5" fill="none">
-            <path d="M 10 10 Q 25 15 30 30" />
-            <path d="M 90 10 Q 75 15 70 30" />
-            <path d="M 10 90 Q 25 85 30 70" />
-            <path d="M 90 90 Q 75 85 70 70" />
-          </g>
+      {/* 装饰花纹 (背景纹理) */}
+      <g opacity="0.1" stroke="#ffd54f" strokeWidth="0.5" fill="none">
+        <path d="M 10 10 Q 25 15 30 30" />
+        <path d="M 90 10 Q 75 15 70 30" />
+        <path d="M 10 90 Q 25 85 30 70" />
+        <path d="M 90 90 Q 75 85 70 70" />
+      </g>
 
-          {/* 人物剪影 (头 + 肩) */}
-          <CharacterSilhouette archetype={archetype} cloth={theme.cloth} skin={theme.skin} />
+      {/* 人物剪影 (头 + 肩) */}
+      <CharacterSilhouette archetype={archetype} cloth={theme.cloth} skin={theme.skin} />
 
-          {/* 英雄专属道具 (头饰 + 武器) — 替代 archetype 通用装饰 */}
-          <HeroItem heroId={hero.hero.id} />
-        </>
-      )}
+      {/* 英雄专属道具 (头饰 + 武器) — 替代 archetype 通用装饰 */}
+      <HeroItem heroId={hero.hero.id} />
 
       {/* 金色双层边框 */}
       <rect x="2" y="2" width="96" height="96" fill="none"
