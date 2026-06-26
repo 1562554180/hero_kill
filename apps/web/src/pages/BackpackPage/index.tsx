@@ -4,6 +4,27 @@ import type { Hero, HeroStone, Material, Treasure } from '@hero-legend/shared-ty
 
 const API = '/api'
 
+const NAME_TO_ID: Record<string, string> = {
+  '扁鹊': 'bian-que', '曹操': 'cao-cao', '陈胜': 'chen-sheng', '程咬金': 'cheng-yao-jin',
+  '勾践': 'gou-jian', '关羽': 'guan-yu', '韩信': 'han-xin', '荆轲': 'jing-ke',
+  '李逵': 'li-kui', '李世民': 'li-shi-min', '李师师': 'li-shi-shi', '李煜': 'li-yu',
+  '刘邦': 'liu-bang', '吕雉': 'lv-zhi', '慕容': 'mu-rong', '秦琼': 'qin-qiong',
+  '商鞅': 'shang-yang', '宋江': 'song-jiang', '澹台名': 'tan-tai-ming', '铁木真': 'tie-mu-zhen',
+  '武松': 'wu-song', '武则天': 'wu-ze-tian', '项羽': 'xiang-yu', '小乔': 'xiao-qiao',
+  '杨延昭': 'yang-yan-zhao', '嬴政': 'ying-zheng', '虞姬': 'yu-ji',
+  '岳飞': 'yue-fei', '赵匡胤': 'zhao-kuang-yin', '朱元璋': 'zhu-yuan-zhang', '诸葛亮': 'zhuge-liang',
+  '吴三桂': 'wu-san-gui', '宇文化及': 'yu-wen-hua-ji', '孟获': 'meng-huo',
+  '萧太后': 'xiao-tai-hou', '兰陵王': 'lan-ling-wang',
+}
+
+const portraitModules = import.meta.glob('../../images/*.png', { eager: true, import: 'default' }) as Record<string, string>
+const HERO_PORTRAITS: Record<string, string> = {}
+for (const [path, url] of Object.entries(portraitModules)) {
+  const filename = path.replace('../../images/', '').replace('.png', '')
+  const heroId = NAME_TO_ID[filename]
+  if (heroId) HERO_PORTRAITS[heroId] = url
+}
+
 type Tab = 'stones' | 'tickets' | 'treasures' | 'materials'
 
 const TICKET_LABEL: Record<string, string> = {
@@ -140,22 +161,39 @@ export function BackpackPage() {
                 {stoneGroups.map(g => {
                   const hero = heroMap.get(g.heroId)
                   const isHigh = g.starLevel >= 4
+                  const portrait = HERO_PORTRAITS[g.heroId]
                   return (
                     <div key={`${g.starLevel}-${g.heroId}`} style={{
                       background: isHigh ? 'linear-gradient(135deg, #ff6b6b22, #c6282822)' : 'var(--bg-dark)',
                       border: `1px solid ${isHigh ? '#ff6b6b' : 'var(--border-wood)'}`,
                       borderRadius: '6px', padding: '10px',
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span style={{ color: 'var(--text-light)', fontWeight: 'bold' }}>
-                          {hero?.name ?? g.heroId}{g.stoneIds.length > 1 && <span style={{ color: 'var(--text-gold)', marginLeft: '6px' }}>× {g.stoneIds.length}</span>}
-                        </span>
-                        <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>
-                          {'★'.repeat(g.starLevel)}
-                        </span>
-                      </div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '8px' }}>
-                        {hero?.faction ?? '?'} | 英雄石
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '4px' }}>
+                        {portrait && (
+                          <img
+                            src={portrait}
+                            alt={hero?.name ?? g.heroId}
+                            style={{
+                              width: '48px', height: '48px', borderRadius: '4px',
+                              objectFit: 'cover', flexShrink: 0,
+                              border: '1px solid var(--border-wood)',
+                              background: 'var(--bg-dark)',
+                            }}
+                          />
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
+                            <span style={{ color: 'var(--text-light)', fontWeight: 'bold' }}>
+                              {hero?.name ?? g.heroId}{g.stoneIds.length > 1 && <span style={{ color: 'var(--text-gold)', marginLeft: '6px' }}>× {g.stoneIds.length}</span>}
+                            </span>
+                            <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>
+                              {'★'.repeat(g.starLevel)}
+                            </span>
+                          </div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
+                            {hero?.faction ?? '?'} | 英雄石
+                          </div>
+                        </div>
                       </div>
                       <button
                         disabled={busy}

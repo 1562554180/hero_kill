@@ -18,4 +18,9 @@ export class SaveController {
   async updateSave(@Param('userId') userId: string, @Body() update: any) {
     return this.saveService.updateSave(userId, update)
   }
+
+  @Post('seed-debug/:userId')
+  async seedDebug(@Param('userId') userId: string) {
+    return this.saveService.seedDebugResources(userId)
+  }
 }

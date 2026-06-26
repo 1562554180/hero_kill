@@ -121,6 +121,8 @@ export class Game {
   private xiaDanLossThisTurn = new Set<string>()             // 输了侠胆的玩家集合
   private xiaDanUsedThisTurn = new Set<string>()             // 本回合已尝试拼点的玩家 (限1次)
   private skipDrawThisTurn = false                            // 起义: 跳过本回合摸牌
+  // 起义: 摸牌前的决策解析器 (Promise resolver). 摸牌前若玩家有起义且有合法目标, 引擎会暂停并等待 web 端 resolve
+  private qiYiResolver: ((decision: { useIt: boolean; targetIds?: string[]; cardMap?: Record<string, string> } | null) => void) | null = null
   // 门神: 秦琼 → 受保护的目标ID (回合结束指定, 下回合开始失效)
   private menShenMap = new Map<string, string>()              // qinQiongId → protectedTargetId
   // 诀别: 虞姬濒死时指定的男性英雄ID; 阵亡后牌归其
@@ -685,6 +687,19 @@ export class Game {
     this.eventBus.emit({ type: 'phase:end', sourceHeroId: player.getId(), data: { phase: 'judge' } })
 
     if (!player.isAlive()) { this.advanceToNextAlive(); return }
+
+    // 起义 (陈胜): 摸牌前询问是否放弃摸牌 → 改拿至多2名其他角色各1张手牌
+    //   - 仅玩家角色, 仅陈胜英雄 (有 qi-yi 技能/宝具), 且场上至少1名其他角色有手牌时提示
+    if (player.getRole() === 'player' && this.hasValidQiYiTarget(player)) {
+      this.eventBus.emit({ type: 'phase:start', sourceHeroId: player.getId(), data: { phase: 'qiYiPrompt' } })
+      const decision = await new Promise<{ useIt: boolean; targetIds?: string[]; cardMap?: Record<string, string> } | null>(resolve => {
+        this.qiYiResolver = resolve
+      })
+      this.eventBus.emit({ type: 'phase:end', sourceHeroId: player.getId(), data: { phase: 'qiYiPrompt' } })
+      if (decision && decision.useIt && decision.targetIds && decision.targetIds.length > 0) {
+        this.playerQiYi(player, decision.targetIds, decision.cardMap)
+      }
+    }
 
     // 摸牌阶段
     this.eventBus.emit({ type: 'phase:start', sourceHeroId: player.getId(), data: { phase: 'draw' } })
@@ -2875,6 +2890,29 @@ export class Game {
       }
     }
     if (langYanBoost) this.emitSkillTrigger(player, '狼烟', '烽火狼烟伤害+1')
+  }
+
+  /** 起义: 获取所有可作为目标的其他角色 (存活即可, 是否实际有手牌由 UI 灰显) */
+  getQiYiCandidates(player: Player): Player[] {
+    if (!player.hasSkillOrTreasure('qi-yi')) return []
+    return this.players.filter(p =>
+      p.getId() !== player.getId() && p.isAlive()
+    )
+  }
+
+  /** 起义: 是否有合法可抽的目标 (其他存活且有手牌的角色至少1个) */
+  hasValidQiYiTarget(player: Player): boolean {
+    if (!player.hasSkillOrTreasure('qi-yi')) return false
+    return this.players.some(p =>
+      p.getId() !== player.getId() && p.isAlive() && p.getHandSize() > 0
+    )
+  }
+
+  /** 起义: 摸牌前由 web 端 resolve 这个决策; 引擎在 startTurn 中 await 此方法 */
+  resolveQiYiDecision(decision: { useIt: boolean; targetIds?: string[]; cardMap?: Record<string, string> } | null) {
+    const r = this.qiYiResolver
+    this.qiYiResolver = null
+    if (r) r(decision)
   }
 
   /** 起义: 放弃摸牌, 改为从至多2名其他角色各获得1张手牌 */

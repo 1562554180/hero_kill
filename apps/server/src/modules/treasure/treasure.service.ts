@@ -4,6 +4,7 @@ import type { Treasure } from '@hero-legend/shared-types'
 
 export interface UpgradeResult {
   success: boolean
+  lucky: boolean
   newLevel: number
   successRate: number
   baseRate: number
@@ -56,13 +57,17 @@ export class TreasureService {
     const roll = Math.random() * 100
     const success = roll < adjustedRate
 
+    // 强化成功后, 额外 0.5% 概率触发"欧皇附体": 连升 3 级 (封顶 45)
+    const lucky = success && Math.random() < 0.005
+    const levelGain = lucky ? 3 : 1
+
     await this.saveService.spendMaterial(userId, 'enhancementTalisman', 1)
     if (luckyStones > 0) {
       await this.saveService.spendMaterial(userId, 'luckyStone', luckyStones)
     }
     await this.saveService.spendMaterial(userId, 'gold', goldCost)
 
-    const newLevel = success ? level + 1 : level
+    const newLevel = success ? Math.min(level + levelGain, 45) : level
     const newEnhanceCount = enhanceCount + 1
     await this.saveService.updateTreasure(userId, treasureId, {
       level: newLevel,
@@ -74,6 +79,7 @@ export class TreasureService {
 
     return {
       success,
+      lucky,
       newLevel,
       successRate: adjustedRate,
       baseRate,

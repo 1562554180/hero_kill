@@ -24,7 +24,7 @@ export function TreasureWorkshopPage() {
   const [selectedTreasureId, setSelectedTreasureId] = useState<string | null>(null)
   const [luckyStones, setLuckyStones] = useState(0)
   const [phase, setPhase] = useState<Phase>('idle')
-  const [result, setResult] = useState<{ success: boolean; newLevel: number; oldLevel: number } | null>(null)
+  const [result, setResult] = useState<{ success: boolean; lucky: boolean; newLevel: number; oldLevel: number } | null>(null)
   const [toast, setToast] = useState('')
   const [transferOpen, setTransferOpen] = useState(false)
 
@@ -74,15 +74,15 @@ export function TreasureWorkshopPage() {
       }
       setResult({
         success: data.success,
+        lucky: !!data.lucky,
         oldLevel: (selectedTreasure.level ?? 0),
         newLevel: data.newLevel,
       })
       setPhase('revealed')
       setTimeout(() => {
-        setSelectedTreasureId(null)
-        setLuckyStones(0)
         setResult(null)
         setPhase('idle')
+        // 成功/失败都保留选中 — 双击列表行才手动移除
         refresh()
       }, 1800)
     } catch (e: any) {
@@ -171,7 +171,9 @@ export function TreasureWorkshopPage() {
               pointerEvents: 'none', zIndex: 10,
             }}>
               {result.success
-                ? `强化成功! Lv.${result.oldLevel} → Lv.${result.newLevel}`
+                ? result.lucky
+                  ? `欧皇附体! Lv.${result.oldLevel} → Lv.${result.newLevel} (连升3级)`
+                  : `强化成功! Lv.${result.oldLevel} → Lv.${result.newLevel}`
                 : `强化失败,等级维持 Lv.${result.oldLevel}`}
             </div>
           )}
@@ -188,6 +190,7 @@ export function TreasureWorkshopPage() {
             selectedTreasureId={selectedTreasureId}
             disabledTreasureIds={new Set(selectedTreasureId ? [selectedTreasureId] : [])}
             onPick={(id) => setSelectedTreasureId(id)}
+            onUnpick={() => setSelectedTreasureId(null)}
             disabled={phase !== 'idle'}
           />
         </div>

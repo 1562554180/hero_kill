@@ -3,8 +3,8 @@ import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { randomUUID } from 'crypto'
 import { SaveDoc } from './save.schema'
-import { generateInitialTreasures, treasureDefinitions } from '@hero-legend/game-data'
-import type { HeroInstance, HeroStone } from '@hero-legend/shared-types'
+import { generateInitialTreasures, treasureDefinitions, POOL_CONFIGS, rollStar, rollHero } from '@hero-legend/game-data'
+import type { HeroInstance, HeroStone, RecruitPool } from '@hero-legend/shared-types'
 import { getTreasureSlots } from '@hero-legend/shared-types'
 
 @Injectable()
@@ -297,5 +297,51 @@ export class SaveService {
       { $set: setFields },
       { new: true },
     ).exec()
+  }
+
+  /**
+   * 一次性调试种子: 金币 10 亿 / 强化符 1 万 / 幸运石 6 万 /
+   * 三池英雄石(baili/qianli/wanli)各 1 万颗 (覆盖现有 heroStones)
+   */
+  async seedDebugResources(userId: string): Promise<SaveDoc | null> {
+    const save = await this.getSave(userId)
+    if (!save) return null
+
+    const amountMap: Record<string, number> = {
+      gold: 1_000_000_000,
+      enhancementTalisman: 10_000,
+      luckyStone: 60_000,
+    }
+    for (const [type, amount] of Object.entries(amountMap)) {
+      const m = (save.materials as any[]).find((x: any) => x.type === type)
+      if (m) m.amount = amount
+      else save.materials.push({ type, amount })
+    }
+
+    const pools: RecruitPool[] = ['baili', 'qianli', 'wanli']
+    const stones: HeroStone[] = []
+    const now = Date.now()
+    for (const pool of pools) {
+      const cfg = POOL_CONFIGS[pool]
+      for (let i = 0; i < 10_000; i++) {
+        const starLevel = rollStar(cfg.starWeights)
+        const hero = rollHero(pool, starLevel)
+        stones.push({
+          stoneId: randomUUID(),
+          heroId: hero.id,
+          starLevel,
+          pool,
+          acquiredAt: now + i,
+        })
+      }
+    }
+
+    await this.saveModel.findOneAndUpdate(
+      { userId },
+      { $set: { materials: save.materials, heroStones: stones, updatedAt: Date.now() } },
+      { new: true },
+    ).exec()
+
+    return this.getSave(userId)
   }
 }

@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import type { Treasure } from '@hero-legend/shared-types'
 
 interface SubTreasureListProps {
@@ -5,11 +6,25 @@ interface SubTreasureListProps {
   selectedTreasureId: string | null
   disabledTreasureIds: Set<string>
   onPick: (treasureId: string) => void
+  onUnpick?: () => void
   disabled?: boolean
 }
 
-export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasureIds, onPick, disabled }: SubTreasureListProps) {
-  const subs = treasures.filter(t => t.type !== 'main')
+const PAGE_SIZE = 20
+
+export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasureIds, onPick, onUnpick, disabled }: SubTreasureListProps) {
+  const subs = useMemo(() => treasures.filter(t => t.type !== 'main'), [treasures])
+  const totalPages = Math.max(1, Math.ceil(subs.length / PAGE_SIZE))
+  const [page, setPage] = useState(0)
+
+  // 总页数变少 (强化消耗/熔炼后) 把 page 收回
+  useEffect(() => {
+    if (page >= totalPages) setPage(Math.max(0, totalPages - 1))
+  }, [page, totalPages])
+
+  const start = page * PAGE_SIZE
+  const end = Math.min(start + PAGE_SIZE, subs.length)
+  const pageItems = subs.slice(start, end)
 
   if (subs.length === 0) {
     return (
@@ -22,9 +37,9 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px', padding: '0 4px' }}>
-        点行投入强化 (90 条全展开)
+        共 {subs.length} 条 · 第 {start + 1}-{end} 条
       </div>
-      {subs.map(t => {
+      {pageItems.map(t => {
         const lvl = t.level ?? 0
         const cnt = t.enhanceCount ?? 0
         const maxed = cnt >= 50
@@ -34,6 +49,7 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
           <div
             key={t.id}
             onClick={() => !disabled && !isDisabled && onPick(t.id)}
+            onDoubleClick={() => !disabled && isSelected && onUnpick?.()}
             style={{
               background: isSelected ? '#3a2a1a' : 'var(--bg-dark)',
               border: `1px solid ${isSelected ? 'var(--text-gold)' : 'var(--border-wood)'}`,
@@ -63,6 +79,32 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
           </div>
         )
       })}
+
+      {totalPages > 1 && (
+        <div style={{
+          display: 'flex', justifyContent: 'center', alignItems: 'center',
+          gap: '12px', padding: '8px 4px', marginTop: '4px',
+          borderTop: '1px solid var(--border-wood)',
+        }}>
+          <button
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={page === 0}
+            style={{ padding: '4px 12px', fontSize: '12px', opacity: page === 0 ? 0.4 : 1 }}
+          >
+            上一页
+          </button>
+          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+            {page + 1} / {totalPages}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+            style={{ padding: '4px 12px', fontSize: '12px', opacity: page >= totalPages - 1 ? 0.4 : 1 }}
+          >
+            下一页
+          </button>
+        </div>
+      )}
     </div>
   )
 }

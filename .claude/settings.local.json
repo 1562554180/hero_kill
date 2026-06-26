@@ -105,7 +105,9 @@
       "Bash(awk NR>=20 && NR<=40 {printf \"%d: %s\\\\n\", NR, $0} *)",
       "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('keys:', list\\(d.keys\\(\\)\\)\\); print\\('stones count:', len\\(d.get\\('stones',[]\\)\\)\\); print\\('first stone:', d.get\\('stones',[{}]\\)[0]\\)\")",
       "Bash(git -C \"D:\\\\work\\\\hero-legend\" log --oneline -20 -- \"packages/game-engine/src/__tests__/\")",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(echo \"EXIT=$?\")",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__resize_page"
     ]
   }
 }

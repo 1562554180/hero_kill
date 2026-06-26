@@ -73,13 +73,13 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   const canRespond = isResponse && onRespondWithCard && (canUseAsKill || isWuXie || isDodge)
 
   // 选牌模式(弃牌/侠胆/曼舞/天香/补刀/超脱/treasure/...)整张牌都不加阴影, 玩家正在做选择
-  // 傲剑下红色闪当杀: canUseAsKill=true 也不再视为"不可用"
+  // 傲剑下红色牌当杀: canUseAsKill=true 也不再视为"不可用" (药满血/雷已在判定区/...)
   const isShadowedByRule = shadowed || (
     !isResponse && !isHandCardSelect && (
       (isDodge && !canUseAsKill) ||
       isWuXie ||
-      (isHeal && isFullHp) ||
-      (isLei && hasLeiInJudge)
+      (isHeal && isFullHp && !canUseAsKill) ||
+      (isLei && hasLeiInJudge && !canUseAsKill)
     )
   )
 
@@ -126,10 +126,20 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   const mainFontSize = card.name.length >= 3 ? 15 : 22
   const waterFontSize = card.name.length >= 3 ? 35 : 56
 
+  // 牌提示: 傲剑下当杀优先显示杀说明, 否则被规则禁用时显示禁用提示
+  // disabled 状态下不显示 tooltip (复仇触发/选择/濒死救援等待期间)
+  const cardTitle = (!disabled && !isResponse && !isHandCardSelect)
+    ? (canUseAsKillNow && !isKill
+        ? '当杀: 对攻击范围内的1名其他角色使用, 造成1点伤害'
+        : isShadowedByRule
+          ? '此牌不可主动使用 (需响应时除外)'
+          : undefined)
+    : undefined
+
   return (
     <div
       onClick={handleClick}
-      title={isShadowedByRule && !isResponse && !isHandCardSelect ? '此牌不可主动使用 (需响应时除外)' : undefined}
+      title={cardTitle}
       style={{
         position: 'relative',
         width: '72px',
