@@ -2430,6 +2430,12 @@ export class Game {
       if (pickedId) this.takeCardFromTarget(player, target, pickedId, '探囊取物')
     } else if (card.name === '釜底抽薪') {
       await this.executeFudiChouXin(player, targetId, card)
+      // 妙计: 釜底抽薪视为锦囊 → 摸1张
+      if (player.hasSkillOrTreasure('miao-ji')) {
+        const drawn = this.cardDeck.draw(1)
+        player.drawCards(drawn)
+        this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
+      }
     } else if (card.name === '借刀杀人') {
       // 借刀: 走 playerPlayJieDao (支持 UI 预选 holder), 这里只是占位
       return

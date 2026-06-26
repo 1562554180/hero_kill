@@ -30,6 +30,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
   const phase = useBattleStore(s => s.phase)
   const treasureSkill = useBattleStore(s => s.treasureSkill)
   const pickTreasureCard = useBattleStore(s => s.pickTreasureCard)
+  const yuRenCardIds = useBattleStore(s => s.yuRenCardIds)
   const { hero: config, currentHp, maxHp, role, instance } = hero
   const hpPercent = maxHp > 0 ? (currentHp / maxHp) * 100 : 0
   const isDanger = hpPercent <= 30
@@ -198,9 +199,20 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
               const canActivate = s.slot === 'weapon' && aoJianActive && isRed && !!canPlayKill && !!card
               const isJueJiThis = isJueJiWeaponPick && s.slot === 'weapon' && !!card
               const isPickingEquip = isSelectingEquipment && !!card
+              // 驭人模式下, 已选入弃牌堆的装备: 高亮红框+"弃"字
+              const isYuRenSelected = isYuRen && !!card && yuRenCardIds.includes(card.id)
               const defaultColor = s.slot === 'weapon' ? '#ff8a65' : s.slot === 'armor' ? '#90caf9' : '#a5d6a7'
               const activeColor = isYuRen ? '#b8860b' : '#ff9800'
-              const color = canActivate ? '#e57373' : isJueJiThis ? '#ff5722' : isPickingEquip ? activeColor : defaultColor
+              const selectedColor = '#c62828'
+              const color = isYuRenSelected
+                ? selectedColor
+                : canActivate
+                  ? '#e57373'
+                  : isJueJiThis
+                    ? '#ff5722'
+                    : isPickingEquip
+                      ? activeColor
+                      : defaultColor
               const handleClick = canActivate
                 ? () => onEquipAsKill?.(card!.id)
                 : isJueJiThis
@@ -214,13 +226,15 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
               const isHighlighted = canActivate || isJueJiThis || isPickingEquip
               const hoverText = canActivate
                 ? `点击 ${name} 当杀使用`
-                : isYuRen
-                  ? `点击 ${name} 加入驭人弃牌`
-                  : isJueJiThis
-                    ? `点击弃置${name}触发绝击`
-                    : isPickingEquip
-                      ? `点击弃置${name}`
-                      : `${name} - ${desc}`
+                : isYuRenSelected
+                  ? `已选: ${name} (再次点击取消)`
+                  : isYuRen
+                    ? `点击 ${name} 加入驭人弃牌`
+                    : isJueJiThis
+                      ? `点击弃置${name}触发绝击`
+                      : isPickingEquip
+                        ? `点击弃置${name}`
+                        : `${name} - ${desc}`
               return (
                 <span
                   key={s.slot}
@@ -230,18 +244,31 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
                     flex: 1, height: '15px',
                     color,
                     background: `${color}22`,
-                    border: `1px solid ${color}55`,
+                    border: `1.5px solid ${isYuRenSelected ? selectedColor : color + '55'}`,
                     borderRadius: '2px',
                     fontSize: '9px',
                     lineHeight: '1',
                     cursor: handleClick ? 'pointer' : 'help',
-                    fontWeight: isHighlighted ? 'bold' : 'normal',
-                    boxShadow: canActivate ? '0 0 3px rgba(229,115,115,0.6)' : isJueJiThis ? '0 0 3px rgba(255,87,34,0.6)' : isPickingEquip ? (isYuRen ? '0 0 3px rgba(255,215,0,0.6)' : '0 0 3px rgba(255,152,0,0.6)') : 'none',
+                    fontWeight: isHighlighted || isYuRenSelected ? 'bold' : 'normal',
+                    boxShadow: isYuRenSelected
+                      ? '0 0 5px rgba(198,40,40,0.85), inset 0 0 3px rgba(198,40,40,0.4)'
+                      : canActivate ? '0 0 3px rgba(229,115,115,0.6)' : isJueJiThis ? '0 0 3px rgba(255,87,34,0.6)' : isPickingEquip ? (isYuRen ? '0 0 3px rgba(255,215,0,0.6)' : '0 0 3px rgba(255,152,0,0.6)') : 'none',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     overflow: 'hidden',
+                    position: 'relative',
                   }}
                 >
                   {icon}
+                  {isYuRenSelected && (
+                    <span style={{
+                      position: 'absolute', inset: 0,
+                      background: 'rgba(198,40,40,0.45)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#fff', fontSize: '9px', fontWeight: 'bold',
+                      textShadow: '0 0 2px rgba(0,0,0,0.95), 0 0 1px rgba(0,0,0,1)',
+                      pointerEvents: 'none',
+                    }}>弃</span>
+                  )}
                 </span>
               )
             })}
