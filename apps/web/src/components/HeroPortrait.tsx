@@ -14,7 +14,7 @@ const NAME_TO_ID: Record<string, string> = {
 
 // 自动扫 images/ 下所有 PNG, 按文件名匹配 hero ID
 const portraitModules = import.meta.glob('../images/*.png', { eager: true, import: 'default' }) as Record<string, string>
-export const HERO_PORTRAIT_IMAGES: Record<string, string> = {}
+const HERO_PORTRAIT_IMAGES: Record<string, string> = {}
 for (const [path, url] of Object.entries(portraitModules)) {
   const filename = path.replace('../images/', '').replace('.png', '')
   const heroId = NAME_TO_ID[filename]
