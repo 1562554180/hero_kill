@@ -24,6 +24,7 @@ for (const [path, url] of Object.entries(portraitModules)) {
 interface Props {
   hero: BattleHero
   size?: number
+  fill?: boolean
 }
 
 type Archetype = 'emperor' | 'female' | 'scholar' | 'assassin' | 'berserker' | 'warrior'
@@ -934,7 +935,7 @@ function ArchetypeDecor({ archetype }: { archetype: Archetype }) {
   }
 }
 
-export function HeroPortrait({ hero, size = 100 }: Props) {
+export function HeroPortrait({ hero, size = 100, fill = false }: Props) {
   const role = hero.role ?? 'enemy'
   const theme = ROLE_THEME[role] ?? ROLE_THEME['enemy']
   const faction = hero.hero.faction
@@ -943,56 +944,42 @@ export function HeroPortrait({ hero, size = 100 }: Props) {
   const gid = `bg-${hero.hero.id}`
   const portraitImg = HERO_PORTRAIT_IMAGES[hero.hero.id]
 
+  // fill 模式: 占满父容器
+  const sizing: React.CSSProperties = fill
+    ? { width: '100%', height: '100%' }
+    : { width: size, height: size }
+
   // PNG 立绘模式: 用 <img> 原生分辨率渲染 + 装饰层覆盖
   if (portraitImg) {
     return (
       <div style={{
-        position: 'relative', width: size, height: size,
+        position: 'relative', ...sizing,
         borderRadius: '6px', overflow: 'hidden', flexShrink: 0,
         background: `linear-gradient(180deg, ${theme.bg1} 0%, ${theme.bg2} 100%)`,
       }}>
         <img
           src={portraitImg}
           alt={hero.hero.name}
-          width={size}
-          height={size}
           draggable={false}
           style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
         />
 
-        {/* 金色双层边框 */}
+        {/* 阵营徽章 (左上角) */}
         <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          border: '1.8px solid #ffd54f',
-          borderRadius: '6px',
-          boxShadow: 'inset 0 0 0 3px rgba(184,134,11,0.6), inset 0 0 0 5px rgba(212,175,55,0.4)',
-        }} />
-
-        {/* 阵营徽章 (顶部) */}
-        <div style={{
-          position: 'absolute', top: '4%', left: '50%', transform: 'translateX(-50%)',
+          position: 'absolute', top: '4%', left: '4%',
           background: 'rgba(0,0,0,0.65)', color: '#ffd54f',
           padding: '1px 5px', borderRadius: '2px',
-          fontSize: Math.max(7, size * 0.06), fontWeight: 'bold',
+          fontSize: Math.max(7, (fill ? 12 : size) * 0.06), fontWeight: 'bold',
           letterSpacing: '1.5px', fontFamily: "'KaiTi','STKaiti',serif",
         }}>{faction}</div>
 
-        {/* 星级 (左上角) */}
+        {/* 底部名字条 (左下角) */}
         <div style={{
-          position: 'absolute', top: '2%', left: '4%',
-          color: '#ffd54f', fontSize: Math.max(7, size * 0.06), fontWeight: 'bold',
-          textShadow: '0 0 2px rgba(0,0,0,0.8)',
-        }}>
-          {'★'.repeat(starLevel)}
-        </div>
-
-        {/* 底部名字条 */}
-        <div style={{
-          position: 'absolute', bottom: '2%', left: '5%', right: '5%',
+          position: 'absolute', bottom: '2%', left: '4%',
           background: 'rgba(0,0,0,0.7)', color: '#ffd54f',
-          padding: '2px 4px', borderRadius: '2px',
-          fontSize: Math.max(8, size * 0.09), fontWeight: 'bold',
-          textAlign: 'center',
+          padding: '2px 5px', borderRadius: '2px',
+          fontSize: Math.max(8, (fill ? 12 : size) * 0.09), fontWeight: 'bold',
+          textAlign: 'left',
           fontFamily: "'KaiTi','STKaiti',serif",
         }}>{hero.hero.name}</div>
       </div>
@@ -1001,7 +988,8 @@ export function HeroPortrait({ hero, size = 100 }: Props) {
 
   // 默认 SVG 模式
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100"
+    <svg width={fill ? '100%' : size} height={fill ? '100%' : size} viewBox="0 0 100 100"
+         preserveAspectRatio="xMidYMid meet"
          style={{ display: 'block', borderRadius: '6px', flexShrink: 0 }}>
       <defs>
         <linearGradient id={`${gid}-vert`} x1="0" y1="0" x2="0" y2="1">
@@ -1044,28 +1032,20 @@ export function HeroPortrait({ hero, size = 100 }: Props) {
             stroke="rgba(212,175,55,0.4)" strokeWidth="0.5" rx="3"
             strokeDasharray="2,1" />
 
-      {/* 阵营徽章 (顶部, 小字) */}
-      <rect x="42" y="4" width="16" height="9" fill="rgba(0,0,0,0.65)" rx="2" />
-      <text x="50" y="11" fontSize="6" fill="#ffd54f" textAnchor="middle"
+      {/* 阵营徽章 (左上角) */}
+      <rect x="4" y="4" width="18" height="9" fill="rgba(0,0,0,0.65)" rx="2" />
+      <text x="13" y="11" fontSize="6" fill="#ffd54f" textAnchor="middle"
             fontFamily="'KaiTi','STKaiti',serif" fontWeight="bold"
             style={{ letterSpacing: '1.5px' }}>
         {faction}
       </text>
 
-      {/* 底部名字条 */}
-      <rect x="6" y="83" width="88" height="12" fill="rgba(0,0,0,0.7)" rx="2" />
-      <text x="50" y="91" fontSize="9" fill="#ffd54f" textAnchor="middle"
+      {/* 名字条 (左下角) */}
+      <rect x="4" y="83" width="44" height="12" fill="rgba(0,0,0,0.7)" rx="2" />
+      <text x="8" y="91" fontSize="9" fill="#ffd54f" textAnchor="start"
             fontFamily="'KaiTi','STKaiti',serif" fontWeight="bold">
         {hero.hero.name}
       </text>
-
-      {/* 星级 (左上角) */}
-      <g>
-        {Array.from({ length: starLevel }).map((_, i) => (
-          <text key={i} x={6 + i*5} y="11" fontSize="6" fill="#ffd54f"
-                textAnchor="middle">★</text>
-        ))}
-      </g>
     </svg>
   )
 }

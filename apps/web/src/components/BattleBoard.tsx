@@ -389,7 +389,7 @@ export function BattleBoard() {
             return (
             <div style={{
               position: 'absolute',
-              bottom: '100%',
+              bottom: '104%',
               left: 0,
               right: 0,
               marginBottom: '8px',
@@ -436,7 +436,9 @@ export function BattleBoard() {
                 return (
                   <div style={{
                     pointerEvents: 'auto',
-                    padding: '10px 16px',
+                    width: '70%',
+                    margin: '0 auto',
+                    padding: '5px 8px',
                     background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                     borderRadius: '6px',
                     border: '2px solid #ffd54f',

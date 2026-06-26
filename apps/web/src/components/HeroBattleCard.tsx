@@ -6,6 +6,14 @@ import { HeroPortrait } from './HeroPortrait'
 /** 调试: 鼠标悬停AI手牌数时显示具体手牌内容. 关闭后回到原样(只显示数字) */
 const DEBUG_SHOW_AI_HAND = true
 
+// 卡牌图片: 扫 cards/*.png, 文件名即卡名
+const cardImgModules = import.meta.glob('../images/cards/*.png', { eager: true, import: 'default' }) as Record<string, string>
+const CARD_IMAGES: Record<string, string> = {}
+for (const [path, url] of Object.entries(cardImgModules)) {
+  const filename = path.replace('../images/cards/', '').replace('.png', '')
+  CARD_IMAGES[filename] = url
+}
+
 const SUIT_GLYPH: Record<string, string> = { spade: '♠', heart: '♥', diamond: '♦', club: '♣' }
 const formatHandForDebug = (cards: Card[]): string =>
   cards.map(c => `${c.name}${SUIT_GLYPH[c.suit] ?? c.suit}${c.number}`).join(', ')
@@ -71,8 +79,10 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
         border: `1.5px solid ${borderColor}`,
         borderRadius: '6px',
         padding: '4px',
-        minWidth: '90px',
-        height: '100%',
+        width: '130px',
+        height: '210px',
+        maxHeight: '100%',
+        flexShrink: 0,
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
@@ -91,9 +101,11 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
               : 'none',
       }}
     >
-      {/* 头像区: SVG 武将像 + 右上 AI 徽章 */}
-      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-        <HeroPortrait hero={hero} size={82} />
+      {/* 人物展示区: 占满顶部区域 (flex: 1) — SVG 武将像/PNG 立绘 + 右上 AI 徽章 */}
+      <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center', alignItems: 'stretch' }}>
+        <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'stretch' }}>
+          <HeroPortrait hero={hero} fill />
+        </div>
         {(role === 'ally' || role === 'enemy') && (
           <span style={{
             position: 'absolute', top: '2px', right: '2px',
@@ -104,6 +116,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
             borderRadius: '2px',
             fontWeight: 'bold',
             border: `1px solid ${role === 'ally' ? 'rgba(46,125,50,0.9)' : 'rgba(198,40,40,0.9)'}`,
+            zIndex: 2,
           }}>AI</span>
         )}
       </div>
@@ -162,7 +175,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
         </span>
       </div>
 
-      {/* 装备区: 武器/防具/+1马/-1马 — 固定4个15px方格 */}
+      {/* 装备区: 武器/防具/+1马/-1马 — 固定4个竖向细长方格 */}
       {(() => {
         const p = game?.getPlayerById(hero.hero.id)
         const slots: { slot: 'weapon' | 'armor' | 'attackMount' | 'defenseMount' }[] = [
@@ -175,14 +188,14 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
         const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
         const isJueJiWeaponPick = treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon'
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: '2px', height: '40px' }}>
             {slots.map(s => {
               const id = hero.equipment[s.slot]
               if (!id) {
                 const placeholder = s.slot === 'weapon' ? '武' : s.slot === 'armor' ? '防' : s.slot === 'attackMount' ? '+马' : '-马'
                 return (
                   <span key={s.slot} style={{
-                    flex: 1, height: '15px',
+                    flex: 1, alignSelf: 'stretch',
                     border: '1px dashed #444',
                     borderRadius: '2px',
                     fontSize: '7px',
@@ -195,6 +208,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
               const name = card?.name ?? '???'
               const desc = (card as any)?.description ?? ''
               const icon = (card as any)?.icon ?? '⚙'
+              const cardImg = card ? CARD_IMAGES[card.name] : undefined
               const isRed = !!card && isRedSuit(card.suit)
               const canActivate = s.slot === 'weapon' && aoJianActive && isRed && !!canPlayKill && !!card
               const isJueJiThis = isJueJiWeaponPick && s.slot === 'weapon' && !!card
@@ -241,24 +255,44 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
                   title={hoverText}
                   onClick={handleClick}
                   style={{
-                    flex: 1, height: '15px',
-                    color,
-                    background: `${color}22`,
-                    border: `1.5px solid ${isYuRenSelected ? selectedColor : color + '55'}`,
-                    borderRadius: '2px',
+                    flex: 1, alignSelf: 'stretch',
+                    color: isYuRenSelected || canActivate || isJueJiThis || isPickingEquip ? color : '#1b5e20',
+                    background: isYuRenSelected
+                      ? 'rgba(198,40,40,0.35)'
+                      : canActivate
+                        ? 'rgba(229,115,115,0.35)'
+                        : isJueJiThis
+                          ? 'rgba(255,87,34,0.35)'
+                          : isPickingEquip
+                            ? isYuRen ? 'rgba(184,134,11,0.35)' : 'rgba(255,152,0,0.35)'
+                            : 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%)',
+                    border: `1.5px solid ${isYuRenSelected ? selectedColor : canActivate ? '#e57373' : isJueJiThis ? '#ff5722' : isPickingEquip ? (isYuRen ? '#b8860b' : '#ff9800') : '#2e7d32'}`,
+                    borderRadius: '3px',
                     fontSize: '9px',
                     lineHeight: '1',
                     cursor: handleClick ? 'pointer' : 'help',
                     fontWeight: isHighlighted || isYuRenSelected ? 'bold' : 'normal',
                     boxShadow: isYuRenSelected
                       ? '0 0 5px rgba(198,40,40,0.85), inset 0 0 3px rgba(198,40,40,0.4)'
-                      : canActivate ? '0 0 3px rgba(229,115,115,0.6)' : isJueJiThis ? '0 0 3px rgba(255,87,34,0.6)' : isPickingEquip ? (isYuRen ? '0 0 3px rgba(255,215,0,0.6)' : '0 0 3px rgba(255,152,0,0.6)') : 'none',
+                      : canActivate ? '0 0 3px rgba(229,115,115,0.6)' : isJueJiThis ? '0 0 3px rgba(255,87,34,0.6)' : isPickingEquip ? (isYuRen ? '0 0 3px rgba(255,215,0,0.6)' : '0 0 3px rgba(255,152,0,0.6)') : '0 1px 2px rgba(0,0,0,0.4), inset 0 0 4px rgba(46,125,50,0.2)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     overflow: 'hidden',
                     position: 'relative',
                   }}
                 >
-                  {icon}
+                  {cardImg ? (
+                    <img
+                      src={cardImg}
+                      alt={name}
+                      draggable={false}
+                      style={{
+                        position: 'absolute', top: '50%', left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '85%', height: '85%', objectFit: 'contain',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  ) : icon}
                   {isYuRenSelected && (
                     <span style={{
                       position: 'absolute', inset: 0,

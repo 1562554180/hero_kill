@@ -132,8 +132,8 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
       title={isShadowedByRule && !isResponse && !isHandCardSelect ? '此牌不可主动使用 (需响应时除外)' : undefined}
       style={{
         position: 'relative',
-        width: '55px',
-        height: '84px',
+        width: '72px',
+        height: '110px',
         background: `linear-gradient(135deg, ${theme.bg1} 0%, ${theme.bg2} 50%, ${theme.bg3} 100%)`,
         border: `1.5px solid ${theme.border}`,
         borderRadius: '4px',
@@ -162,7 +162,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
           style={{
             position: 'absolute', top: '50%', left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: '46px', height: '46px', objectFit: 'contain',
+            width: '60px', height: '60px', objectFit: 'contain',
             pointerEvents: 'none',
           }}
         />
@@ -218,8 +218,8 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
       {/* 响应/杀/回春 徽章 */}
       {effectiveIsRed && canUseAsKillNow && !isJudgeReplace && (aoJianActive || !isKill) && (
         <div style={{
-          position: 'absolute', top: '-5px', right: '-3px',
-          background: '#e57373', color: '#fff', fontSize: '7px',
+          position: 'absolute', top: '4px', right: '4px',
+          background: '#e57373', color: '#fff', fontSize: '10px',
           padding: '0 3px', borderRadius: '2px', fontWeight: 'bold',
         }}>当杀</div>
       )}
