@@ -307,7 +307,13 @@ export class Game {
   }
 
   private rollSubTreasure(player: Player, skillId: string): boolean {
-    const treasure = [...player.hero.instance.treasures.sub].find(t => t?.skill.id === skillId)
+    // 子宝具按星级有 -2/-3/-4/-5 后缀 (如 'treasure-qiang-hua-5')
+    // 调用方传基础 id (如 'treasure-qiang-hua'), 这里按前缀模糊匹配
+    const treasure = [...player.hero.instance.treasures.sub].find(t => {
+      if (!t) return false
+      const id = t.skill?.id ?? ''
+      return id === skillId || id.startsWith(skillId + '-')
+    })
     if (!treasure) return false
     const bonus = getSubTriggerBonus(player.hero.instance.starLevel)
     const levelBonus = (treasure.level ?? 0) * 0.01
