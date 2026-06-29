@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import type { Card } from '@hero-legend/shared-types'
 import { isRedSuit, isBlackSuit } from '@hero-legend/shared-types'
 
@@ -29,11 +30,11 @@ interface Props {
   huiChunAvailable?: boolean
   shadowed?: boolean
   hasLeiInJudge?: boolean
-  onPlayKill: (cardId: string) => void
-  onPlayHeal: (cardId: string) => void
-  onEquip: (cardId: string) => void
-  onPlayScheme?: (cardId: string) => void
-  onPlaySchemeSelf?: (cardId: string) => void
+  onPlayKill: (cardId: string, fromPos?: { x: number; y: number }) => void
+  onPlayHeal: (cardId: string, fromPos?: { x: number; y: number }) => void
+  onEquip: (cardId: string, fromPos?: { x: number; y: number }) => void
+  onPlayScheme?: (cardId: string, fromPos?: { x: number; y: number }) => void
+  onPlaySchemeSelf?: (cardId: string, fromPos?: { x: number; y: number }) => void
   onJudgeReplace?: (cardId: string | null) => void
   onRespondWithCard?: (cardId: string | null) => void
   onHuiChunHeal?: (cardId: string) => void
@@ -57,6 +58,13 @@ const suitFontColor = (suit: string) => (suit === 'heart' || suit === 'diamond')
 const suitWaterColor = (suit: string) => (suit === 'heart' || suit === 'diamond') ? 'rgba(198,40,40,0.10)' : 'rgba(33,33,33,0.10)'
 
 export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, isHandCardSelect, hasValidSchemeTarget = true, huiChunAvailable, shadowed = false, hasLeiInJudge = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const clickPos = (): { x: number; y: number } | undefined => {
+    const el = cardRef.current
+    if (!el) return undefined
+    const r = el.getBoundingClientRect()
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+  }
   const isKill = card.name === '杀'
   const isHeal = card.name === '药'
   const isEquip = card.type === 'equipment'
@@ -73,11 +81,11 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
   const canRespond = isResponse && onRespondWithCard && (canUseAsKill || isWuXie || isDodge)
 
   // 选牌模式(弃牌/侠胆/曼舞/天香/补刀/超脱/treasure/...)整张牌都不加阴影, 玩家正在做选择
-  // 傲剑下红色牌当杀: canUseAsKill=true 也不再视为"不可用" (药满血/雷已在判定区/...)
+  // 傲剑下红色牌当杀: canUseAsKill=true 也不再视为"不可用" (药满血/雷已在判定区/无懈可击/...)
   const isShadowedByRule = shadowed || (
     !isResponse && !isHandCardSelect && (
       (isDodge && !canUseAsKill) ||
-      isWuXie ||
+      (isWuXie && !canUseAsKill) ||
       (isHeal && isFullHp && !canUseAsKill) ||
       (isLei && hasLeiInJudge && !canUseAsKill)
     )
@@ -110,11 +118,11 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
       onHuiChunHeal(card.id)
       return
     }
-    if (canUseAsKillNow) onPlayKill(card.id)
-    else if (isHeal) onPlayHeal(card.id)
-    else if (isEquip) onEquip(card.id)
-    else if (isSelfTargeted && onPlaySchemeSelf) onPlaySchemeSelf(card.id)
-    else if (isScheme && onPlayScheme) onPlayScheme(card.id)
+    if (canUseAsKillNow) onPlayKill(card.id, clickPos())
+    else if (isHeal) onPlayHeal(card.id, clickPos())
+    else if (isEquip) onEquip(card.id, clickPos())
+    else if (isSelfTargeted && onPlaySchemeSelf) onPlaySchemeSelf(card.id, clickPos())
+    else if (isScheme && onPlayScheme) onPlayScheme(card.id, clickPos())
   }
 
   const theme = TYPE_THEME[card.type] ?? TYPE_THEME.basic
@@ -138,6 +146,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
 
   return (
     <div
+      ref={cardRef}
       onClick={handleClick}
       title={cardTitle}
       style={{
