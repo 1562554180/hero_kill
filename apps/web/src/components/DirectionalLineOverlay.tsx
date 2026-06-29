@@ -1,0 +1,47 @@
+import { createPortal } from 'react-dom'
+import { useBattleStore } from '../stores/battleStore'
+
+export function DirectionalLineOverlay() {
+  const lines = useBattleStore(s => s.directionalLines)
+  if (lines.length === 0) return null
+  return createPortal(
+    <svg
+      data-directional-overlay
+      style={{
+        position: 'fixed',
+        inset: 0,
+        pointerEvents: 'none',
+        zIndex: 1500,
+      }}
+    >
+      <defs>
+        <marker
+          id="directional-arrow"
+          viewBox="0 0 10 10"
+          refX="8"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff5252" />
+        </marker>
+      </defs>
+      {lines.map(l => (
+        <line
+          key={l.id}
+          className="directional-line"
+          x1={l.fromX}
+          y1={l.fromY}
+          x2={l.toX}
+          y2={l.toY}
+          stroke="#ff5252"
+          strokeWidth={3}
+          opacity={0.85}
+          markerEnd="url(#directional-arrow)"
+        />
+      ))}
+    </svg>,
+    document.body,
+  )
+}
