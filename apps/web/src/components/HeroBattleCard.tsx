@@ -27,7 +27,7 @@ interface Props {
   onClick?: () => void
   aoJianActive?: boolean
   canPlayKill?: boolean
-  onEquipAsKill?: (cardId: string) => void
+  onEquipAsKill?: (cardId: string, fromPos?: { x: number; y: number }) => void
   hasHongZhuang?: boolean
 }
 
@@ -102,6 +102,58 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
               : 'none',
       }}
     >
+      {/* 判定区动画图标 (右上角): 手捧雷(引线闪)+ 画地为牢(锁开合) */}
+      {game && hero.judgeCards.length > 0 && (() => {
+        const p = game.getPlayerById(hero.hero.id)
+        const judgeCards = p?.getJudgeCards() ?? []
+        const hasThunder = judgeCards.some(c => c.name === '手捧雷')
+        const hasImprisoned = judgeCards.some(c => c.name === '画地为牢')
+        if (!hasThunder && !hasImprisoned) return null
+        return (
+          <div style={{
+            position: 'absolute', top: '2px', right: '2px',
+            display: 'flex', flexDirection: 'column', gap: '3px',
+            zIndex: 5, pointerEvents: 'none',
+          }}>
+            {hasThunder && (
+              <svg viewBox="0 0 24 24" width="22" height="22" style={{ filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.85))' }}>
+                {/* 手雷身 (深灰椭圆) */}
+                <ellipse cx="12" cy="15" rx="6" ry="6" fill="#455a64" stroke="#212121" strokeWidth="0.6" />
+                <line x1="7" y1="13" x2="17" y2="13" stroke="#37474f" strokeWidth="0.3" />
+                <line x1="7" y1="16" x2="17" y2="16" stroke="#37474f" strokeWidth="0.3" />
+                {/* 顶盖 */}
+                <rect x="10" y="7" width="4" height="2.5" fill="#5d4037" stroke="#3e2723" strokeWidth="0.3" />
+                {/* 引线 */}
+                <path d="M12 7 Q15 5 14 2" stroke="#8d6e63" strokeWidth="0.8" fill="none" strokeLinecap="round" />
+                {/* 火焰 (动画: 闪烁) */}
+                <g className="fuse-flame">
+                  <ellipse cx="14" cy="1.5" rx="1.5" ry="2" fill="#ff6f00" />
+                  <ellipse cx="14" cy="1.5" rx="0.8" ry="1.2" fill="#ffeb3b" />
+                </g>
+              </svg>
+            )}
+            {hasImprisoned && (
+              <svg viewBox="0 0 24 24" width="22" height="22" style={{ filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.85))' }}>
+                {/* 牢笼框 */}
+                <rect x="3" y="9" width="18" height="13" fill="rgba(0,0,0,0.25)" stroke="#5d4037" strokeWidth="1" rx="1" />
+                {/* 横向栅栏 */}
+                <line x1="3" y1="15" x2="21" y2="15" stroke="#5d4037" strokeWidth="0.6" />
+                {/* 竖向栅栏 */}
+                <line x1="8" y1="9" x2="8" y2="22" stroke="#5d4037" strokeWidth="0.6" />
+                <line x1="12" y1="9" x2="12" y2="22" stroke="#5d4037" strokeWidth="0.6" />
+                <line x1="16" y1="9" x2="16" y2="22" stroke="#5d4037" strokeWidth="0.6" />
+                {/* 锁 (动画: 开合) */}
+                <g className="lock-shackle">
+                  <rect x="9" y="4" width="6" height="5" rx="1" fill="#ffd54f" stroke="#5d4037" strokeWidth="0.5" />
+                  <circle cx="12" cy="6.3" r="0.7" fill="#212121" />
+                  <rect x="11.6" y="6.3" width="0.8" height="1.5" fill="#212121" />
+                </g>
+              </svg>
+            )}
+          </div>
+        )
+      })()}
+
       {/* 人物展示区: 占满顶部区域 (flex: 1) — SVG 武将像/PNG 立绘 + 右上 AI 徽章 */}
       <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center', alignItems: 'stretch' }}>
         <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'stretch' }}>
@@ -109,7 +161,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
         </div>
         {(role === 'ally' || role === 'enemy') && (
           <span style={{
-            position: 'absolute', top: '2px', right: '2px',
+            position: 'absolute', top: '2px', left: '2px',
             fontSize: '7px',
             color: role === 'ally' ? '#a5d6a7' : '#ef9a9a',
             background: role === 'ally' ? 'rgba(46,125,50,0.85)' : 'rgba(198,40,40,0.85)',
@@ -211,7 +263,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
               const icon = (card as any)?.icon ?? '⚙'
               const cardImg = card ? CARD_IMAGES[card.name] : undefined
               const isRed = !!card && isRedSuit(card.suit)
-              const canActivate = s.slot === 'weapon' && aoJianActive && isRed && !!canPlayKill && !!card
+              const canActivate = aoJianActive && isRed && !!canPlayKill && !!card
               const isJueJiThis = isJueJiWeaponPick && s.slot === 'weapon' && !!card
               const isPickingEquip = isSelectingEquipment && !!card
               // 驭人模式下, 已选入弃牌堆的装备: 高亮红框+"弃"字
@@ -311,30 +363,6 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
           </div>
         )
       })()}
-
-      {/* 判定区标记: 画地为牢/手捧雷 */}
-      {hero.judgeCards.length > 0 && game && (
-        <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
-          {hero.judgeCards.map(cid => {
-            const p = game.getPlayerById(hero.hero.id)
-            const card = p?.getJudgeCards()?.find((c: Card) => c.id === cid)
-            const name = card?.name ?? '???'
-            const isThunder = name === '手捧雷'
-            const color = isThunder ? '#e57373' : '#ce93d8'
-            const icon = isThunder ? '💣' : '🔒'
-            return (
-              <span key={cid} style={{
-                fontSize: '7px', color,
-                background: `${color}22`,
-                padding: '0 3px', borderRadius: '2px',
-                border: `1px solid ${color}55`,
-              }}>
-                {icon} {name}
-              </span>
-            )
-          })}
-        </div>
-      )}
 
       {currentHp <= 0 && (
         <div style={{
