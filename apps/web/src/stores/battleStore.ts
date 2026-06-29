@@ -298,8 +298,11 @@ function rectCenter(rect: DOMRect): { x: number; y: number } {
 
 function findCenterPos(): { x: number; y: number } {
   const el = document.querySelector('[data-center-marker]') as HTMLElement | null
-  if (el) return rectCenter(el.getBoundingClientRect())
-  return { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+  if (el) {
+    const c = rectCenter(el.getBoundingClientRect())
+    return { x: c.x, y: c.y - 50 }
+  }
+  return { x: window.innerWidth / 2, y: window.innerHeight / 2 - 50 }
 }
 
 function findSourcePos(heroId: string, sourceType: 'hand' | 'equipment', ref: string | undefined): { x: number; y: number } | null {
