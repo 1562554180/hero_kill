@@ -4,6 +4,7 @@ import { useBattleStore } from '../stores/battleStore'
 
 import { HeroBattleCard } from './HeroBattleCard'
 import { HandCard } from './HandCard'
+import { FlyingCardOverlay } from './FlyingCardOverlay'
 import { BattleLog } from './BattleLog'
 import type { Card } from '@hero-legend/shared-types'
 
@@ -2063,6 +2064,10 @@ export function BattleBoard() {
           100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
       `}</style>
+      {/* 中心 marker: 飞行卡的中心点定位参考 (1x1 不可见) */}
+      <div data-center-marker style={{ position: 'fixed', top: '50%', left: '50%', width: '1px', height: '1px', pointerEvents: 'none', zIndex: -1 }} />
+      {/* 飞行卡浮层: Portal 到 body, zIndex 2000 */}
+      <FlyingCardOverlay />
       </div>
     </div>
   )
