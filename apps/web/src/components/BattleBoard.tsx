@@ -1246,6 +1246,7 @@ export function BattleBoard() {
               return (
                 <div
                   key={card.id}
+                  data-card-id={card.id}
                   onClick={() => {
                     if (phase === 'selectDualCards') toggleDualCard(card.id)
                     else if (phase === 'selectDiscardCards') toggleDiscardCard(card.id)
