@@ -73,6 +73,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
 
   return (
     <div
+      data-hero-id={hero.hero.id}
       onClick={isSelectable ? onClick : undefined}
       style={{
         background: bgColor,
@@ -194,7 +195,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
               if (!id) {
                 const placeholder = s.slot === 'weapon' ? '武' : s.slot === 'armor' ? '防' : s.slot === 'attackMount' ? '+马' : '-马'
                 return (
-                  <span key={s.slot} style={{
+                  <span key={s.slot} data-equip-slot={s.slot} style={{
                     flex: 1, alignSelf: 'stretch',
                     border: '1px dashed #444',
                     borderRadius: '2px',
@@ -252,6 +253,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
               return (
                 <span
                   key={s.slot}
+                  data-equip-slot={s.slot}
                   title={hoverText}
                   onClick={handleClick}
                   style={{
