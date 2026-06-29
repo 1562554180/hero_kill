@@ -265,11 +265,23 @@ export function HeroPage() {
               {/* 可镶嵌列表: 点击槽位后展示匹配类型的宝具 */}
               {activeSlot && (() => {
                 const candidates = inventory.filter(t => t.type === activeSlot.slotType)
+                const heroStar = selectedInstance.starLevel ?? 1
                 return candidates.length > 0 ? (
                   <div style={{ marginTop: '8px', background: 'var(--bg-dark)', borderRadius: '4px', padding: '10px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '210px', overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
                       {candidates.map(t => {
                         const n = t.count ?? 1
+                        const lvl = t.level ?? 0
+                        const cnt = t.enhanceCount ?? 0
+                        const atMaxLevel = lvl >= 45
+                        const outOfAttempts = cnt >= 50
+                        // 战斗中实际触发率 = base + level*0.01 + (5星英雄 +0.10)
+                        const baseRate = t.triggerRate ?? 0
+                        const starBonus = heroStar === 5 ? 0.1 : 0
+                        const actualRate = baseRate + lvl * 0.01 + starBonus
+                        const ratePercent = Math.round(actualRate * 100)
+                        const basePercent = Math.round(baseRate * 100)
+                        const rateColor = actualRate >= 0.5 ? '#7ec850' : actualRate >= 0.3 ? 'var(--text-gold)' : actualRate >= 0.15 ? '#ff9e3a' : '#ff6b6b'
                         return (
                           <div key={t.id}
                             onDoubleClick={() => equipTreasure(selectedInstance.instanceId!, activeSlot.slotType, activeSlot.slotIndex, t.id)}
@@ -283,8 +295,16 @@ export function HeroPage() {
                               {t.name} * {n}
                             </div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                              {'★'.repeat(t.starLevel)} | 触发: {Math.round(t.triggerRate * 100)}%
+                              {'★'.repeat(t.starLevel)} | 基础触发: {basePercent}%
                             </div>
+                            {t.type === 'sub' && (
+                              <div style={{ color: rateColor, fontSize: '11px', fontWeight: 'bold' }}>
+                                强化 Lv.<span style={{ color: 'var(--text-gold)' }}>{lvl}</span>/45 · 次数 {cnt}/50 · 强化后触发: {ratePercent}%
+                                {starBonus > 0 && <span style={{ color: '#7ec850' }}> (含星5 +10%)</span>}
+                                {atMaxLevel && <span style={{ color: '#ff6b6b' }}> 已满级</span>}
+                                {outOfAttempts && <span style={{ color: '#ff6b6b' }}> 次数用尽</span>}
+                              </div>
+                            )}
                             <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
                               {t.skill.description}
                             </div>

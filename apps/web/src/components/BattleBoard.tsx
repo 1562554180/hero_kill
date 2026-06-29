@@ -546,13 +546,17 @@ export function BattleBoard() {
               {xiaDanActive && (
                 <div style={{
                   pointerEvents: 'auto',
-                  padding: '6px 12px',
-                  background: 'rgba(255,215,0,0.12)', borderRadius: '4px',
-                  border: '1px solid rgba(255,215,0,0.3)',
-                  color: '#ffd54f', fontSize: '12px',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #ffd54f',
+                  color: '#ffd54f', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(255,213,79,0.4)',
                 }}>
-                  <span>🗡️ 侠胆待选目标 — 点击1名<b>有手牌</b>的角色开始拼点</span>
+                  <span style={{ flex: 1 }}>🗡️ 侠胆待选目标 — 点击1名<b>有手牌</b>的角色开始拼点</span>
                   <button style={treasureBtnStyle} onClick={cancelXiaDan}>取消</button>
                 </div>
               )}
@@ -638,13 +642,17 @@ export function BattleBoard() {
               {phase === 'xiaDanPickCard' && (
                 <div style={{
                   pointerEvents: 'auto',
-                  padding: '10px 14px',
-                  background: 'rgba(255,215,0,0.12)', borderRadius: '4px',
-                  border: '1px solid rgba(255,215,0,0.3)',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #ffd54f',
                   color: '#ffd54f', fontSize: '13px',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(255,213,79,0.4)',
                 }}>
-                  <span>
+                  <span style={{ flex: 1 }}>
                     🗡️ 侠胆 — 与<b>{xiaDanTargetName ?? '目标'}</b>拼点, 双方同时选牌, 请选择1张手牌 (≥ 对方点数即胜)
                   </span>
                   <button style={treasureBtnStyle} onClick={cancelXiaDanCard}>取消</button>

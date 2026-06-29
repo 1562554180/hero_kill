@@ -154,10 +154,10 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '3px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
           {[0, 1].map(i => (
-            <TreasureSlot key={`m-${i}`} treasure={mainTreasures[i]} type="main" locked={i >= slotConfig.main} />
+            <TreasureSlot key={`m-${i}`} treasure={mainTreasures[i]} type="main" locked={i >= slotConfig.main} heroStarLevel={instance.starLevel} />
           ))}
           {[0, 1].map(i => (
-            <TreasureSlot key={`s-${i}`} treasure={subTreasures[i]} type="sub" locked={i >= slotConfig.sub} />
+            <TreasureSlot key={`s-${i}`} treasure={subTreasures[i]} type="sub" locked={i >= slotConfig.sub} heroStarLevel={instance.starLevel} />
           ))}
         </div>
         <span
@@ -346,7 +346,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
 }
 
 // 宝具凹槽子组件
-function TreasureSlot({ treasure, type, locked }: { treasure: Treasure | null | undefined; type: 'main' | 'sub'; locked?: boolean }) {
+function TreasureSlot({ treasure, type, locked, heroStarLevel }: { treasure: Treasure | null | undefined; type: 'main' | 'sub'; locked?: boolean; heroStarLevel?: number }) {
   const color = type === 'main' ? '#ff8a65' : '#90caf9'
   const bgColor = type === 'main' ? 'rgba(255,138,101,0.18)' : 'rgba(144,202,249,0.18)'
   const borderColor = type === 'main' ? 'rgba(255,138,101,0.5)' : 'rgba(144,202,249,0.5)'
@@ -388,9 +388,16 @@ function TreasureSlot({ treasure, type, locked }: { treasure: Treasure | null | 
   }
 
   const displayChar = (treasure.name?.[0] ?? '?')
+  const baseRate = treasure.triggerRate ?? 0
+  const lvl = treasure.level ?? 0
+  const starBonus = heroStarLevel === 5 ? 0.1 : 0
+  const actualRate = baseRate + lvl * 0.01 + starBonus
+  const tooltip = type === 'sub'
+    ? `${treasure.name} (辅印)\n基础触发: ${Math.round(baseRate * 100)}%\n强化 Lv.${lvl}/45 · 强化后触发: ${Math.round(actualRate * 100)}%${starBonus > 0 ? ` (含星5 +10%)` : ''}\n${treasure.skill?.description ?? ''}`
+    : `${treasure.name} (主印)\n触发: 100%\n${treasure.skill?.description ?? ''}`
   return (
     <div
-      title={`${treasure.name} (${type === 'main' ? '主印' : '辅印'}) - 触发率 ${Math.round((treasure.triggerRate ?? 0) * 100)}% - ${treasure.skill?.description ?? ''}`}
+      title={tooltip}
       style={{
         width: SLOT_SIZE, height: SLOT_SIZE,
         background: bgColor,

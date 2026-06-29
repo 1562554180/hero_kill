@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Hero, HeroStone, Material, Treasure } from '@hero-legend/shared-types'
+import type { Hero, HeroInstance, HeroStone, Material, Treasure } from '@hero-legend/shared-types'
 
 const API = '/api'
 
@@ -41,6 +41,21 @@ const MAT_LABEL: Record<string, string> = {
   heroToken: '英雄令牌',
 }
 
+// 分解宝具碎片奖励: 5★=2500 / 4★=1000 / 3★=400 / 2★=100 / 1★=20
+const DECOMPOSE_FRAGMENTS: Record<number, number> = {
+  1: 20, 2: 100, 3: 400, 4: 1000, 5: 2500,
+}
+
+const SLOT_LABEL: Record<string, string> = { main: '主印槽', sub: '辅印槽' }
+
+const MAX_LEVEL = 45
+const MAX_ENHANCE_COUNT = 50
+
+/** 服务端公式: 100 - level * 85 / 44, 向下取整 */
+function nextEnhanceRate(level: number): number {
+  return Math.max(0, Math.round(100 - level * 85 / 44))
+}
+
 type StoneGroup = {
   stoneId: string         // 该组第一颗的 id, 用于 "使用" 时消耗 1 颗
   starLevel: number
@@ -63,6 +78,7 @@ export function BackpackPage() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('stones')
   const [allHeroes, setAllHeroes] = useState<Hero[]>([])
+  const [heroInstances, setHeroInstances] = useState<HeroInstance[]>([])
   const [stones, setStones] = useState<HeroStone[]>([])
   const [materials, setMaterials] = useState<Material[]>([])
   const [treasures, setTreasures] = useState<Treasure[]>([])
@@ -78,6 +94,7 @@ export function BackpackPage() {
       fetch(`${API}/hero`).then(r => r.json()),
     ])
     setAllHeroes(heroData.heroes ?? [])
+    setHeroInstances(save?.heroes ?? [])
     setStones(save?.heroStones ?? [])
     setMaterials(save?.materials ?? [])
     setTreasures(save?.treasures ?? [])
@@ -87,6 +104,24 @@ export function BackpackPage() {
 
   const heroMap = useMemo(() => new Map(allHeroes.map(h => [h.id, h])), [allHeroes])
   const stoneGroups = useMemo(() => groupStones(stones), [stones])
+
+  // 宝具 → 装备它的英雄 (一个宝具同时只能被一个英雄装备, 因 id 唯一)
+  const equippedMap = useMemo(() => {
+    const m = new Map<string, { instanceId: string; heroId: string; slot: 'main' | 'sub'; index: number }>()
+    for (const h of heroInstances) {
+      if (!h.instanceId) continue
+      const ts = h.treasures ?? { main: [], sub: [] }
+      for (let i = 0; i < (ts.main?.length ?? 0); i++) {
+        const t = ts.main[i]
+        if (t && t.id) m.set(t.id, { instanceId: h.instanceId, heroId: h.heroId, slot: 'main', index: i })
+      }
+      for (let i = 0; i < (ts.sub?.length ?? 0); i++) {
+        const t = ts.sub[i]
+        if (t && t.id) m.set(t.id, { instanceId: h.instanceId, heroId: h.heroId, slot: 'sub', index: i })
+      }
+    }
+    return m
+  }, [heroInstances])
 
   const useStone = async (stoneId: string) => {
     if (busy) return
@@ -104,6 +139,35 @@ export function BackpackPage() {
         setMessage(`使用成功: ${heroName} 加入英雄管理`)
         await refresh()
       }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const decompose = async (treasure: Treasure) => {
+    if (busy) return
+    const equipped = equippedMap.get(treasure.id)
+    const heroName = equipped ? (heroMap.get(equipped.heroId)?.name ?? equipped.heroId) : ''
+    const confirmMsg = equipped
+      ? `确定要分解 ${'★'.repeat(treasure.starLevel)} ${treasure.name} 吗?\n该宝具当前装备在 [${heroName} ${SLOT_LABEL[equipped.slot]}${equipped.index + 1}], 会被卸下.`
+      : `确定要分解 ${'★'.repeat(treasure.starLevel)} ${treasure.name} 吗?`
+    if (!confirm(confirmMsg)) return
+    setBusy(true)
+    setMessage('')
+    try {
+      const res = await fetch(`${API}/treasure/decompose/${userId}/${encodeURIComponent(treasure.id)}`, { method: 'POST' })
+      const data = await res.json()
+      if (data.error) {
+        setMessage('分解失败: ' + data.error)
+      } else {
+        const equippedTip = data.removedFrom
+          ? ` (已从 ${heroMap.get(data.removedFrom.heroId)?.name ?? data.removedFrom.heroId} 卸下)`
+          : ''
+        setMessage(`分解成功: ${treasure.name} → +${data.fragments} 宝具碎片${equippedTip}`)
+        await refresh()
+      }
+    } catch (e: any) {
+      setMessage('分解失败: ' + (e?.message ?? '网络错误'))
     } finally {
       setBusy(false)
     }
@@ -236,10 +300,26 @@ export function BackpackPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {treasures.map(t => {
                 const n = t.count ?? 1
+                const equipped = equippedMap.get(t.id)
+                const equippedHeroName = equipped
+                  ? heroMap.get(equipped.heroId)?.name ?? equipped.heroId
+                  : null
+                const fragments = DECOMPOSE_FRAGMENTS[t.starLevel] ?? 0
+                // 辅印才显示强化信息
+                const lvl = t.level ?? 0
+                const cnt = t.enhanceCount ?? 0
+                const atMaxLevel = lvl >= MAX_LEVEL
+                const isSub = t.type === 'sub'
+                const rate = isSub && !atMaxLevel ? nextEnhanceRate(lvl) : null
+                const rateColor = rate == null ? '#ff6b6b'
+                  : rate >= 80 ? '#7ec850'
+                  : rate >= 50 ? 'var(--text-gold)'
+                  : rate >= 20 ? '#ff9e3a'
+                  : '#ff6b6b'
                 return (
                   <div key={t.id} style={{
                     background: 'var(--bg-dark)', padding: '10px', borderRadius: '4px',
-                    border: '1px solid var(--border-wood)',
+                    border: `1px solid ${equipped ? '#ff6b6b' : 'var(--border-wood)'}`,
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                       <span style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)', fontWeight: 'bold' }}>
@@ -252,8 +332,46 @@ export function BackpackPage() {
                     <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
                       {t.type === 'main' ? '主印' : '辅印'} | 触发率: {Math.round(t.triggerRate * 100)}%
                     </div>
+                    {isSub && (
+                      <div style={{ display: 'flex', gap: '12px', fontSize: '11px', marginTop: '2px' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          强化: Lv.<span style={{ color: 'var(--text-gold)', fontWeight: 'bold' }}>{lvl}</span>/{MAX_LEVEL}
+                        </span>
+                        <span style={{ color: cnt >= MAX_ENHANCE_COUNT ? '#ff6b6b' : 'var(--text-muted)' }}>
+                          次数: {cnt}/{MAX_ENHANCE_COUNT}
+                        </span>
+                        <span style={{ color: rateColor, fontWeight: 'bold' }}>
+                          下次成功率: {atMaxLevel ? '已满级' : `${rate}%`}
+                        </span>
+                      </div>
+                    )}
+                    <div style={{
+                      color: equipped ? '#ff6b6b' : 'var(--text-muted)',
+                      fontSize: '11px', marginTop: '2px',
+                      fontWeight: equipped ? 'bold' : 'normal',
+                    }}>
+                      {equipped
+                        ? `装备中: ${equippedHeroName} (${SLOT_LABEL[equipped.slot]}${equipped.index + 1})`
+                        : '未装备'}
+                    </div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
                       {t.skill?.description ?? ''}
+                    </div>
+                    <div style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      marginTop: '8px', paddingTop: '6px',
+                      borderTop: '1px dashed var(--border-wood)',
+                    }}>
+                      <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>
+                        分解 → +{fragments} 碎片
+                      </span>
+                      <button
+                        disabled={busy}
+                        onClick={() => decompose(t)}
+                        style={{ fontSize: '12px', padding: '4px 12px' }}
+                      >
+                        分解
+                      </button>
                     </div>
                   </div>
                 )

@@ -60,7 +60,7 @@ export function TreasureWorkshopPage() {
     if (!canUpgrade || !selectedTreasure) return
     setPhase('upgrading')
     try {
-      const res = await fetch(`${API}/treasure/upgrade/${userId}/${selectedTreasure.id}`, {
+      const res = await fetch(`${API}/treasure/upgrade/${userId}/${encodeURIComponent(selectedTreasure.id)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ luckyStones }),

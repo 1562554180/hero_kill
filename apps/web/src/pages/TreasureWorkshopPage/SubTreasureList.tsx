@@ -11,6 +11,13 @@ interface SubTreasureListProps {
 }
 
 const PAGE_SIZE = 20
+const MAX_LEVEL = 45
+const MAX_ENHANCE_COUNT = 50
+
+/** 服务端公式: 100 - level * 85 / 44, 向下取整 */
+function nextEnhanceRate(level: number): number {
+  return Math.max(0, Math.round(100 - level * 85 / 44))
+}
 
 export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasureIds, onPick, onUnpick, disabled }: SubTreasureListProps) {
   const subs = useMemo(() => treasures.filter(t => t.type !== 'main'), [treasures])
@@ -42,9 +49,17 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
       {pageItems.map(t => {
         const lvl = t.level ?? 0
         const cnt = t.enhanceCount ?? 0
-        const maxed = cnt >= 50
+        const atMaxLevel = lvl >= MAX_LEVEL
+        const outOfAttempts = cnt >= MAX_ENHANCE_COUNT
+        const isMaxed = atMaxLevel || outOfAttempts
         const isSelected = selectedTreasureId === t.id
-        const isDisabled = disabledTreasureIds.has(t.id) || maxed
+        const isDisabled = disabledTreasureIds.has(t.id) || isMaxed
+        const rate = atMaxLevel ? null : nextEnhanceRate(lvl)
+        const rateColor = rate == null ? '#ff6b6b'
+          : rate >= 80 ? '#7ec850'
+          : rate >= 50 ? 'var(--text-gold)'
+          : rate >= 20 ? '#ff9e3a'
+          : '#ff6b6b'
         return (
           <div
             key={t.id}
@@ -65,16 +80,19 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
               {'★'.repeat(t.starLevel)} {t.name}
             </span>
             <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                Lv.{lvl}
+              <span style={{ color: 'var(--text-light)', fontSize: '11px' }}>
+                Lv.<span style={{ color: 'var(--text-gold)', fontWeight: 'bold' }}>{lvl}</span>
+                <span style={{ color: 'var(--text-muted)' }}>/{MAX_LEVEL}</span>
+              </span>
+              <span style={{ color: rateColor, fontSize: '11px', fontWeight: 'bold', minWidth: '42px', textAlign: 'right' }}>
+                {atMaxLevel ? '已满级' : `${rate}%`}
               </span>
               <span style={{
-                color: maxed ? '#ff6b6b' : 'var(--text-muted)',
+                color: outOfAttempts ? '#ff6b6b' : 'var(--text-muted)',
                 fontSize: '11px',
               }}>
-                {cnt}/50{maxed ? ' (满)' : ''}
+                {cnt}/{MAX_ENHANCE_COUNT}
               </span>
-              {maxed && <span style={{ fontSize: '10px', color: '#ff6b6b' }}>已满</span>}
             </span>
           </div>
         )
