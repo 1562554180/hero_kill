@@ -1,5 +1,5 @@
 // apps/web/src/components/FlyingCard.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { HandCardVisual } from './HandCardVisual'
 import type { Card } from '@hero-legend/shared-types'
@@ -24,6 +24,18 @@ const EASE = [0.25, 0.1, 0.25, 1] as const
 export function FlyingCard({ animation }: { animation: FlyingCard }) {
   const [stageIdx, setStageIdx] = useState(0)
   const stage = animation.stages[stageIdx]
+  // 用 setTimeout 推进 stage (而不是依赖 framer-motion 的 onAnimationComplete).
+  // 中间 "暂停" stage 的 from===to 且无 endScale/endOpacity 变化时, framer-motion 不会触发 onAnimationComplete, 导致后续 stage 不跑.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (stageIdx < animation.stages.length - 1) {
+        setStageIdx(stageIdx + 1)
+      } else {
+        animation.onDone()
+      }
+    }, stage.durationMs)
+    return () => clearTimeout(timer)
+  }, [stageIdx, stage.durationMs, animation])
   return (
     <motion.div
       initial={{ x: stage.from.x, y: stage.from.y, scale: 1, opacity: 1 }}
@@ -34,13 +46,6 @@ export function FlyingCard({ animation }: { animation: FlyingCard }) {
         opacity: stage.endOpacity ?? 1,
       }}
       transition={{ duration: stage.durationMs / 1000, ease: EASE }}
-      onAnimationComplete={() => {
-        if (stageIdx < animation.stages.length - 1) {
-          setStageIdx(stageIdx + 1)
-        } else {
-          animation.onDone()
-        }
-      }}
       style={{
         position: 'fixed',
         top: 0,
