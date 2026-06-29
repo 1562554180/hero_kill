@@ -3,8 +3,8 @@ import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { randomUUID } from 'crypto'
 import { SaveDoc } from './save.schema'
-import { generateInitialTreasures, treasureDefinitions, POOL_CONFIGS, rollStar, rollHero } from '@hero-legend/game-data'
-import type { HeroInstance, HeroStone, RecruitPool } from '@hero-legend/shared-types'
+import { generateInitialTreasures, treasureDefinitions } from '@hero-legend/game-data'
+import type { HeroInstance, HeroStone } from '@hero-legend/shared-types'
 import { getTreasureSlots } from '@hero-legend/shared-types'
 
 @Injectable()
@@ -89,16 +89,18 @@ export class SaveService {
       }
     }
     // 补全新加入的辅印变体 (老存档只有 18 条旧数据, 现在每个缺失的 def 都补一条 count=1)
-    if (save.treasures && Array.isArray(save.treasures)) {
+    // 按 name 匹配 (init/migrate/drop 各种 id 前缀格式不同, 用 name 最可靠)
+    // 注意: 用 subDefMigrated 标记保证只补一次, 否则用户分解后再调用 getSave 又会再补一遍
+    if (!(save as any).subDefMigrated && save.treasures && Array.isArray(save.treasures)) {
       const subDefs = (treasureDefinitions as any[]).filter((d: any) => d.type === 'sub')
-      const existingDefIds = new Set(
+      const existingNames = new Set(
         (save.treasures as any[])
           .filter((t: any) => t.type === 'sub')
-          .map((t: any) => String(t.id).split('#')[0]),
+          .map((t: any) => t.name),
       )
       let added = false
       for (const def of subDefs) {
-        if (!existingDefIds.has(def.id)) {
+        if (!existingNames.has(def.name)) {
           save.treasures.push({
             id: `t-migrate-${def.id}-0`,
             name: def.name,
@@ -117,6 +119,23 @@ export class SaveService {
         }
       }
       if (added) patched = true
+      ;(save as any).subDefMigrated = true
+      patched = true
+    }
+    // 去重: 同 (type, id) 重复的宝具只保留第一条 (修复老 bug 累积的迁移副本)
+    if (save.treasures && Array.isArray(save.treasures) && save.treasures.length > 0) {
+      const seen = new Set<string>()
+      const deduped: any[] = []
+      for (const t of save.treasures as any[]) {
+        const key = `${t.type}|${t.id}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        deduped.push(t)
+      }
+      if (deduped.length !== save.treasures.length) {
+        save.treasures = deduped
+        patched = true
+      }
     }
     // 老存档 seed 强化符 20 张 (新手补偿)
     if (!save.materials.find((m: any) => m.type === 'enhancementTalisman')) {
@@ -300,8 +319,8 @@ export class SaveService {
   }
 
   /**
-   * 一次性调试种子: 金币 10 亿 / 强化符 1 万 / 幸运石 6 万 /
-   * 三池英雄石(baili/qianli/wanli)各 1 万颗 (覆盖现有 heroStones)
+   * 一次性调试种子: 金币 10 亿 / 强化符 1 万 / 幸运石 1 万 /
+   * 三种抽卡券(baili/qianli/wanli ticket)各 1 万张. 不动 heroStones.
    */
   async seedDebugResources(userId: string): Promise<SaveDoc | null> {
     const save = await this.getSave(userId)
@@ -310,35 +329,20 @@ export class SaveService {
     const amountMap: Record<string, number> = {
       gold: 1_000_000_000,
       enhancementTalisman: 10_000,
-      luckyStone: 60_000,
+      luckyStone: 10_000,
+      bailiTicket: 10_000,
+      qianliTicket: 10_000,
+      wanliTicket: 10_000,
     }
     for (const [type, amount] of Object.entries(amountMap)) {
       const m = (save.materials as any[]).find((x: any) => x.type === type)
       if (m) m.amount = amount
-      else save.materials.push({ type, amount })
-    }
-
-    const pools: RecruitPool[] = ['baili', 'qianli', 'wanli']
-    const stones: HeroStone[] = []
-    const now = Date.now()
-    for (const pool of pools) {
-      const cfg = POOL_CONFIGS[pool]
-      for (let i = 0; i < 10_000; i++) {
-        const starLevel = rollStar(cfg.starWeights)
-        const hero = rollHero(pool, starLevel)
-        stones.push({
-          stoneId: randomUUID(),
-          heroId: hero.id,
-          starLevel,
-          pool,
-          acquiredAt: now + i,
-        })
-      }
+      else save.materials.push({ type, amount } as any)
     }
 
     await this.saveModel.findOneAndUpdate(
       { userId },
-      { $set: { materials: save.materials, heroStones: stones, updatedAt: Date.now() } },
+      { $set: { materials: save.materials, updatedAt: Date.now() } },
       { new: true },
     ).exec()
 
