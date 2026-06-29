@@ -518,7 +518,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     const center = findCenterPos()
     let stages: FlyingStage[]
     if (req.targetType === 'discard') {
-      stages = [{ from, to: center, durationMs: 500, endScale: 0.3, endOpacity: 0 }]
+      stages = [
+        { from, to: center, durationMs: 500 },
+        { from: center, to: center, durationMs: 1000, endScale: 0.3, endOpacity: 0 },
+      ]
     } else if (req.targetType === 'equipment' && req.targetSlot) {
       const equipPos = (() => {
         const el = document.querySelector(`[data-hero-id="${req.targetHeroId}"][data-equip-slot="${req.targetSlot}"]`) as HTMLElement | null
@@ -526,16 +529,21 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       })()
       stages = [
         { from, to: center, durationMs: 300 },
+        { from: center, to: center, durationMs: 300 },
         { from: center, to: equipPos, durationMs: 500, endScale: 0.3, endOpacity: 0 },
       ]
     } else if (req.targetType === 'hand' && req.targetHeroId) {
       const handPos = findHandPos(req.targetHeroId) ?? center
       stages = [
         { from, to: center, durationMs: 300 },
+        { from: center, to: center, durationMs: 300 },
         { from: center, to: handPos, durationMs: 500, endScale: 0.3, endOpacity: 0 },
       ]
     } else {
-      stages = [{ from, to: center, durationMs: 500, endScale: 0.3, endOpacity: 0 }]
+      stages = [
+        { from, to: center, durationMs: 500 },
+        { from: center, to: center, durationMs: 1000, endScale: 0.3, endOpacity: 0 },
+      ]
     }
     const id = `fly-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     set(s => ({
