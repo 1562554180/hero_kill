@@ -22,6 +22,10 @@ export function SmelterPage() {
   const [resultStone, setResultStone] = useState<HeroStone | null>(null)
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState('')
+  // 一键融合进度
+  const [batchFusing, setBatchFusing] = useState(false)
+  const [batchFused, setBatchFused] = useState(0)
+  const [batchPhase, setBatchPhase] = useState<'same' | 'mixed' | 'done'>('done')
 
   const refresh = useCallback(async () => {
     const [save, heroData] = await Promise.all([
@@ -169,6 +173,156 @@ export function SmelterPage() {
 
   const resultHeroName = resultStone ? heroMap.get(resultStone.heroId)?.name ?? resultStone.heroId : ''
 
+  // 可参与一键融合的英雄石 (4 星及以下)
+  const eligibleStones = useMemo(
+    () => stones.filter(s => s.starLevel <= 3),
+    [stones],
+  )
+
+  // 估算可融合次数: 同名组合 + 各星级总计 (含同名也算进星级总计)
+  const estimatedFusions = useMemo(() => {
+    const byGroup = new Map<string, number>()
+    const byStar = new Map<number, number>()
+    for (const s of eligibleStones) {
+      const k = `${s.starLevel}|${s.heroId}`
+      byGroup.set(k, (byGroup.get(k) ?? 0) + 1)
+      byStar.set(s.starLevel, (byStar.get(s.starLevel) ?? 0) + 1)
+    }
+    let count = 0
+    // 同名融合优先 (每组 ⌊n/3⌋ 次)
+    for (const [, n] of byGroup) count += Math.floor(n / 3)
+    // 模拟: 同名融合后剩余再混合 (上限估算, 不严格)
+    const remaining = new Map<number, number>(byStar)
+    for (const [k, n] of byGroup) {
+      const [starStr] = k.split('|')
+      const star = Number(starStr)
+      const used = Math.floor(n / 3) * 3
+      remaining.set(star, (remaining.get(star) ?? 0) - used)
+    }
+    for (const [, n] of remaining) count += Math.floor(n / 3)
+    return count
+  }, [eligibleStones])
+
+  // 一键融合: 不断调用 /recruit/smelt, 优先同名同星 (3 → 同英雄+1星), 再混合 (3 → 随机其他+1星)
+  const oneClickFuse = async () => {
+    if (batchFusing || busy) return
+    // 直接拉一次最新服务端数据, 避免依赖 React state 的异步更新
+    const saveData = await fetch(`${API}/save/${userId}`).then(r => r.json())
+    const freshStones: HeroStone[] = saveData?.heroStones ?? []
+    const eligible = freshStones.filter(s => s.starLevel <= 3)
+
+    // 估算: 模拟同名 + 混合, 看是否有可融合的组合
+    const byGroup = new Map<string, number>()
+    const byStar = new Map<number, number>()
+    for (const s of eligible) {
+      byGroup.set(`${s.starLevel}|${s.heroId}`, (byGroup.get(`${s.starLevel}|${s.heroId}`) ?? 0) + 1)
+      byStar.set(s.starLevel, (byStar.get(s.starLevel) ?? 0) + 1)
+    }
+    let est = 0
+    for (const [, n] of byGroup) est += Math.floor(n / 3)
+    const remaining = new Map(byStar)
+    for (const [k, n] of byGroup) {
+      const star = Number(k.split('|')[0])
+      remaining.set(star, (remaining.get(star) ?? 0) - Math.floor(n / 3) * 3)
+    }
+    for (const [, n] of remaining) est += Math.floor(n / 3)
+
+    if (est === 0) {
+      setToast('没有可融合的英雄石 (需 4★ 及以下且每组 ≥3 颗)')
+      setTimeout(() => setToast(''), 2500)
+      return
+    }
+    setBatchFusing(true)
+    setBatchFused(0)
+    setBatchPhase('same')
+
+    // 本地可融合集合 (key = stoneId)
+    const localMap = new Map<string, HeroStone>()
+    for (const s of eligible) localMap.set(s.stoneId, s)
+
+    let failed = 0
+    let lastError = ''
+    let fused = 0          // 本地计数 (避免读取未更新的 React 状态)
+    let safetyMax = 500   // 防御: 防止死循环
+    while (safetyMax-- > 0) {
+      // 1) 找一组 (star, hero) 数量 ≥3
+      const groupCounts = new Map<string, HeroStone[]>()
+      for (const s of localMap.values()) {
+        const k = `${s.starLevel}|${s.heroId}`
+        let arr = groupCounts.get(k)
+        if (!arr) { arr = []; groupCounts.set(k, arr) }
+        arr.push(s)
+      }
+      let sameHeroBatch: HeroStone[] | null = null
+      for (const arr of groupCounts.values()) {
+        if (arr.length >= 3) { sameHeroBatch = arr.slice(0, 3); break }
+      }
+
+      let picked: HeroStone[]
+      let phase: 'same' | 'mixed'
+      if (sameHeroBatch) {
+        picked = sameHeroBatch
+        phase = 'same'
+      } else {
+        // 2) 找任一 star 总数 ≥3 (混合)
+        const byStar = new Map<number, HeroStone[]>()
+        for (const s of localMap.values()) {
+          let arr = byStar.get(s.starLevel)
+          if (!arr) { arr = []; byStar.set(s.starLevel, arr) }
+          arr.push(s)
+        }
+        let mixedBatch: HeroStone[] | null = null
+        for (const arr of byStar.values()) {
+          if (arr.length >= 3) { mixedBatch = arr.slice(0, 3); break }
+        }
+        if (!mixedBatch) break   // 没有可融合的组合了
+        picked = mixedBatch
+        phase = 'mixed'
+      }
+      setBatchPhase(phase)
+
+      // 3) 调 API
+      const stoneIds = picked.map(s => s.stoneId)
+      try {
+        const res = await fetch(`${API}/recruit/smelt/${userId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stoneIds }),
+        })
+        const data = await res.json()
+        if (!res.ok || data.error || !data.stone) {
+          failed++
+          lastError = data.error ?? data.message ?? `HTTP ${res.status}`
+          // 服务端失败: 把这 3 颗从本地剔除, 避免下次重复尝试
+          for (const s of picked) localMap.delete(s.stoneId)
+          if (failed >= 5) break   // 连续失败太多 → 终止
+          continue
+        }
+        const newStone: HeroStone = data.stone
+        // 4) 本地: 移除 3 颗消耗, 加入新石头 (若仍 ≤3)
+        for (const s of picked) localMap.delete(s.stoneId)
+        if (newStone.starLevel <= 3) localMap.set(newStone.stoneId, newStone)
+        fused++
+        setBatchFused(fused)
+      } catch (e: any) {
+        failed++
+        lastError = e?.message ?? '网络错误'
+        for (const s of picked) localMap.delete(s.stoneId)
+        if (failed >= 5) break
+      }
+    }
+
+    setBatchFusing(false)
+    setBatchPhase('done')
+    if (failed > 0) {
+      setToast(`一键融合完成 ${fused} 次, 失败 ${failed} 次 (${lastError})`)
+    } else {
+      setToast(`一键融合完成: 共 ${fused} 次`)
+    }
+    setTimeout(() => setToast(''), 3500)
+    await refresh()
+  }
+
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', height: '100vh', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
       {/* 顶部 */}
@@ -232,7 +386,7 @@ export function SmelterPage() {
       <div style={{
         marginTop: '16px', padding: '12px 16px', background: 'var(--bg-medium)',
         border: '1px solid var(--border-wood)', borderRadius: '8px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
       }}>
         <span style={{
           color: totalSelected === 3 && allSameStar ? 'var(--text-gold)' : '#ff6b6b',
@@ -241,14 +395,34 @@ export function SmelterPage() {
           已选 {totalSelected}/3
           {totalSelected > 0 && !allSameStar && ' (跨星级无效)'}
         </span>
-        <button
-          className="primary"
-          onClick={handleSmelt}
-          disabled={!canSmelt}
-          style={{ padding: '10px 32px', fontSize: '15px', opacity: canSmelt ? 1 : 0.4 }}
-        >
-          {phase === 'brewing' ? '融合中...' : '融合'}
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {batchFusing && (
+            <span style={{ color: 'var(--text-gold)', fontSize: '13px' }}>
+              一键融合中 ({batchPhase === 'same' ? '同名' : '混合'}) × {batchFused}
+            </span>
+          )}
+          <button
+            onClick={oneClickFuse}
+            disabled={batchFusing || busy || estimatedFusions === 0}
+            style={{
+              padding: '10px 20px', fontSize: '14px',
+              opacity: batchFusing || busy || estimatedFusions === 0 ? 0.4 : 1,
+              background: 'linear-gradient(135deg, #c8a050, #8a6a30)',
+              color: '#fff', border: '1px solid #ffd54f', borderRadius: '4px',
+              fontWeight: 'bold',
+            }}
+          >
+            {batchFusing ? `融合中 × ${batchFused}` : `一键融合 (${estimatedFusions})`}
+          </button>
+          <button
+            className="primary"
+            onClick={handleSmelt}
+            disabled={!canSmelt}
+            style={{ padding: '10px 32px', fontSize: '15px', opacity: canSmelt ? 1 : 0.4 }}
+          >
+            {phase === 'brewing' ? '融合中...' : '融合'}
+          </button>
+        </div>
       </div>
     </div>
   )
