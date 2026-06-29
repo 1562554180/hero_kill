@@ -623,6 +623,7 @@ export class Game {
       const eq = victim.getEquippedCard(slot)
       if (eq) {
         victim.unequip(slot)
+        this.eventBus.emit({ type: 'equipment:unequip', sourceHeroId: victimId, data: { cardId: eq.id, slot } })
         allCards.push(eq)
       }
     }
@@ -638,14 +639,14 @@ export class Game {
         const target = this.getPlayerById(this.jueBieTarget)
         if (target && target.isAlive() && !target.isFemale()) {
           target.drawCards(allCards)
-          this.eventBus.emit({ type: 'card:gain', sourceHeroId: target.getId(), data: { count: allCards.length, reason: '诀别', from: victim.getId() } })
+          this.eventBus.emit({ type: 'card:gain', sourceHeroId: target.getId(), data: { count: allCards.length, reason: '诀别', from: victim.getId(), cards: allCards.map(c => c.id) } })
           this.emitSkillTrigger(victim, '诀别', `所有牌归入${target.getName()}`)
           this.jueBieTarget = null
           return
         }
       }
       this.cardDeck.discard(allCards)
-      this.eventBus.emit({ type: 'card:discard', sourceHeroId: victimId, data: { count: allCards.length, reason: 'death' } })
+      this.eventBus.emit({ type: 'card:discard', sourceHeroId: victimId, data: { count: allCards.length, reason: 'death', cards: allCards.map(c => c.id) } })
     }
     this.jueBieTarget = null
   }
