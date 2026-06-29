@@ -14,6 +14,7 @@ interface BattleState {
   result: BattleResult | null
   pendingCardId: string | null
   pendingCardType: 'kill' | 'scheme' | 'schemeSelf' | 'heal' | 'equip' | null
+  pendingCardFromPos: { x: number; y: number } | null  // 玩家点牌时手牌位置, 飞行卡起点用
   selectedTargetId: string | null  // pending 状态下选中的目标 (仅高亮, 不立即出牌)
   aoJianActive: boolean
   responsePrompt: string | null  // 例如 '决斗: 请打出【杀】或放弃'
@@ -143,14 +144,14 @@ interface BattleState {
   lastJudgeResult: { judgeHeroName: string; judgeCardName: string; resultCard: { suit: string; number: number; name: string } } | null
 
   startBattle: (config: GameConfig) => Promise<BattleResult>
-  playKill: (cardId: string) => void
-  playScheme: (cardId: string) => void
-  playSchemeSelf: (cardId: string) => void
+  playKill: (cardId: string, fromPos?: { x: number; y: number }) => void
+  playScheme: (cardId: string, fromPos?: { x: number; y: number }) => void
+  playSchemeSelf: (cardId: string, fromPos?: { x: number; y: number }) => void
   confirmTarget: (targetId: string) => void
   confirmPlay: () => void
   cancelPlay: () => void
-  playHeal: (cardId: string) => void
-  equipCard: (cardId: string) => void
+  playHeal: (cardId: string, fromPos?: { x: number; y: number }) => void
+  equipCard: (cardId: string, fromPos?: { x: number; y: number }) => void
   endPlayPhase: () => void
   cancelSelection: () => void
   judgeReplace: (cardId: string | null) => void
@@ -279,7 +280,19 @@ interface BattleState {
   // 卡牌飞行动画队列 (渲染层用)
   flyingCards: FlyingCard[]
   // 内部辅助: 入队一张飞行卡
-  _queueFlyingCard: (req: { card: Card; sourceType: 'hand' | 'equipment'; sourceRef?: string; targetType: 'discard' | 'equipment' | 'hand'; targetHeroId?: string; targetSlot?: EquipmentSlot; fromHeroId?: string }) => void
+  _queueFlyingCard: (req: { card: Card; sourceType: 'hand' | 'equipment'; sourceRef?: string; targetType: 'discard' | 'equipment' | 'hand'; targetHeroId?: string; targetSlot?: EquipmentSlot; fromHeroId?: string; fromPos?: { x: number; y: number }; onComplete?: () => void }) => void
+  // 指向性攻击线 (从 source → target 划线动画, 渲染层用)
+  directionalLines: DirectionalLine[]
+}
+
+export type DirectionalLine = {
+  id: string
+  fromX: number
+  fromY: number
+  toX: number
+  toY: number
+  cardName: string
+  createdAt: number
 }
 
 const heroNames: Record<string, string> = {}
@@ -326,6 +339,11 @@ function findHandPos(heroId: string): { x: number; y: number } | null {
   const heroEl = document.querySelector(`[data-hero-id="${heroId}"]`) as HTMLElement | null
   if (heroEl) return rectCenter(heroEl.getBoundingClientRect())
   return null
+}
+
+function findHeroCenter(heroId: string): { x: number; y: number } | null {
+  const el = document.querySelector(`[data-hero-id="${heroId}"]`) as HTMLElement | null
+  return el ? rectCenter(el.getBoundingClientRect()) : null
 }
 
 function eventToLog(event: GameEvent, game: Game): string | null {
@@ -417,6 +435,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   result: null,
   pendingCardId: null,
   pendingCardType: null,
+  pendingCardFromPos: null,
   selectedTargetId: null,
   aoJianActive: false,
   responsePrompt: null,
@@ -512,9 +531,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   yuRenCardIds: [],
   yuRenUsedThisTurn: false,
   flyingCards: [],
+  directionalLines: [],
   _queueFlyingCard: (req) => {
     const fromHeroId = req.fromHeroId ?? ''
-    const from = findSourcePos(fromHeroId, req.sourceType, req.sourceRef)
+    const from = req.fromPos ?? findSourcePos(fromHeroId, req.sourceType, req.sourceRef)
     if (!from) return
     const center = findCenterPos()
     let stages: FlyingStage[]
@@ -551,6 +571,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     set(s => ({
       flyingCards: [...s.flyingCards, { id, card: req.card, stages, onDone: () => {
         set(cur => ({ flyingCards: cur.flyingCards.filter(fc => fc.id !== id) }))
+        req.onComplete?.()
       }}],
     }))
   },
@@ -652,6 +673,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       houZhuPrompt: null,
       resolveHouZhu: null,
       flyingCards: [],
+      directionalLines: [],
     })
 
     const wrappedConfig: GameConfig = {
@@ -787,7 +809,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         const targetId = await new Promise<string | null>(resolve => {
           set({ resolveJieDaoTarget: resolve })
         })
-        set({ resolveJieDaoTarget: null, jieDaoCandidates: [], phase: 'playing', pendingCardId: null, pendingCardType: null })
+        set({ resolveJieDaoTarget: null, jieDaoCandidates: [], phase: 'playing', pendingCardId: null, pendingCardType: null, pendingCardFromPos: null })
         return targetId
       },
       tanNangTargetHandler: async (game: Game, attacker: Player, candidates: Player[]) => {
@@ -1149,8 +1171,9 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         }, 3000)
       }
       // 关键事件触发时同步 gameState + playerHand, 避免 UI 显示陈旧的 HP/手牌
-      // (出牌/弃牌/摸牌/装备/失去装备 时手牌会变, 必须同步, 否则像李逵复仇等待时
+      // (出牌/弃牌/摸牌/失去装备 时手牌会变, 必须同步, 否则像李逵复仇等待时
       //  玩家出的杀卡还留在手里 — 因为 playerActionHandler 在 await 复仇, 之后那行同步未执行)
+      // 注意: equipment:equip 的 gameState 同步延后到飞行卡动画完成后 (见 queueFly 的 onComplete)
       if (event.type === 'damage:deal' || event.type === 'damage:receive' ||
           event.type === 'heal' || event.type === 'die' ||
           event.type === 'turn:start' || event.type === 'turn:end' ||
@@ -1159,7 +1182,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           event.type === 'phase:start' ||
           event.type === 'phase:end' || event.type === 'judge' ||
           event.type === 'scheme:nullify' ||
-          event.type === 'equipment:equip' || event.type === 'equipment:unequip') {
+          event.type === 'equipment:unequip') {
         const player = game.getPlayer()
         set({
           gameState: game.getState(),
@@ -1190,23 +1213,13 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       if (event.type === 'turn:start' && event.sourceHeroId === game.getPlayer()?.getId()) {
         set({ xiaDanUsedThisTurn: false, yuRenUsedThisTurn: false })
       }
-      // 追踪装备状态
+      // 装备: equippedCards 更新延后到飞行卡动画完成 (onComplete), 避免装备栏立即显示新装备
+      // (但 playerHand 需立即同步, 因为手牌已经少了那张装备牌)
       if (event.type === 'equipment:equip' && event.sourceHeroId && event.data) {
-        const slot = (event.data as any).slot as EquipmentSlot
-        const cardId = (event.data as any).cardId as string
-        // 从玩家手牌中找出已装备的卡
-        const hero = game.players.find(p => p.getId() === event.sourceHeroId)
-        if (hero) {
-          const card = hero.getEquippedCard(slot)
-          if (card) {
-            set(s => ({
-              equippedCards: {
-                ...s.equippedCards,
-                [event.sourceHeroId!]: { ...s.equippedCards[event.sourceHeroId!], [slot]: card }
-              }
-            }))
-          }
-        }
+        const player = game.getPlayer()
+        set({
+          playerHand: player?.getHand() ?? get().playerHand,
+        })
       }
       if (event.type === 'equipment:unequip' && event.sourceHeroId && event.data) {
         const slot = (event.data as any).slot as EquipmentSlot
@@ -1219,17 +1232,59 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         })
       }
       // === 飞行卡动画钩子: 5 类事件 → 飞行卡 ===
-      const queueFly = (req: { card: Card; fromHeroId: string; sourceType: 'hand' | 'equipment'; sourceRef?: string; targetType: 'discard' | 'equipment' | 'hand'; targetHeroId?: string; targetSlot?: EquipmentSlot }) => {
+      const queueFly = (req: { card: Card; fromHeroId: string; sourceType: 'hand' | 'equipment'; sourceRef?: string; targetType: 'discard' | 'equipment' | 'hand'; targetHeroId?: string; targetSlot?: EquipmentSlot; fromPos?: { x: number; y: number }; onComplete?: () => void }) => {
         get()._queueFlyingCard(req)
       }
 
       if (event.type === 'card:play' && event.data?.cardId) {
+        // 指向性卡牌: 画攻击线 (从 source 到 target(s))
+        {
+          const cardName = (event.data as any)?.cardName as string | undefined
+          const sourceId = event.sourceHeroId
+          const singleTargetId = event.targetHeroId
+          const aoeTargets: string[] =
+            ((event.data as any)?.targetHeroIds as string[] | undefined)
+            ?? ((event.data as any)?.affectedHeroIds as string[] | undefined)
+            ?? (singleTargetId ? [singleTargetId] : [])
+
+          if (sourceId && aoeTargets.length > 0) {
+            const from = findHeroCenter(sourceId)
+            if (from) {
+              const targets = aoeTargets
+                .filter(tid => tid !== sourceId)
+                .map(tid => findHeroCenter(tid))
+                .filter((p): p is { x: number; y: number } => !!p)
+              if (targets.length > 0) {
+                const now = Date.now()
+                const newLines: DirectionalLine[] = targets.map((p, i) => ({
+                  id: `${now}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+                  fromX: from.x, fromY: from.y,
+                  toX: p.x, toY: p.y,
+                  cardName: cardName ?? '',
+                  createdAt: now,
+                }))
+                set(s => ({ directionalLines: [...s.directionalLines, ...newLines] }))
+                setTimeout(() => {
+                  useBattleStore.setState(s => ({
+                    directionalLines: s.directionalLines.filter(
+                      l => !newLines.find(n => n.id === l.id)
+                    ),
+                  }))
+                }, 1100)
+              }
+            }
+          }
+        }
         const cardId = event.data.cardId as string
         const heroId = event.sourceHeroId
         if (heroId) {
           // Engine emits after removing card from hand — use the card reference from event data
           const card: Card | undefined = (event.data as any)?.card as Card | undefined
-          if (card) queueFly({ card, fromHeroId: heroId, sourceType: 'hand', sourceRef: cardId, targetType: 'discard' })
+          if (card) {
+        const fromPos = get().pendingCardFromPos
+        queueFly({ card, fromHeroId: heroId, sourceType: 'hand', sourceRef: cardId, targetType: 'discard', fromPos: fromPos ?? undefined })
+        if (fromPos) set({ pendingCardFromPos: null })
+      }
         }
       }
 
@@ -1240,7 +1295,21 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         if (heroId) {
           const hero = game.getPlayerById(heroId)
           const card = hero?.getEquippedCard(slot)
-          if (card) queueFly({ card, fromHeroId: heroId, sourceType: 'hand', sourceRef: cardId, targetType: 'equipment', targetHeroId: heroId, targetSlot: slot })
+          if (card) {
+        const fromPos = get().pendingCardFromPos
+        const onComplete = () => {
+          // 飞行卡动画完成后再同步 gameState + equippedCards, 让装备栏此时才显示新装备
+          set(s => ({
+            gameState: game.getState(),
+            equippedCards: {
+              ...s.equippedCards,
+              [heroId]: { ...s.equippedCards[heroId], [slot]: card }
+            },
+          }))
+        }
+        queueFly({ card, fromHeroId: heroId, sourceType: 'hand', sourceRef: cardId, targetType: 'equipment', targetHeroId: heroId, targetSlot: slot, fromPos: fromPos ?? undefined, onComplete })
+        if (fromPos) set({ pendingCardFromPos: null })
+      }
         }
       }
 
@@ -1308,11 +1377,11 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     return result
   },
 
-  playKill: (cardId: string) => {
+  playKill: (cardId: string, fromPos?: { x: number; y: number }) => {
     // 点击同一张pending牌 → 取消
     const { pendingCardId, pendingCardType, selectedTargetId } = get()
     if (pendingCardId === cardId && pendingCardType === 'kill') {
-      set({ pendingCardId: null, pendingCardType: null, selectedTargetId: null })
+      set({ pendingCardId: null, pendingCardType: null, selectedTargetId: null, pendingCardFromPos: null })
       return
     }
     // 侠胆胜出: 进入多目标选人(每张杀最多xiaDanMultiTargetPerKill目标, 持续整个回合)
@@ -1330,6 +1399,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           killMultiRemaining: 0,  // 侠胆模式下无"剩余次数"概念
           multiTargetCandidates: enemies.map(p => ({ id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() })),
           selectedTargets: [],
+          pendingCardFromPos: fromPos ?? null,
         })
         return
       }
@@ -1350,6 +1420,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           killMultiRemaining: 1,
           multiTargetCandidates: enemies.map(p => ({ id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() })),
           selectedTargets: [],
+          pendingCardFromPos: fromPos ?? null,
         })
         return
       }
@@ -1360,14 +1431,15 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       pendingCardId: cardId,
       pendingCardType: 'kill',
       selectedTargetId: null,
+      pendingCardFromPos: fromPos ?? null,
     })
   },
 
-  playScheme: (cardId: string) => {
+  playScheme: (cardId: string, fromPos?: { x: number; y: number }) => {
     // 点击同一张pending牌 → 取消
     const { pendingCardId, pendingCardType, playerHand } = get()
     if (pendingCardId === cardId && pendingCardType === 'scheme') {
-      set({ pendingCardId: null, pendingCardType: null, selectedTargetId: null })
+      set({ pendingCardId: null, pendingCardType: null, selectedTargetId: null, pendingCardFromPos: null })
       return
     }
     // 所有锦囊统一走 selectTarget 选目标, 跟杀一样的流程
@@ -1390,6 +1462,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         selectedTargetId: null,
         jieDaoHolders: holders,
         jieDaoCandidates: [],
+        pendingCardFromPos: fromPos ?? null,
       })
       return
     }
@@ -1400,14 +1473,15 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       pendingCardId: cardId,
       pendingCardType: 'scheme',
       selectedTargetId: null,
+      pendingCardFromPos: fromPos ?? null,
     })
   },
 
-  playSchemeSelf: (cardId: string) => {
+  playSchemeSelf: (cardId: string, fromPos?: { x: number; y: number }) => {
     // 点击同一张pending牌 → 取消
     const { pendingCardId, pendingCardType } = get()
     if (pendingCardId === cardId && pendingCardType === 'schemeSelf') {
-      set({ pendingCardId: null, pendingCardType: null })
+      set({ pendingCardId: null, pendingCardType: null, pendingCardFromPos: null })
       return
     }
     // 设置pending, 等待玩家点"确定"
@@ -1415,6 +1489,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       pendingCardId: cardId,
       pendingCardType: 'schemeSelf',
       selectedTargetId: null,
+      pendingCardFromPos: fromPos ?? null,
     })
   },
 
@@ -1494,11 +1569,11 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     }
   },
 
-  playHeal: (cardId: string) => {
+  playHeal: (cardId: string, fromPos?: { x: number; y: number }) => {
     // 点击同一张pending牌 → 取消
     const { pendingCardId, pendingCardType } = get()
     if (pendingCardId === cardId && pendingCardType === 'heal') {
-      set({ pendingCardId: null, pendingCardType: null })
+      set({ pendingCardId: null, pendingCardType: null, pendingCardFromPos: null })
       return
     }
     // 设置pending, 等待玩家点"确定"
@@ -1506,14 +1581,15 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       pendingCardId: cardId,
       pendingCardType: 'heal',
       selectedTargetId: null,
+      pendingCardFromPos: fromPos ?? null,
     })
   },
 
-  equipCard: (cardId: string) => {
+  equipCard: (cardId: string, fromPos?: { x: number; y: number }) => {
     // 点击同一张pending牌 → 取消
     const { pendingCardId, pendingCardType } = get()
     if (pendingCardId === cardId && pendingCardType === 'equip') {
-      set({ pendingCardId: null, pendingCardType: null })
+      set({ pendingCardId: null, pendingCardType: null, pendingCardFromPos: null })
       return
     }
     // 设置pending, 等待玩家点"确定"
@@ -1521,6 +1597,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       pendingCardId: cardId,
       pendingCardType: 'equip',
       selectedTargetId: null,
+      pendingCardFromPos: fromPos ?? null,
     })
   },
 
@@ -1532,7 +1609,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   cancelSelection: () => {
-    set({ phase: 'playing', pendingCardId: null, pendingCardType: null })
+    set({ phase: 'playing', pendingCardId: null, pendingCardType: null, pendingCardFromPos: null })
   },
 
   judgeReplace: (cardId: string | null) => {
@@ -1603,7 +1680,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (selectedTargets.length === 0) {
       // 取消: 退回到playing
       resolveAction(null)
-      set({ resolveAction: null, phase: 'playing', multiTargetCandidates: [], selectedTargets: [], killMultiCardId: null, pendingCardId: null, pendingCardType: null })
+      set({ resolveAction: null, phase: 'playing', multiTargetCandidates: [], selectedTargets: [], killMultiCardId: null, pendingCardId: null, pendingCardType: null, pendingCardFromPos: null })
       return
     }
     // 用killMulti前缀传多个目标(逗号分隔); 狼牙棒额外传maxTargets参数
@@ -1612,18 +1689,18 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       ? `killMulti:${killMultiCardId}:${selectedTargets.join(',')}:3`
       : `killMulti:${killMultiCardId}:${selectedTargets.join(',')}`
     resolveAction(payload)
-    set({ resolveAction: null, phase: 'waiting', multiTargetCandidates: [], selectedTargets: [], killMultiCardId: null, pendingCardId: null, pendingCardType: null, killMultiRemaining: 0 })
+    set({ resolveAction: null, phase: 'waiting', multiTargetCandidates: [], selectedTargets: [], killMultiCardId: null, pendingCardId: null, pendingCardType: null, pendingCardFromPos: null, killMultiRemaining: 0 })
   },
   cancelKillMultiTarget: () => {
     const { resolveAction } = get()
     if (!resolveAction) return
     resolveAction(null)
-    set({ resolveAction: null, phase: 'playing', multiTargetCandidates: [], selectedTargets: [], killMultiCardId: null, pendingCardId: null, pendingCardType: null })
+    set({ resolveAction: null, phase: 'playing', multiTargetCandidates: [], selectedTargets: [], killMultiCardId: null, pendingCardId: null, pendingCardType: null, pendingCardFromPos: null })
   },
 
-  // 芦叶枪选2张手牌 (选满2张自动确认)
+  // 芦叶枪选2张手牌 (选满2张后由 confirmDualCards 手动确认)
   toggleDualCard: (cardId: string) => {
-    const { selectedDualCards, resolveDualCard } = get()
+    const { selectedDualCards } = get()
     const picked = selectedDualCards
     let nextPicked: string[]
     if (picked.includes(cardId)) {
@@ -1634,15 +1711,11 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       return
     }
     set({ selectedDualCards: nextPicked })
-    if (nextPicked.length === 2 && resolveDualCard) {
-      const resolve = resolveDualCard
-      set({ resolveDualCard: null, selectedDualCards: [] })
-      resolve(nextPicked)
-    }
   },
   confirmDualCards: () => {
     const { resolveDualCard, selectedDualCards } = get()
     if (!resolveDualCard) return
+    if (selectedDualCards.length !== 2) return
     resolveDualCard(selectedDualCards)
     set({ resolveDualCard: null, selectedDualCards: [], phase: 'playing' })
   },
