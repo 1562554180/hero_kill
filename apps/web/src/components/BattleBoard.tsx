@@ -5,6 +5,7 @@ import { useBattleStore } from '../stores/battleStore'
 import { HeroBattleCard } from './HeroBattleCard'
 import { HandCard } from './HandCard'
 import { FlyingCardOverlay } from './FlyingCardOverlay'
+import { DirectionalLineOverlay } from './DirectionalLineOverlay'
 import { BattleLog } from './BattleLog'
 import type { Card } from '@hero-legend/shared-types'
 
@@ -293,6 +294,10 @@ export function BattleBoard() {
   const canPlayKill = game?.canPlayKill ?? false
   const isFullHp = player ? player.currentHp >= player.maxHp : true
 
+  // 技能栏是否加遮罩 (默认 = !isPlayerTurn || hasFloatingPrompt || hasPlayerBarMask)
+  // 例外: 决斗/闪/无懈可击的响应提示时, 技能栏仍可操作, 不加遮罩
+  const shouldMaskSkillBar = phase !== 'awaitingResponse' && (!isPlayerTurn || hasFloatingPrompt || hasPlayerBarMask)
+
   // 校验某张锦囊牌是否当前有合法目标 (用于禁用 探囊/釜底/借刀 等需选目标的牌)
   const hasValidSchemeTarget = (cardName: string): boolean => {
     if (!game) return true
@@ -415,9 +420,16 @@ export function BattleBoard() {
               {/* 1. Pending出牌提示横幅 */}
               {phase === 'playing' && pendingCardId && pendingCardType && (() => {
                 const isJieDaoStep2 = pendingCardId === '__jieDaoStep2__'
+                // 傲剑: 装备区红色牌也可当杀, 需在装备区查 pendingCardId
+                const playerEquipped = equippedCards[player?.hero.id ?? ''] ?? {}
                 const pendingCard = isJieDaoStep2
                   ? { id: '__jieDaoStep2__', name: '借刀杀人', suit: 'spade', type: 'scheme', description: 'step 2' } as any
                   : playerHand.find(c => c.id === pendingCardId)
+                    ?? playerEquipped.weapon
+                    ?? playerEquipped.armor
+                    ?? playerEquipped.attackMount
+                    ?? playerEquipped.defenseMount
+                    ?? null
                 if (!pendingCard) return null
                 // 傲剑下非杀牌当杀: 显示杀的信息, 不显示原牌信息
                 const isAoJianKill = pendingCardType === 'kill' && pendingCard.name !== '杀' && aoJianActive
@@ -532,13 +544,17 @@ export function BattleBoard() {
               {phase === 'awaitingResponse' && responsePrompt && (
                 <div style={{
                   pointerEvents: 'auto',
-                  padding: '8px 12px',
-                  background: 'rgba(255,152,0,0.18)', borderRadius: '4px',
-                  border: '1px solid rgba(255,152,0,0.4)',
-                  color: '#ffb74d', fontSize: '12px',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'linear-gradient(135deg, rgba(255,152,0,0.18), rgba(230,81,0,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #ffb74d',
+                  color: '#ffb74d', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(255,152,0,0.4)',
                 }}>
-                  <span>⚡ {responsePrompt}</span>
+                  <span style={{ flex: 1 }}>⚡ {responsePrompt}</span>
                   <button style={treasureBtnStyle} onClick={() => respondWithCard(null)}>放弃</button>
                 </div>
               )}
@@ -1024,14 +1040,31 @@ export function BattleBoard() {
               {phase === 'selectDualCards' && (
                 <div style={{
                   pointerEvents: 'auto',
-                  padding: '8px 12px',
-                  background: 'rgba(184,134,11,0.18)', borderRadius: '4px',
-                  border: '1px solid rgba(184,134,11,0.4)',
-                  color: '#ffd54f', fontSize: '12px',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #ffd54f',
+                  color: '#ffd54f', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(255,215,0,0.4)',
                 }}>
-                  <span>🎋 芦叶枪 — 请选2张手牌当杀 (已选 {selectedDualCards.length}/2, 选满自动确认)</span>
-                  <button style={treasureBtnStyle} onClick={cancelDualCards}>取消</button>
+                  <span style={{ flex: 1 }}>
+                    🎋 <b>【芦叶枪】</b> 选择2张手牌当杀 (第二张会弃置, 已选 {selectedDualCards.length}/2)
+                    {selectedDualCards.length < 2
+                      ? <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>(继续点击手牌选择)</span>
+                      : <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>(可点击确定)</span>}
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button style={treasureBtnStyle} onClick={cancelDualCards}>取消</button>
+                    <button
+                      className="primary"
+                      style={{ ...treasureBtnStyle, opacity: selectedDualCards.length === 2 ? 1 : 0.5 }}
+                      disabled={selectedDualCards.length !== 2}
+                      onClick={confirmDualCards}
+                    >确定</button>
+                  </div>
                 </div>
               )}
 
@@ -1217,8 +1250,8 @@ export function BattleBoard() {
                 aoJianActive={aoJianActive}
                 canPlayKill={canPlayKill && (isPlayerTurn || phase === 'awaitingResponse')}
                 hasHongZhuang={hasHongZhuang}
-                onEquipAsKill={(cardId: string) => {
-                  if (phase === 'playing') playKill(cardId)
+                onEquipAsKill={(cardId: string, fromPos) => {
+                  if (phase === 'playing') playKill(cardId, fromPos)
                   else if (phase === 'awaitingResponse') respondWithCard(cardId)
                 }}
               />
@@ -1324,8 +1357,8 @@ export function BattleBoard() {
             {/* 技能按钮行: 主动技能 + 宝具技能 + 傲剑 + 芦叶枪 + 结束出牌 (有询问提示/弹框时也显示, 加遮罩禁止操作) */}
             {(isPlayerTurn || hasFloatingPrompt || hasPlayerBarMask) && (
               <div style={{ position: 'relative', borderTop: '1px solid var(--border-wood)', paddingTop: '6px' }}>
-                {/* 遮罩层: 非玩家回合 + 有询问提示/弹框时不隐藏技能栏, 但禁止操作 */}
-                {(!isPlayerTurn || hasFloatingPrompt || hasPlayerBarMask) && (
+                {/* 遮罩层: 非玩家回合 + 有询问提示/弹框时不隐藏技能栏, 但禁止操作 (决斗/闪/无懈可击响应提示时例外) */}
+                {shouldMaskSkillBar && (
                   <div style={{
                     position: 'absolute', inset: 0, zIndex: 5,
                     background: 'rgba(0,0,0,0.1)',
@@ -1335,8 +1368,8 @@ export function BattleBoard() {
                 )}
                 <div style={{
                   display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center',
-                  opacity: (!isPlayerTurn || hasFloatingPrompt || hasPlayerBarMask) ? 0.55 : 1,
-                  pointerEvents: (!isPlayerTurn || hasFloatingPrompt || hasPlayerBarMask) ? 'none' : 'auto',
+                  opacity: shouldMaskSkillBar ? 0.55 : 1,
+                  pointerEvents: shouldMaskSkillBar ? 'none' : 'auto',
                 }}>
                 <span style={{ color: 'var(--text-gold)', fontSize: '12px', fontWeight: 'bold' }}>你的回合</span>
 
@@ -1515,10 +1548,12 @@ export function BattleBoard() {
                   </button>
                 )}
 
-                {/* 结束出牌 */}
-                <button className="primary" style={{ fontSize: '12px', padding: '4px 12px', marginLeft: 'auto' }} onClick={endPlayPhase}>
-                  结束出牌
-                </button>
+                {/* 结束出牌 — 只在玩家回合显示 */}
+                {isPlayerTurn && (
+                  <button className="primary" style={{ fontSize: '12px', padding: '4px 12px', marginLeft: 'auto' }} onClick={endPlayPhase}>
+                    结束出牌
+                  </button>
+                )}
                 </div>
               </div>
             )}
@@ -2068,6 +2103,7 @@ export function BattleBoard() {
       <div data-center-marker style={{ position: 'fixed', top: '50%', left: '50%', width: '1px', height: '1px', pointerEvents: 'none', zIndex: -1 }} />
       {/* 飞行卡浮层: Portal 到 body, zIndex 2000 */}
       <FlyingCardOverlay />
+      <DirectionalLineOverlay />
       </div>
     </div>
   )
