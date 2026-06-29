@@ -49,7 +49,7 @@ export function RecruitPage() {
   const [tab, setTab] = useState<RecruitPool>('baili')
   const [save, setSave] = useState<SaveData | null>(null)
   const [allHeroes, setAllHeroes] = useState<Hero[]>([])
-  const [drawing, setDrawing] = useState<{ stones: HeroStone[] } | null>(null)
+  const [drawing, setDrawing] = useState<{ stones: HeroStone[]; count: 1 | 10 } | null>(null)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [countdown, setCountdown] = useState('')
@@ -95,7 +95,7 @@ export function RecruitPage() {
       } else if (!Array.isArray(data.stones)) {
         setMessage('抽卡返回数据格式异常')
       } else {
-        setDrawing({ stones: data.stones })
+        setDrawing({ stones: data.stones, count })
         await refreshSave()
       }
     } catch (e: any) {
@@ -106,6 +106,11 @@ export function RecruitPage() {
   }
 
   const closeAnimation = () => setDrawing(null)
+  const continueDraw = () => {
+    if (!drawing) return
+    setDrawing(null)
+    draw(drawing.count)
+  }
 
   return (
     <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto', height: '100vh', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
@@ -190,6 +195,8 @@ export function RecruitPage() {
         <DrawAnimation
           stones={drawing.stones}
           heroes={allHeroes}
+          count={drawing.count}
+          onContinue={continueDraw}
           onClose={closeAnimation}
         />
       )}

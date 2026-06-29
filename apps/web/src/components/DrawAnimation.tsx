@@ -4,7 +4,9 @@ import type { Hero, HeroStone } from '@hero-legend/shared-types'
 interface Props {
   stones: HeroStone[]
   heroes: Hero[]                       // 用于显示名字 + 阵营 (服务端带过来)
-  onClose: () => void
+  count: 1 | 10                       // 上一次抽卡的数量 (决定继续抽的按钮文案 + 消耗)
+  onContinue: () => void              // 点击 "继续抽" 的回调 (RecruitPage 调用 draw(count))
+  onClose: () => void                 // 点击 "返回" 关闭动画
 }
 
 const POOL_LABEL: Record<string, string> = {
@@ -15,9 +17,9 @@ const POOL_LABEL: Record<string, string> = {
 
 /**
  * 抽卡动画: 单抽=1 张直接翻牌, 十连=10 张依次飞入后逐张翻开
- * 全部展示完才可关闭 (防止节奏太快)
+ * 全部展示完才可继续抽 (防止节奏太快)
  */
-export function DrawAnimation({ stones = [], heroes = [], onClose }: Props) {
+export function DrawAnimation({ stones = [], heroes = [], count, onContinue, onClose }: Props) {
   const heroMap = new Map(heroes.map(h => [h.id, h]))
   const [revealedCount, setRevealedCount] = useState(0)
   const [enteredCount, setEnteredCount] = useState(0)
@@ -38,6 +40,7 @@ export function DrawAnimation({ stones = [], heroes = [], onClose }: Props) {
   }, [enteredCount, revealedCount, stones.length])
 
   const allRevealed = revealedCount >= stones.length
+  const continueLabel = count === 1 ? '继续单抽 (消耗 1 张)' : '继续十连 (消耗 9 张)'
 
   return (
     <div style={{
@@ -77,13 +80,24 @@ export function DrawAnimation({ stones = [], heroes = [], onClose }: Props) {
 
       <button
         disabled={!allRevealed}
-        onClick={onClose}
+        onClick={onContinue}
         style={{
           marginTop: '32px', padding: '10px 32px', fontSize: '16px',
           opacity: allRevealed ? 1 : 0.4,
         }}
       >
-        {allRevealed ? '收下 (去背包使用)' : '翻开中...'}
+        {allRevealed ? continueLabel : '翻开中...'}
+      </button>
+
+      <button
+        onClick={onClose}
+        style={{
+          marginTop: '8px', padding: '4px 12px', fontSize: '12px',
+          background: 'transparent', color: 'var(--text-muted)',
+          border: 'none', cursor: 'pointer',
+        }}
+      >
+        返回
       </button>
     </div>
   )
