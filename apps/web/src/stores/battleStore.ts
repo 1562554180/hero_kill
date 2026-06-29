@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { Game, type GameConfig, type Player } from '@hero-legend/game-engine'
 import type { GameState, BattleResult, Card, GameEvent, GameEventType, HeroInstance, EquipmentSlot } from '@hero-legend/shared-types'
+import type { FlyingCard, FlyingStage } from '../components/FlyingCard'
 
 export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm' | 'selectFuChouDiscard' | 'dyingRescue' | 'chaoTuoPick' | 'houZhuTarget' | 'qiYiPrompt'
 
@@ -275,6 +276,10 @@ interface BattleState {
   selectHouZhuTarget: (targetId: string | null) => void
   // 回春: 回合外用红桃手牌/装备当药
   huiChunHeal: (cardId: string) => void
+  // 卡牌飞行动画队列 (渲染层用)
+  flyingCards: FlyingCard[]
+  // 内部辅助: 入队一张飞行卡
+  _queueFlyingCard: (req: { card: Card; sourceType: 'hand' | 'equipment'; sourceRef?: string; targetType: 'discard' | 'equipment' | 'hand'; targetHeroId?: string; targetSlot?: EquipmentSlot; fromHeroId?: string }) => void
 }
 
 const heroNames: Record<string, string> = {}
@@ -284,6 +289,39 @@ function getHeroName(id: string, game: Game): string {
   const p = game.players.find(p => p.getId() === id)
   if (p) heroNames[id] = p.getName()
   return heroNames[id] || id
+}
+
+// 飞行卡动画: 位置查找 helpers
+function rectCenter(rect: DOMRect): { x: number; y: number } {
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+}
+
+function findCenterPos(): { x: number; y: number } {
+  const el = document.querySelector('[data-center-marker]') as HTMLElement | null
+  if (el) return rectCenter(el.getBoundingClientRect())
+  return { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+}
+
+function findSourcePos(heroId: string, sourceType: 'hand' | 'equipment', ref: string | undefined): { x: number; y: number } | null {
+  if (sourceType === 'hand') {
+    if (ref) {
+      const el = document.querySelector(`[data-card-id="${ref}"]`) as HTMLElement | null
+      if (el) return rectCenter(el.getBoundingClientRect())
+    }
+    // AI 手牌: 用 hero card 根的中心作代理
+    const heroEl = document.querySelector(`[data-hero-id="${heroId}"]`) as HTMLElement | null
+    if (heroEl) return rectCenter(heroEl.getBoundingClientRect())
+  } else {
+    const el = document.querySelector(`[data-hero-id="${heroId}"][data-equip-slot="${ref}"]`) as HTMLElement | null
+    if (el) return rectCenter(el.getBoundingClientRect())
+  }
+  return null
+}
+
+function findHandPos(heroId: string): { x: number; y: number } | null {
+  const heroEl = document.querySelector(`[data-hero-id="${heroId}"]`) as HTMLElement | null
+  if (heroEl) return rectCenter(heroEl.getBoundingClientRect())
+  return null
 }
 
 function eventToLog(event: GameEvent, game: Game): string | null {
@@ -469,6 +507,40 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   xiaDanUsedThisTurn: false,
   yuRenCardIds: [],
   yuRenUsedThisTurn: false,
+  flyingCards: [],
+  _queueFlyingCard: (req) => {
+    const fromHeroId = req.fromHeroId ?? ''
+    const from = findSourcePos(fromHeroId, req.sourceType, req.sourceRef)
+    if (!from) return
+    const center = findCenterPos()
+    let stages: FlyingStage[]
+    if (req.targetType === 'discard') {
+      stages = [{ from, to: center, durationMs: 500, endScale: 0.3, endOpacity: 0 }]
+    } else if (req.targetType === 'equipment' && req.targetSlot) {
+      const equipPos = (() => {
+        const el = document.querySelector(`[data-hero-id="${req.targetHeroId}"][data-equip-slot="${req.targetSlot}"]`) as HTMLElement | null
+        return el ? rectCenter(el.getBoundingClientRect()) : center
+      })()
+      stages = [
+        { from, to: center, durationMs: 300 },
+        { from: center, to: equipPos, durationMs: 500, endScale: 0.3, endOpacity: 0 },
+      ]
+    } else if (req.targetType === 'hand' && req.targetHeroId) {
+      const handPos = findHandPos(req.targetHeroId) ?? center
+      stages = [
+        { from, to: center, durationMs: 300 },
+        { from: center, to: handPos, durationMs: 500, endScale: 0.3, endOpacity: 0 },
+      ]
+    } else {
+      stages = [{ from, to: center, durationMs: 500, endScale: 0.3, endOpacity: 0 }]
+    }
+    const id = `fly-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    set(s => ({
+      flyingCards: [...s.flyingCards, { id, card: req.card, stages, onDone: () => {
+        set(cur => ({ flyingCards: cur.flyingCards.filter(fc => fc.id !== id) }))
+      }}],
+    }))
+  },
 
   startBattle: async (config: GameConfig) => {
     Object.keys(heroNames).forEach(k => delete heroNames[k])
@@ -566,6 +638,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveChaoTuo: null,
       houZhuPrompt: null,
       resolveHouZhu: null,
+      flyingCards: [],
     })
 
     const wrappedConfig: GameConfig = {
@@ -1131,6 +1204,92 @@ export const useBattleStore = create<BattleState>((set, get) => ({
             equippedCards: { ...s.equippedCards, [event.sourceHeroId!]: heroEquip }
           }
         })
+      }
+      // === 飞行卡动画钩子: 5 类事件 → 飞行卡 ===
+      const queueFly = (req: { card: Card; fromHeroId: string; sourceType: 'hand' | 'equipment'; sourceRef?: string; targetType: 'discard' | 'equipment' | 'hand'; targetHeroId?: string; targetSlot?: EquipmentSlot }) => {
+        get()._queueFlyingCard(req)
+      }
+
+      if (event.type === 'card:play' && event.data?.cardId) {
+        const cardId = event.data.cardId as string
+        const heroId = event.sourceHeroId
+        if (heroId) {
+          const hero = game.getPlayerById(heroId)
+          let card: Card | undefined = hero?.getHand().find(c => c.id === cardId)
+          if (!card) {
+            for (const p of game.players) {
+              for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
+                const eq = p.getEquippedCard(slot)
+                if (eq?.id === cardId) { card = eq; break }
+              }
+              if (card) break
+            }
+          }
+          if (card) queueFly({ card, fromHeroId: heroId, sourceType: 'hand', sourceRef: cardId, targetType: 'discard' })
+        }
+      }
+
+      if (event.type === 'equipment:equip' && event.data?.cardId && event.data?.slot) {
+        const cardId = event.data.cardId as string
+        const slot = (event.data as any).slot as EquipmentSlot
+        const heroId = event.sourceHeroId
+        if (heroId) {
+          const hero = game.getPlayerById(heroId)
+          const card = hero?.getEquippedCard(slot)
+          if (card) queueFly({ card, fromHeroId: heroId, sourceType: 'hand', sourceRef: cardId, targetType: 'equipment', targetHeroId: heroId, targetSlot: slot })
+        }
+      }
+
+      if (event.type === 'equipment:unequip' && event.data?.cardId && event.data?.slot) {
+        const slot = (event.data as any).slot as EquipmentSlot
+        const heroId = event.sourceHeroId
+        if (heroId) {
+          const hero = game.getPlayerById(heroId)
+          let card: Card | undefined = hero?.getHand().find(c => c.id === (event.data as any).cardId)
+          if (!card) {
+            for (const p of game.players) {
+              for (const s of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
+                const eq = p.getEquippedCard(s)
+                if (eq?.id === (event.data as any).cardId) { card = eq; break }
+              }
+              if (card) break
+            }
+          }
+          if (card) queueFly({ card, fromHeroId: heroId, sourceType: 'equipment', sourceRef: slot, targetType: 'discard' })
+        }
+      }
+
+      if (event.type === 'card:discard' && event.sourceHeroId) {
+        const heroId = event.sourceHeroId
+        const cardsData = (event.data as any)?.cards as string[] | undefined
+        if (Array.isArray(cardsData)) {
+          for (const cid of cardsData) {
+            let card: Card | undefined
+            for (const p of game.players) {
+              const inHand = p.getHand().find(c => c.id === cid)
+              if (inHand) { card = inHand; break }
+              for (const s of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
+                const eq = p.getEquippedCard(s)
+                if (eq?.id === cid) { card = eq; break }
+              }
+              if (card) break
+            }
+            if (card) queueFly({ card, fromHeroId: heroId, sourceType: 'hand', sourceRef: cid, targetType: 'discard' })
+          }
+        }
+      }
+
+      if (event.type === 'card:gain' && (event.data as any)?.from && event.sourceHeroId) {
+        const fromHeroId = (event.data as any).from as string
+        const toHeroId = event.sourceHeroId
+        const cardId = (event.data as any).cardId as string | undefined
+        const cardsArr = (event.data as any)?.cards as string[] | undefined
+        const cardIdsToAnimate = cardId ? [cardId] : (cardsArr ?? [])
+        for (const cid of cardIdsToAnimate) {
+          const toHero = game.getPlayerById(toHeroId)
+          const card = toHero?.getHand().find(c => c.id === cid)
+          if (card) queueFly({ card, fromHeroId: fromHeroId, sourceType: 'hand', sourceRef: cid, targetType: 'hand', targetHeroId: toHeroId })
+        }
       }
     }
 
