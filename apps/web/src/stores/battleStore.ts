@@ -315,8 +315,9 @@ function findSourcePos(heroId: string, sourceType: 'hand' | 'equipment', ref: st
     const heroEl = document.querySelector(`[data-hero-id="${heroId}"]`) as HTMLElement | null
     if (heroEl) return rectCenter(heroEl.getBoundingClientRect())
   } else {
-    const el = document.querySelector(`[data-hero-id="${heroId}"][data-equip-slot="${ref}"]`) as HTMLElement | null
-    if (el) return rectCenter(el.getBoundingClientRect())
+    const heroEl = document.querySelector(`[data-hero-id="${heroId}"]`) as HTMLElement | null
+    const slotEl = heroEl?.querySelector(`[data-equip-slot="${ref}"]`) as HTMLElement | null
+    if (slotEl) return rectCenter(slotEl.getBoundingClientRect())
   }
   return null
 }
@@ -524,8 +525,9 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       ]
     } else if (req.targetType === 'equipment' && req.targetSlot) {
       const equipPos = (() => {
-        const el = document.querySelector(`[data-hero-id="${req.targetHeroId}"][data-equip-slot="${req.targetSlot}"]`) as HTMLElement | null
-        return el ? rectCenter(el.getBoundingClientRect()) : center
+        const heroEl = document.querySelector(`[data-hero-id="${req.targetHeroId}"]`) as HTMLElement | null
+        const slotEl = heroEl?.querySelector(`[data-equip-slot="${req.targetSlot}"]`) as HTMLElement | null
+        return slotEl ? rectCenter(slotEl.getBoundingClientRect()) : center
       })()
       stages = [
         { from, to: center, durationMs: 300 },
