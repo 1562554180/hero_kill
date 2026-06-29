@@ -21,4 +21,12 @@ export class TreasureController {
   ) {
     return this.treasureService.transferLevel(userId, body.fromTreasureId, body.toTreasureId)
   }
+
+  @Post('decompose/:userId/:treasureId')
+  async decompose(
+    @Param('userId') userId: string,
+    @Param('treasureId') treasureId: string,
+  ) {
+    return this.treasureService.decompose(userId, treasureId)
+  }
 }

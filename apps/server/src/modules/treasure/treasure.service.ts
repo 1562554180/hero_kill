@@ -125,4 +125,69 @@ export class TreasureService {
       transferredLevel: fromLevel,
     }
   }
+
+  /**
+   * 分解宝具 → 宝具碎片
+   * 1) 若有英雄装备着它, 先解除装备 (slot → null)
+   * 2) 从 save.treasures 中删除该宝具
+   * 3) 按星级奖励碎片: 5★=2500 / 4★=1000 / 3★=400 / 2★=100 / 1★=20
+   * 4) treasureFragment 加入 save.materials
+   */
+  async decompose(userId: string, treasureId: string) {
+    const save = await this.saveService.getSave(userId)
+    if (!save) throw new BadRequestException('存档不存在')
+
+    const treasure = (save.treasures as Treasure[]).find(t => t.id === treasureId)
+    if (!treasure) throw new BadRequestException('宝具不存在')
+
+    // 1) 找装备该宝具的英雄, 同时就地解除
+    let equippedHero: { instanceId: string; heroId: string; slot: 'main' | 'sub'; index: number } | null = null
+    for (const h of (save.heroes as any[]) ?? []) {
+      const ts = h.treasures ?? { main: [], sub: [] }
+      let found = false
+      for (let i = 0; i < (ts.main?.length ?? 0); i++) {
+        if (ts.main[i]?.id === treasureId) {
+          h.treasures.main[i] = null
+          equippedHero = { instanceId: h.instanceId, heroId: h.heroId, slot: 'main', index: i }
+          found = true
+          break
+        }
+      }
+      if (found) break
+      for (let i = 0; i < (ts.sub?.length ?? 0); i++) {
+        if (ts.sub[i]?.id === treasureId) {
+          h.treasures.sub[i] = null
+          equippedHero = { instanceId: h.instanceId, heroId: h.heroId, slot: 'sub', index: i }
+          found = true
+          break
+        }
+      }
+      if (found) break
+    }
+
+    // 2) 从 treasures 数组删除
+    save.treasures = (save.treasures as any[]).filter(t => t.id !== treasureId)
+
+    // 3) 加碎片
+    const FRAGMENT_BY_STAR: Record<number, number> = { 1: 20, 2: 100, 3: 400, 4: 1000, 5: 2500 }
+    const fragments = FRAGMENT_BY_STAR[treasure.starLevel] ?? 0
+    const mat = (save.materials as any[]).find(m => m.type === 'treasureFragment')
+    if (mat) {
+      mat.amount = (mat.amount ?? 0) + fragments
+    } else {
+      save.materials.push({ type: 'treasureFragment', amount: fragments } as any)
+    }
+
+    // 4) 持久化
+    await save.save()
+
+    return {
+      success: true,
+      treasureId,
+      treasureName: treasure.name,
+      starLevel: treasure.starLevel,
+      fragments,
+      removedFrom: equippedHero,    // null = 未装备
+    }
+  }
 }
