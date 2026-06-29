@@ -52,3 +52,44 @@ button.danger {
   background: linear-gradient(135deg, #6a2a2a, #8a3a3a);
   border-color: #aa5a5a;
 }
+
+/* 手捧雷判定图标: 引线火焰一亮一灭 */
+@keyframes fuse-flicker {
+  0%, 35% { opacity: 1; transform: scale(1); }
+  40%, 60% { opacity: 0; transform: scale(0.4); }
+  65%, 100% { opacity: 1; transform: scale(1); }
+}
+.fuse-flame {
+  animation: fuse-flicker 1.2s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+/* 画地为牢判定图标: 锁一开一关 */
+@keyframes lock-toggle {
+  0%, 30% { transform: translateY(0); }
+  40%, 60% { transform: translateY(-3px); }
+  70%, 100% { transform: translateY(0); }
+}
+.lock-shackle {
+  animation: lock-toggle 2s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+/* 指向性卡牌: 攻击者 → 目标 的红线动画 */
+@keyframes directional-line-draw {
+  0%   { stroke-dashoffset: 1000; opacity: 0; }
+  15%  { opacity: 0.85; }
+  100% { stroke-dashoffset: 0; opacity: 0.85; }
+}
+@keyframes directional-line-fade {
+  0%, 70% { opacity: 0.85; }
+  100%    { opacity: 0; }
+}
+.directional-line {
+  stroke-dasharray: 1000;
+  animation: directional-line-draw 200ms ease-out forwards,
+             directional-line-fade 1000ms ease-out forwards;
+  filter: drop-shadow(0 0 4px rgba(255, 82, 82, 0.6));
+}
