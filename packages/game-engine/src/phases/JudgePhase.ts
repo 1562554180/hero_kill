@@ -110,8 +110,15 @@ export class JudgePhase extends Phase {
       // judgeWithSkills 统一处理天香(可跳过)和红妆(黑桃→红桃)
       const result = await game.judgeWithSkills(player, '手捧雷')
       if (result.skipped) {
-        // 手捧雷放回判定区 (保留在当前玩家, 不顺延)
-        player.addJudgeCard(thunder)
+        // 天香跳过: 雷也顺延给下一个存活无雷玩家
+        const nextPlayer = this.findNextPlayerWithoutThunder(game, player)
+        if (nextPlayer) {
+          nextPlayer.addJudgeCard(thunder)
+          game.emitSkillTrigger(player, '手捧雷', `天香跳过-顺延给${nextPlayer.getName()}`)
+        } else {
+          player.addJudgeCard(thunder)
+          game.emitSkillTrigger(player, '手捧雷', `天香跳过-无目标,雷保留`)
+        }
         continue
       }
 
