@@ -1060,7 +1060,7 @@ export class Game {
       type: 'card:play',
       sourceHeroId: attacker.getId(),
       targetHeroId: defender.getId(),
-      data: { cardId: killCard.id, cardName: '杀', usedAsSkill: skillName || undefined },
+      data: { cardId: killCard.id, cardName: '杀', usedAsSkill: skillName || undefined, card: killCard },
     })
 
     if (usedAsSkill) {
@@ -1479,7 +1479,7 @@ export class Game {
       this.eventBus.emit({
         type: 'card:play',
         sourceHeroId: current.getId(),
-        data: { cardId: killCard.id, cardName: '杀', usedAsSkill: skillName || undefined },
+        data: { cardId: killCard.id, cardName: '杀', usedAsSkill: skillName || undefined, card: killCard },
       })
       if (usedAsSkill) {
         this.emitSkillTrigger(current, skillName, `${killCard.name}当杀`)
@@ -1816,7 +1816,7 @@ export class Game {
       this.cardDeck.discard([wxCard])
       this.eventBus.emit({
         type: 'card:play', sourceHeroId: candidate.getId(),
-        data: { cardId: wxCard.id, cardName: '无懈可击' },
+        data: { cardId: wxCard.id, cardName: '无懈可击', card: wxCard },
       })
       // 无懈: 30%几率摸一张
       if (this.rollSubTreasure(candidate, 'treasure-wu-xie')) {
@@ -2175,7 +2175,7 @@ export class Game {
       type: 'card:play',
       sourceHeroId: attacker.getId(),
       targetHeroId: defender.getId(),
-      data: { cardId: killCard.id, cardName: '杀', usedAsSkill: '三板斧' },
+      data: { cardId: killCard.id, cardName: '杀', usedAsSkill: '三板斧', card: killCard },
     })
     this.emitSkillTrigger(attacker, '三板斧', `对${defender.getName()}出杀`)
     this.lastPlayedCardName = '杀'
@@ -2333,7 +2333,7 @@ export class Game {
       type: 'card:play',
       sourceHeroId: player.getId(),
       targetHeroId: targetId,
-      data: { cardId: card.id, cardName: effectiveCard.name, usedAsSkill: usedAsSkill || undefined },
+      data: { cardId: card.id, cardName: effectiveCard.name, usedAsSkill: usedAsSkill || undefined, card },
     })
     this.lastPlayedCardName = effectiveCard.name
     if (usedAsSkill) this.emitSkillTrigger(player, '魅惑', `${card.name}当画地为牢`)
@@ -2795,7 +2795,7 @@ export class Game {
     this.eventBus.emit({
       type: 'card:play',
       sourceHeroId: player.getId(),
-      data: { cardId: card.id, cardName: '烽火狼烟', usedAsSkill: '烽火' },
+      data: { cardId: card.id, cardName: '烽火狼烟', usedAsSkill: '烽火', card },
     })
     await this.executeFengHuoLangYan(player)
     // 妙计: 烽火狼烟视为锦囊 → 摸1张
@@ -2974,7 +2974,7 @@ export class Game {
     this.eventBus.emit({
       type: 'card:play',
       sourceHeroId: player.getId(),
-      data: { cardId: card.id, cardName: '釜底抽薪', usedAsSkill: '释权' },
+      data: { cardId: card.id, cardName: '釜底抽薪', usedAsSkill: '释权', card },
     })
     await this.executeFudiChouXin(player)
     // 妙计: 使用锦囊摸1张
@@ -3347,7 +3347,7 @@ export class Game {
     this.cardDeck.discard([card])
     this.eventBus.emit({
       type: 'card:play', sourceHeroId: player.getId(),
-      data: { cardId: card.id, cardName: card.name },
+      data: { cardId: card.id, cardName: card.name, card },
     })
     this.lastPlayedCardName = card.name
     await this.executeJieDao(player, card, holderId)

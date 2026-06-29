@@ -1214,17 +1214,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         const cardId = event.data.cardId as string
         const heroId = event.sourceHeroId
         if (heroId) {
-          const hero = game.getPlayerById(heroId)
-          let card: Card | undefined = hero?.getHand().find(c => c.id === cardId)
-          if (!card) {
-            for (const p of game.players) {
-              for (const slot of ['weapon', 'armor', 'attackMount', 'defenseMount'] as const) {
-                const eq = p.getEquippedCard(slot)
-                if (eq?.id === cardId) { card = eq; break }
-              }
-              if (card) break
-            }
-          }
+          // Engine emits after removing card from hand — use the card reference from event data
+          const card: Card | undefined = (event.data as any)?.card as Card | undefined
           if (card) queueFly({ card, fromHeroId: heroId, sourceType: 'hand', sourceRef: cardId, targetType: 'discard' })
         }
       }
