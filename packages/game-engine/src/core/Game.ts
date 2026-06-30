@@ -2329,11 +2329,16 @@ export class Game {
 
     this.removeHandCard(player,card.id)
     this.cardDeck.discard([card])
+    // AOE 锦囊: 把所有存活目标塞进 data.targetHeroIds, web 层用此画多人指向线
+    const aoeNames = ['烽火狼烟', '万箭齐发', '南蛮入侵']
+    const targetHeroIds = aoeNames.includes(effectiveCard.name)
+      ? this.players.filter(p => p.getId() !== player.getId() && p.isAlive()).map(p => p.getId())
+      : undefined
     this.eventBus.emit({
       type: 'card:play',
       sourceHeroId: player.getId(),
       targetHeroId: targetId,
-      data: { cardId: card.id, cardName: effectiveCard.name, usedAsSkill: usedAsSkill || undefined, card },
+      data: { cardId: card.id, cardName: effectiveCard.name, usedAsSkill: usedAsSkill || undefined, card, targetHeroIds },
     })
     this.lastPlayedCardName = effectiveCard.name
     if (usedAsSkill) this.emitSkillTrigger(player, '魅惑', `${card.name}当画地为牢`)
@@ -2767,35 +2772,27 @@ export class Game {
     this.emitSkillTrigger(player, '治愈', `${target.getName()}回复1体力`)
   }
 
-  /** 烽火: 弃1张装备牌视为使用【烽火狼烟】 (手牌或装备区) */
+  /** 烽火: 弃1张装备区装备牌视为使用【烽火狼烟】 (三国杀规则: 必须装备区) */
   async playerFengHuo(player: Player, cardId: string): Promise<void> {
     if (!player.hasSkillOrTreasure('feng-huo')) return
     if (!player.useSkill('feng-huo')) return
-    let card: Card | undefined = player.getHand().find(c => c.id === cardId) ?? undefined
-    if (!card) {
-      const slots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
-      for (const s of slots) {
-        const eq = player.getEquippedCard(s)
-        if (eq && eq.id === cardId) { card = eq; break }
-      }
-    }
-    if (!card || card.type !== 'equipment') return
-    // 优先从装备区卸下, 再从手牌
+    // 烽火只能弃装备区的装备 (修复: 之前错误地允许手牌里的 equipment 类型卡)
     const slots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
-    const equippedSlot = slots.find(s => player.getEquippedCard(s)?.id === card!.id)
-    let qianKunDaiLost = false
-    if (equippedSlot) {
-      if (card.name === '乾坤袋') qianKunDaiLost = true
-      player.unequip(equippedSlot)
-    } else {
-      this.removeHandCard(player, card.id)
-    }
+    const equippedSlot = slots.find(s => player.getEquippedCard(s)?.id === cardId)
+    if (!equippedSlot) return
+    const card = player.getEquippedCard(equippedSlot)!
+    const qianKunDaiLost = card.name === '乾坤袋'
+    player.unequip(equippedSlot)
     this.cardDeck.discard([card])
     this.emitSkillTrigger(player, '烽火', '弃装备-视为烽火狼烟')
+    // 视为使用烽火狼烟: 算所有存活目标塞进 data.targetHeroIds (web 层用此画多人指向线)
+    const targetHeroIds = this.players
+      .filter(p => p.getId() !== player.getId() && p.isAlive())
+      .map(p => p.getId())
     this.eventBus.emit({
       type: 'card:play',
       sourceHeroId: player.getId(),
-      data: { cardId: card.id, cardName: '烽火狼烟', usedAsSkill: '烽火', card },
+      data: { cardId: card.id, cardName: '烽火狼烟', usedAsSkill: '烽火', card, targetHeroIds },
     })
     await this.executeFengHuoLangYan(player)
     // 妙计: 烽火狼烟视为锦囊 → 摸1张
