@@ -6,6 +6,7 @@ import { HeroBattleCard } from './HeroBattleCard'
 import { HandCard } from './HandCard'
 import { FlyingCardOverlay } from './FlyingCardOverlay'
 import { DirectionalLineOverlay } from './DirectionalLineOverlay'
+import { DamageFloaterOverlay } from './DamageFloaterOverlay'
 import { BattleLog } from './BattleLog'
 import type { Card } from '@hero-legend/shared-types'
 
@@ -51,6 +52,9 @@ export function BattleBoard() {
     huiChunHeal,
     lastJudgeResult,
   } = useBattleStore()
+
+  // 濒死救援目标 id (用于在 HeroBattleCard 上区分 isDying vs isDead)
+  const dyingTargetId = useBattleStore(s => s.dyingRescuePrompt?.targetId ?? null)
 
   // 手牌容器宽度 — 用于判断是否启用叠放
   const handContainerRef = useRef<HTMLDivElement>(null)
@@ -168,11 +172,16 @@ export function BattleBoard() {
     || phase === 'qiYiPrompt'
 
   // 渲染一个非玩家英雄卡 (敌方/友方通用, 含可点击/选中/AI回合高亮)
-  const renderOtherHeroCard = (h: typeof others[0], dimInvalidTargets?: boolean) => (
+  const renderOtherHeroCard = (h: typeof others[0], dimInvalidTargets?: boolean) => {
+    const isDying = h.currentHp === 0 && dyingTargetId === h.hero.id
+    const isDead  = h.currentHp <= 0 && !isDying
+    return (
     <HeroBattleCard
       key={h.hero.id}
       hero={h}
       isCurrentTurn={gameState.currentHeroId === h.hero.id && !isPlayerTurn}
+      isDying={isDying}
+      isDead={isDead}
       isSelectable={
         (h.currentHp > 0 && !(xiaDanActive && h.handCards.length === 0)) &&
         (
@@ -212,7 +221,8 @@ export function BattleBoard() {
         }
       }}
     />
-  )
+    )
+  }
 
   // 始终从引擎读取傲剑激活状态 (store 的状态可能与引擎不同步)
   const aoJianActive = game?.isAoJianActive(player?.hero?.id ?? '') ?? false
@@ -1239,9 +1249,15 @@ export function BattleBoard() {
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'stretch' }}>
             {/* 左侧: 玩家卡 (上下占满) */}
             <div style={{ flex: '0 0 auto', display: 'flex' }}>
+              {(() => {
+                const isDying = player.currentHp === 0 && dyingTargetId === player.hero.id
+                const isDead  = player.currentHp <= 0 && !isDying
+                return (
               <HeroBattleCard
                 hero={player}
                 isCurrentTurn={isPlayerTurn}
+                isDying={isDying}
+                isDead={isDead}
                 isSelectable={isPendingTargeting && jieDaoCandidates.length > 0 && isValidTarget(player.hero.id)}
                 isSelected={selectedTargetId === player.hero.id}
                 onClick={() => {
@@ -1255,6 +1271,8 @@ export function BattleBoard() {
                   else if (phase === 'awaitingResponse') respondWithCard(cardId)
                 }}
               />
+                )
+              })()}
             </div>
 
             {/* 右侧: 手牌 + 技能按钮行 (提示已移到上方浮动容器) */}
@@ -2104,6 +2122,7 @@ export function BattleBoard() {
       {/* 飞行卡浮层: Portal 到 body, zIndex 2000 */}
       <FlyingCardOverlay />
       <DirectionalLineOverlay />
+      <DamageFloaterOverlay />
       </div>
     </div>
   )
