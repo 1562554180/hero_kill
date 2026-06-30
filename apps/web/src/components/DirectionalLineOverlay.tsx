@@ -2,18 +2,19 @@ import { createPortal } from 'react-dom'
 import { useBattleStore } from '../stores/battleStore'
 
 export function DirectionalLineOverlay() {
+  return createPortal(
+    <div data-directional-overlay style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1500 }}>
+      <DirectionalLineLayer />
+    </div>,
+    document.body,
+  )
+}
+
+function DirectionalLineLayer() {
   const lines = useBattleStore(s => s.directionalLines)
   if (lines.length === 0) return null
-  return createPortal(
-    <svg
-      data-directional-overlay
-      style={{
-        position: 'fixed',
-        inset: 0,
-        pointerEvents: 'none',
-        zIndex: 1500,
-      }}
-    >
+  return (
+    <svg style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
       <defs>
         <marker
           id="directional-arrow"
@@ -41,7 +42,6 @@ export function DirectionalLineOverlay() {
           markerEnd="url(#directional-arrow)"
         />
       ))}
-    </svg>,
-    document.body,
+    </svg>
   )
 }
