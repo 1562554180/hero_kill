@@ -95,7 +95,9 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
       onClick={isSelectable ? onClick : undefined}
       style={{
         background: bgColor,
-        border: `1.5px solid ${borderColor}`,
+        borderWidth: '1.5px',
+        borderStyle: 'solid',
+        borderColor: (isDying || flash) ? '#ff3333' : borderColor,
         borderRadius: '6px',
         padding: '4px',
         width: '130px',
@@ -110,7 +112,6 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
         opacity: currentHp > 0 ? (dimmed ? 0.4 : 1) : 0.4,
         cursor: isSelectable ? 'pointer' : 'default',
         transition: 'border-color 0.2s, box-shadow 0.2s, opacity 0.2s',
-        borderColor: (isDying || flash) ? '#ff3333' : undefined,
         position: 'relative',
         boxShadow: isSelected
           ? '0 0 8px rgba(255,213,79,0.7), inset 0 0 6px rgba(255,213,79,0.3)'

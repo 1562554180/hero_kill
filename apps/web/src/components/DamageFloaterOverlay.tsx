@@ -23,17 +23,11 @@ function Floater({ entry, onDone }: {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
-    let raf = 0
-    const tick = () => {
-      const el = document.querySelector(`[data-hero-id="${entry.heroId}"]`) as HTMLElement | null
-      if (el) {
-        const r = el.getBoundingClientRect()
-        setPos({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
-      }
-      raf = requestAnimationFrame(tick)
+    const el = document.querySelector(`[data-hero-id="${entry.heroId}"]`) as HTMLElement | null
+    if (el) {
+      const r = el.getBoundingClientRect()
+      setPos({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
     }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
   }, [entry.heroId])
 
   if (!pos) return null
