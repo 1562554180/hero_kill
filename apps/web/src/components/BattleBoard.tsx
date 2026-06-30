@@ -1487,20 +1487,28 @@ export function BattleBoard() {
                     💊 治愈
                   </button>
                 )}
-                {hasFengHuo && (
-                  <button
-                    onClick={() => useTreasureSkill('feng-huo')}
-                    style={{
-                      ...treasureBtnStyle,
-                      background: treasureSkill === 'feng-huo' ? '#b8860b' : treasureBtnStyle.background,
-                      color: treasureSkill === 'feng-huo' ? '#fff' : treasureBtnStyle.color,
-                      boxShadow: treasureSkill === 'feng-huo' ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
-                    }}
-                    title="烽火: 弃1张装备视为烽火狼烟"
-                  >
-                    🔥 烽火{treasureSkill === 'feng-huo' ? ' ·选装备' : ''}
-                  </button>
-                )}
+                {hasFengHuo && (() => {
+                  const playerHasEquip = game ? ['weapon', 'armor', 'attackMount', 'defenseMount'].some(slot => !!game.getPlayer()?.getEquippedCard(slot as any)) : false
+                  const isActive = treasureSkill === 'feng-huo'
+                  const isDisabled = !playerHasEquip
+                  return (
+                    <button
+                      onClick={() => useTreasureSkill('feng-huo')}
+                      disabled={isDisabled}
+                      style={{
+                        ...treasureBtnStyle,
+                        background: isActive ? '#b8860b' : (isDisabled ? '#444' : treasureBtnStyle.background),
+                        color: isActive ? '#fff' : (isDisabled ? '#888' : treasureBtnStyle.color),
+                        cursor: isDisabled ? 'not-allowed' : 'pointer',
+                        opacity: isDisabled ? 0.5 : 1,
+                        boxShadow: isActive ? '0 0 12px rgba(255,215,0,0.7)' : undefined,
+                      }}
+                      title={isDisabled ? '烽火: 装备区无牌可弃' : '烽火: 弃1张装备视为烽火狼烟'}
+                    >
+                      🔥 烽火{isActive ? ' ·选装备' : ''}
+                    </button>
+                  )
+                })()}
                 {hasJueJi && (
                   <button
                     onClick={() => useTreasureSkill('jue-ji')}
