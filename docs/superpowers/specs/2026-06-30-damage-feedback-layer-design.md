@@ -79,13 +79,22 @@ DamageFloaterOverlay (portal to body, zIndex 1700)
 ### 同时, 受击本地反馈
 
 ```
+BattleBoard (父级) 计算:
+  isDying = currentHp === 0 && dyingRescuePrompt?.targetId === hero.id
+  isDead  = currentHp <= 0 && !isDying
+  作为 prop 传给 HeroBattleCard
+
 HeroBattleCard 组件
   useRef(prevHp) 记录上次 hp
   useEffect: currentHp 变化 → 若减少 → 临时挂 .hero-card-flash class (150ms 后移除)
-            → 若 currentHp === 0 && isAlive → 挂 .hero-card-pulse class
-            → 若 currentHp <= 0 && !isAlive → 挂 .hero-card-dead class (灰度覆盖)
-  血格 div 加 transition: background-color 0.3s
+  根 div className 拼接:
+    - isDying (从 prop) → 加 hero-card-pulse (红边 1s 脉冲)
+    - flash (本地) → 加 hero-card-flash
+    - isDead (从 prop) → 保留现有灰度覆盖
+  血格 div 加 className hp-cell (transition: background-color 0.3s)
 ```
+
+**为什么用 prop 而不是组件自己订阅**: `dyingRescuePrompt` 是单条全局状态, BattleBoard 渲染时已经遍历 heroes, 在父级一次性 map 出 `isDying` 集合避免每张 HeroBattleCard 都新增 store 订阅.
 
 ## 状态切片
 
@@ -212,7 +221,7 @@ function Floater({ entry, onDone }) {
 ### 修改文件 1: `apps/web/src/stores/battleStore.ts`
 
 - 在初始 state (~第 281 行, `directionalLines` 旁) 加 `damageFloaters: []`
-- 在 helper 区 (~第 344 行 `findHeroCenter` 旁) 加:
+- 在 helper 区 (~第 344 行 `findHeroCenter` 旁) 加 `pushFloater` 闭包 (供 event handler 内调用):
   ```ts
   const AGGREGATE_WINDOW_MS = 120
 
@@ -239,11 +248,14 @@ function Floater({ entry, onDone }) {
       }
     })
   }
-
+  ```
+- 在 store interface (state shape) 中添加 action `removeFloater`:
+  ```ts
   removeFloater: (id: string) => set(s => ({
     damageFloaters: s.damageFloaters.filter(f => f.id !== id),
   })),
   ```
+  (放 interface 是因为 DamageFloaterOverlay 组件需要从 React 端调用, 而 pushFloater 只在 event handler 内部用, 不需要暴露)
 - 在 damage/heal 事件 handler (battleStore.ts ~第 364-366 行) 内, 现有日志输出后, 加入 `pushFloater` 调用:
   ```ts
   case 'damage:deal':
@@ -281,10 +293,20 @@ function Floater({ entry, onDone }) {
   ```
 - 状态 `const [flash, setFlash] = useState(false)`
 - 根 div className 拼接:
-  - `currentHp === 0 && isAlive` → 加 `hero-card-pulse`
-  - `flash` → 加 `hero-card-flash`
-  - `currentHp <= 0 && !isAlive` → 保留现有灰度覆盖逻辑
+  - `isDying` prop → 加 `hero-card-pulse` (濒死红边脉冲)
+  - `flash` → 加 `hero-card-flash` (受击红闪)
+  - `isDead` prop → 保留现有灰度覆盖逻辑 (`:367-373`)
 - 血格 div (`:196-202`) 加 className `hp-cell`
+- 新增 prop `isDying: boolean` 和 `isDead: boolean`, 由 BattleBoard 传入
+
+**濒死 vs 死亡判定 (来自父级 BattleBoard)**:
+```tsx
+const dyingTargetId = useBattleStore(s => s.dyingRescuePrompt?.targetId)
+// 在 BattleBoard 渲染 heroes 时:
+const isDying = hero.currentHp === 0 && dyingTargetId === hero.id
+const isDead  = hero.currentHp <= 0 && !isDying
+// 作为 prop 传给 HeroBattleCard
+```
 
 预计改动 ~30 行.
 
@@ -307,6 +329,7 @@ function Floater({ entry, onDone }) {
 | 飘字动画期间武将离场 | RAF 找不到 DOM, 不更新 pos, 飘字停在最后已知位置完成动画 |
 | 玩家/AI 同一回合多次互相伤害 | 每条事件独立飘字, 不合并 (跨回合/跨角色) |
 | `data.damage === 0` 或未定义 | 不入队 (避免飘出 -0) |
+| 濒死期间 (hp=0, 等待出桃) | 红边 1s 脉冲, 血条全空, **不显示阵亡**. 出桃救回 → 停止脉冲, 飘绿 +1; 无桃 → die 事件后变阵亡 |
 
 ## 文件改动清单
 
@@ -315,10 +338,10 @@ function Floater({ entry, onDone }) {
 | `apps/web/src/components/DamageFloaterOverlay.tsx` | 新建 | ~55 |
 | `apps/web/src/styles/global.css` | 追加 | ~30 |
 | `apps/web/src/stores/battleStore.ts` | 修改 | +35 |
-| `apps/web/src/components/HeroBattleCard.tsx` | 修改 | +20 |
-| `apps/web/src/components/BattleBoard.tsx` | 修改 | +2 |
+| `apps/web/src/components/HeroBattleCard.tsx` | 修改 | +25 |
+| `apps/web/src/components/BattleBoard.tsx` | 修改 | +10 (含 `isDying`/`isDead` 派生) |
 
-总计 ~142 行. 零引擎改动.
+总计 ~157 行. 零引擎改动.
 
 ## 验证
 
