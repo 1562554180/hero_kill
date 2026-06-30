@@ -90,28 +90,41 @@ button.danger {
 .directional-line {
   stroke-dasharray: 1000;
   animation: directional-line-draw 200ms ease-out forwards,
-             directional-line-fade 1000ms ease-out forwards;
-  filter: drop-shadow(0 0 4px rgba(255, 82, 82, 0.6));
+             directional-line-fade 600ms ease-out forwards;
 }
 
-/* 伤害/治疗飘字 */
+/* 终点冲击波: 在目标位置扩散（克制版 — 无 drop-shadow） */
+@keyframes directional-target-ripple {
+  0%   { r: 4;  opacity: 0; stroke-width: 4; }
+  20%  { opacity: 1; }
+  100% { r: 24; opacity: 0; stroke-width: 1; }
+}
+.directional-target {
+  fill: none;
+  stroke: #ff5252;
+  animation: directional-target-ripple 600ms ease-out forwards;
+}
+
+/* 伤害/治疗飘字 (克制版) */
 @keyframes damage-floater-rise {
-  0%   { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
-  20%  { opacity: 1; transform: translate(-50%, -8px) scale(1.1); }
-  100% { opacity: 0; transform: translate(-50%, -50px) scale(1); }
+  0%   { opacity: 0; transform: translate(-50%, 0) scale(0.85); }
+  20%  { opacity: 1; transform: translate(-50%, -4px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -24px) scale(1); }
 }
 .floater {
   position: fixed;
   transform: translate(-50%, 0);
-  font-size: 32px;
-  font-weight: 900;
-  text-shadow: 0 0 4px rgba(0,0,0,0.8), 2px 2px 0 #000;
+  font-size: 22px;
+  font-weight: 700;
+  text-shadow: 0 0 2px rgba(0,0,0,0.9), 1px 1px 0 #000;
   pointer-events: none;
-  animation: damage-floater-rise 600ms ease-out forwards;
+  animation: damage-floater-rise 350ms ease-out forwards;
   white-space: nowrap;
 }
 .floater-damage { color: #ff3333; }
 .floater-heal   { color: #44dd66; }
+.floater-dodge  { color: #6bb3ff; }
+.floater-response-kill { color: #ff8a65; }
 
 /* 武将牌受击红闪 */
 @keyframes hero-card-flash {
@@ -120,12 +133,12 @@ button.danger {
 }
 .hero-card-flash { animation: hero-card-flash 150ms ease-out; }
 
-/* 濒死红边脉动 */
+/* 濒死红边脉动 (克制版 — 播 4 次后停下, 红色边框保留) */
 @keyframes hero-card-pulse {
   0%, 100% { border-color: #ff2222; box-shadow: 0 0 8px rgba(255, 34, 34, 0.5); }
   50%      { border-color: #ff6666; box-shadow: 0 0 20px rgba(255, 34, 34, 0.9); }
 }
-.hero-card-pulse { animation: hero-card-pulse 1s ease-in-out infinite; }
+.hero-card-pulse { animation: hero-card-pulse 1s ease-in-out 4; }
 
 /* 血格过渡 */
 .hp-cell {

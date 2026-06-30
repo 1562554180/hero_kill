@@ -29,18 +29,20 @@ function DirectionalLineLayer() {
         </marker>
       </defs>
       {lines.map(l => (
-        <line
-          key={l.id}
-          className="directional-line"
-          x1={l.fromX}
-          y1={l.fromY}
-          x2={l.toX}
-          y2={l.toY}
-          stroke="#ff5252"
-          strokeWidth={3}
-          opacity={0.85}
-          markerEnd="url(#directional-arrow)"
-        />
+        <g key={l.id}>
+          <line
+            className="directional-line"
+            x1={l.fromX}
+            y1={l.fromY}
+            x2={l.toX}
+            y2={l.toY}
+            stroke="#ff5252"
+            strokeWidth={2.5}
+            opacity={0.85}
+            markerEnd="url(#directional-arrow)"
+          />
+          <circle className="directional-target" cx={l.toX} cy={l.toY} r={4} />
+        </g>
       ))}
     </svg>
   )

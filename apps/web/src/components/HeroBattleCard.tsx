@@ -136,7 +136,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
             zIndex: 5, pointerEvents: 'none',
           }}>
             {hasThunder && (
-              <svg viewBox="0 0 24 24" width="22" height="22" style={{ filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.85))' }}>
+              <svg viewBox="0 0 24 24" width="22" height="22">
                 {/* 手雷身 (深灰椭圆) */}
                 <ellipse cx="12" cy="15" rx="6" ry="6" fill="#455a64" stroke="#212121" strokeWidth="0.6" />
                 <line x1="7" y1="13" x2="17" y2="13" stroke="#37474f" strokeWidth="0.3" />
@@ -153,7 +153,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
               </svg>
             )}
             {hasImprisoned && (
-              <svg viewBox="0 0 24 24" width="22" height="22" style={{ filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.85))' }}>
+              <svg viewBox="0 0 24 24" width="22" height="22">
                 {/* 牢笼框 */}
                 <rect x="3" y="9" width="18" height="13" fill="rgba(0,0,0,0.25)" stroke="#5d4037" strokeWidth="1" rx="1" />
                 {/* 横向栅栏 */}
