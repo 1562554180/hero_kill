@@ -107,6 +107,7 @@ describe('主印宝具: 实现验证', () => {
       // 重新拿一张装备
       const w2 = { id: 'w2', suit: 'spade', number: 2, type: 'equipment', name: '雌雄双股剑', slot: 'weapon', range: 2 } as any
       player.drawCards([w2])
+      game.playerEquipCard(player, 'w2')  // 烽火只能弃装备区 (修复后)
       const enemyHpBefore = enemy.getCurrentHp()
       await game.playerFengHuo(player, 'w2')
       // 敌人没杀 → 掉1血
@@ -130,6 +131,7 @@ describe('主印宝具: 实现验证', () => {
       game.playerEquipCard(player, 'w1')
       const w2 = { id: 'w2', suit: 'spade', number: 2, type: 'equipment', name: '雌雄双股剑', slot: 'weapon', range: 2 } as any
       player.drawCards([w2])
+      game.playerEquipCard(player, 'w2')  // 烽火只能弃装备区 (修复后)
       // 给手牌补足以便观察摸牌
       player.drawCards([card('杀', 'k1', 'spade', 7), card('杀', 'k2', 'spade', 8)])
       const before = player.getHandSize()
@@ -154,6 +156,7 @@ describe('主印宝具: 实现验证', () => {
       game.playerEquipCard(player, 'w1')
       const w2 = { id: 'w2', suit: 'spade', number: 2, type: 'equipment', name: '雌雄双股剑', slot: 'weapon', range: 2 } as any
       player.drawCards([w2])
+      game.playerEquipCard(player, 'w2')  // 烽火只能弃装备区 (修复后)
       player.drawCards([card('杀', 'k1', 'spade', 7), card('杀', 'k2', 'spade', 8)])
       const before = player.getHandSize()
       await game.playerFengHuo(player, 'w2')
