@@ -1,5 +1,6 @@
 import type { BattleHero, Card, Treasure } from '@hero-legend/shared-types'
 import { isRedSuit, getTreasureSlots } from '@hero-legend/shared-types'
+import { useEffect, useRef, useState } from 'react'
 import { useBattleStore } from '../stores/battleStore'
 import { HeroPortrait } from './HeroPortrait'
 
@@ -29,11 +30,13 @@ interface Props {
   canPlayKill?: boolean
   onEquipAsKill?: (cardId: string, fromPos?: { x: number; y: number }) => void
   hasHongZhuang?: boolean
+  isDying?: boolean
+  isDead?: boolean
 }
 
 const SLOT_SIZE = '18px'
 
-export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang }: Props) {
+export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang, isDying = false, isDead = false }: Props) {
   const game = useBattleStore(s => s.game)
   const phase = useBattleStore(s => s.phase)
   const treasureSkill = useBattleStore(s => s.treasureSkill)
@@ -42,6 +45,20 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
   const { hero: config, currentHp, maxHp, role, instance } = hero
   const hpPercent = maxHp > 0 ? (currentHp / maxHp) * 100 : 0
   const isDanger = hpPercent <= 30
+
+  const [flash, setFlash] = useState(false)
+  const prevHpRef = useRef(currentHp)
+
+  useEffect(() => {
+    const prev = prevHpRef.current
+    if (currentHp < prev) {
+      setFlash(true)
+      const t = setTimeout(() => setFlash(false), 150)
+      prevHpRef.current = currentHp
+      return () => clearTimeout(t)
+    }
+    prevHpRef.current = currentHp
+  }, [currentHp])
 
   // 调试: 非玩家角色的手牌数悬停显示具体手牌
   const debugHandTitle = (() => {
@@ -73,6 +90,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
 
   return (
     <div
+      className={[isDying && 'hero-card-pulse', flash && 'hero-card-flash'].filter(Boolean).join(' ') || undefined}
       data-hero-id={hero.hero.id}
       onClick={isSelectable ? onClick : undefined}
       style={{
@@ -92,6 +110,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
         opacity: currentHp > 0 ? (dimmed ? 0.4 : 1) : 0.4,
         cursor: isSelectable ? 'pointer' : 'default',
         transition: 'border-color 0.2s, box-shadow 0.2s, opacity 0.2s',
+        borderColor: (isDying || flash) ? '#ff3333' : undefined,
         position: 'relative',
         boxShadow: isSelected
           ? '0 0 8px rgba(255,213,79,0.7), inset 0 0 6px rgba(255,213,79,0.3)'
@@ -194,7 +213,7 @@ export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, 
           boxShadow: '0 1px 1px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.08)',
         }}>
           {Array.from({ length: maxHp }).map((_, i) => (
-            <div key={i} style={{
+            <div key={i} className="hp-cell" style={{
               flex: 1,
               background: i < currentHp ? '#8b0000' : '#3a3a3a',
               borderRight: i < maxHp - 1 ? '1px solid #0a0a0a' : 'none',
