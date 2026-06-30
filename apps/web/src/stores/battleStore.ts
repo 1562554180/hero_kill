@@ -283,6 +283,9 @@ interface BattleState {
   _queueFlyingCard: (req: { card: Card; sourceType: 'hand' | 'equipment'; sourceRef?: string; targetType: 'discard' | 'equipment' | 'hand'; targetHeroId?: string; targetSlot?: EquipmentSlot; fromHeroId?: string; fromPos?: { x: number; y: number }; onComplete?: () => void }) => void
   // 指向性攻击线 (从 source → target 划线动画, 渲染层用)
   directionalLines: DirectionalLine[]
+  // 伤害/治疗飘字队列 (渲染层用)
+  damageFloaters: DamageFloater[]
+  removeFloater: (id: string) => void
 }
 
 export type DirectionalLine = {
@@ -292,6 +295,14 @@ export type DirectionalLine = {
   toX: number
   toY: number
   cardName: string
+  createdAt: number
+}
+
+export type DamageFloater = {
+  id: string
+  heroId: string
+  amount: number      // 正数=治疗, 负数=伤害
+  type: 'damage' | 'heal'
   createdAt: number
 }
 
@@ -532,6 +543,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   yuRenUsedThisTurn: false,
   flyingCards: [],
   directionalLines: [],
+  damageFloaters: [],
   _queueFlyingCard: (req) => {
     const fromHeroId = req.fromHeroId ?? ''
     const from = req.fromPos ?? findSourcePos(fromHeroId, req.sourceType, req.sourceRef)
@@ -575,6 +587,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       }}],
     }))
   },
+
+  removeFloater: (id: string) => set(s => ({
+    damageFloaters: s.damageFloaters.filter(f => f.id !== id),
+  })),
 
   startBattle: async (config: GameConfig) => {
     Object.keys(heroNames).forEach(k => delete heroNames[k])
@@ -674,6 +690,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveHouZhu: null,
       flyingCards: [],
       directionalLines: [],
+      damageFloaters: [],
     })
 
     const wrappedConfig: GameConfig = {
@@ -1147,6 +1164,32 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
     const game = new Game(wrappedConfig)
 
+    const AGGREGATE_WINDOW_MS = 120
+
+    const pushFloater = (entry: { heroId: string; amount: number; type: 'damage' | 'heal' }) => {
+      const now = Date.now()
+      set(s => {
+        const existing = s.damageFloaters.find(
+          f => f.heroId === entry.heroId
+            && f.type === entry.type
+            && now - f.createdAt < AGGREGATE_WINDOW_MS
+        )
+        if (existing) {
+          return {
+            damageFloaters: s.damageFloaters.map(f =>
+              f.id === existing.id ? { ...f, amount: f.amount + entry.amount, createdAt: now } : f
+            ),
+          }
+        }
+        return {
+          damageFloaters: [
+            ...s.damageFloaters,
+            { id: `${now}-${Math.random().toString(36).slice(2, 6)}`, createdAt: now, ...entry },
+          ],
+        }
+      })
+    }
+
     const handler = (event: GameEvent) => {
       const msg = eventToLog(event, game)
       if (msg) {
@@ -1169,6 +1212,22 @@ export const useBattleStore = create<BattleState>((set, get) => ({
             set({ lastJudgeResult: null })
           }
         }, 3000)
+      }
+      // 飘字入队 (伤害/治疗)
+      if (event.type === 'damage:deal' || event.type === 'damage:receive') {
+        if (event.targetHeroId) {
+          const dmg = (event.data as any)?.damage as number | undefined
+          if (typeof dmg === 'number' && dmg > 0) {
+            pushFloater({ heroId: event.targetHeroId, amount: -dmg, type: 'damage' })
+          }
+        }
+      } else if (event.type === 'heal') {
+        if (event.targetHeroId) {
+          const amt = (event.data as any)?.amount as number | undefined
+          if (typeof amt === 'number' && amt > 0) {
+            pushFloater({ heroId: event.targetHeroId, amount: amt, type: 'heal' })
+          }
+        }
       }
       // 关键事件触发时同步 gameState + playerHand, 避免 UI 显示陈旧的 HP/手牌
       // (出牌/弃牌/摸牌/失去装备 时手牌会变, 必须同步, 否则像李逵复仇等待时
