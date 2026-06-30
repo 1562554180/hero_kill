@@ -301,8 +301,8 @@ export type DirectionalLine = {
 export type DamageFloater = {
   id: string
   heroId: string
-  amount: number      // 正数=治疗, 负数=伤害
-  type: 'damage' | 'heal'
+  amount: number      // 正数=治疗, 负数=伤害, dodge/response-kill时忽略
+  type: 'damage' | 'heal' | 'dodge' | 'response-kill'
   createdAt: number
 }
 
@@ -1166,7 +1166,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
     const AGGREGATE_WINDOW_MS = 120
 
-    const pushFloater = (entry: { heroId: string; amount: number; type: 'damage' | 'heal' }) => {
+    const pushFloater = (entry: { heroId: string; amount: number; type: 'damage' | 'heal' | 'dodge' | 'response-kill' }) => {
       const now = Date.now()
       set(s => {
         const existing = s.damageFloaters.find(
@@ -1226,6 +1226,18 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           const amt = (event.data as any)?.amount as number | undefined
           if (typeof amt === 'number' && amt > 0) {
             pushFloater({ heroId: event.targetHeroId, amount: amt, type: 'heal' })
+          }
+        }
+      } else if (event.type === 'damage:prevent') {
+        // 闪/杀响应: data 含 cardId 或 cardName (排除 data.reason = 宝具免疫如红杀盾)
+        // 烽火狼烟响应出杀 → 'response-kill', 万箭齐发响应出闪 → 'dodge'
+        if (event.sourceHeroId) {
+          const data = event.data as any
+          const cardName = data?.cardName as string | undefined
+          const hasResponse = !!(data?.cardId || cardName)
+          if (hasResponse) {
+            const type: 'dodge' | 'response-kill' = cardName === '杀' ? 'response-kill' : 'dodge'
+            pushFloater({ heroId: event.sourceHeroId, amount: 0, type })
           }
         }
       }

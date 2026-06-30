@@ -17,7 +17,7 @@ export function DamageFloaterOverlay() {
 }
 
 function Floater({ entry, onDone }: {
-  entry: { id: string; heroId: string; amount: number; type: 'damage' | 'heal' }
+  entry: { id: string; heroId: string; amount: number; type: 'damage' | 'heal' | 'dodge' | 'response-kill' }
   onDone: () => void
 }) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
@@ -31,6 +31,24 @@ function Floater({ entry, onDone }: {
   }, [entry.heroId])
 
   if (!pos) return null
+  if (entry.type === 'dodge') {
+    return (
+      <div
+        className="floater floater-dodge"
+        style={{ left: pos.x, top: pos.y - 40 }}
+        onAnimationEnd={onDone}
+      >🛡️ 闪</div>
+    )
+  }
+  if (entry.type === 'response-kill') {
+    return (
+      <div
+        className="floater floater-response-kill"
+        style={{ left: pos.x, top: pos.y - 40 }}
+        onAnimationEnd={onDone}
+      >🗡️ 杀</div>
+    )
+  }
   return (
     <div
       className={entry.type === 'heal' ? 'floater floater-heal' : 'floater floater-damage'}
