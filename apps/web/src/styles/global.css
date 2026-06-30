@@ -93,3 +93,41 @@ button.danger {
              directional-line-fade 1000ms ease-out forwards;
   filter: drop-shadow(0 0 4px rgba(255, 82, 82, 0.6));
 }
+
+/* 伤害/治疗飘字 */
+@keyframes damage-floater-rise {
+  0%   { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+  20%  { opacity: 1; transform: translate(-50%, -8px) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -50px) scale(1); }
+}
+.floater {
+  position: fixed;
+  transform: translate(-50%, 0);
+  font-size: 32px;
+  font-weight: 900;
+  text-shadow: 0 0 4px rgba(0,0,0,0.8), 2px 2px 0 #000;
+  pointer-events: none;
+  animation: damage-floater-rise 600ms ease-out forwards;
+  white-space: nowrap;
+}
+.floater-damage { color: #ff3333; }
+.floater-heal   { color: #44dd66; }
+
+/* 武将牌受击红闪 */
+@keyframes hero-card-flash {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 50, 50, 0); }
+  50%      { box-shadow: 0 0 24px rgba(255, 50, 50, 0.9); }
+}
+.hero-card-flash { animation: hero-card-flash 150ms ease-out; }
+
+/* 濒死红边脉动 */
+@keyframes hero-card-pulse {
+  0%, 100% { border-color: #ff2222; box-shadow: 0 0 8px rgba(255, 34, 34, 0.5); }
+  50%      { border-color: #ff6666; box-shadow: 0 0 20px rgba(255, 34, 34, 0.9); }
+}
+.hero-card-pulse { animation: hero-card-pulse 1s ease-in-out infinite; }
+
+/* 血格过渡 */
+.hp-cell {
+  transition: background-color 0.3s ease-out;
+}
