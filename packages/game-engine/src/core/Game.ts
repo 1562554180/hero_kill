@@ -1137,11 +1137,17 @@ export class Game {
         if (dodgeCount >= dodgeNeeded) break
         const dodgeCard = await this.promptResponseDodge(defender, attacker.getId(), '杀')
         if (dodgeCard) {
+          this.eventBus.emit({
+            type: 'card:play',
+            sourceHeroId: defender.getId(),
+            targetHeroId: attacker.getId(),
+            data: { cardId: dodgeCard.id, cardName: dodgeCard.name, card: dodgeCard, isResponse: true },
+          })
           this.removeHandCard(defender,dodgeCard.id)
           this.cardDeck.discard([dodgeCard])
           dodgeCount++
           const dodgeSkill = dodgeCard.name !== '闪'
-          this.eventBus.emit({ type: 'damage:prevent', sourceHeroId: defender.getId(), data: { cardId: dodgeCard.id } })
+          this.eventBus.emit({ type: 'damage:prevent', sourceHeroId: defender.getId(), data: { cardId: dodgeCard.id, cardName: dodgeCard.name } })
           if (dodgeCard.name === '闪') await this.triggerHouZhu(defender)
           if (dodgeSkill) {
             let dName = '轻影'
@@ -2185,9 +2191,15 @@ export class Game {
     for (let i = 0; i < 2; i++) {
       const dodgeCard = await this.promptResponseDodge(defender, attacker.getId(), '三板斧')
       if (!dodgeCard) break
+      this.eventBus.emit({
+        type: 'card:play',
+        sourceHeroId: defender.getId(),
+        targetHeroId: attacker.getId(),
+        data: { cardId: dodgeCard.id, cardName: dodgeCard.name, card: dodgeCard, isResponse: true },
+      })
       this.removeHandCard(defender, dodgeCard.id)
       this.cardDeck.discard([dodgeCard])
-      this.eventBus.emit({ type: 'damage:prevent', sourceHeroId: defender.getId(), data: { cardId: dodgeCard.id } })
+      this.eventBus.emit({ type: 'damage:prevent', sourceHeroId: defender.getId(), data: { cardId: dodgeCard.id, cardName: dodgeCard.name } })
       if (dodgeCard.name === '闪') await this.triggerHouZhu(defender)
       if (defender.hasSkillOrTreasure('tu-qiang')) {
         const drawn = this.cardDeck.draw(1)
@@ -2501,7 +2513,14 @@ export class Game {
         if (await this.checkDieHun(target, '烽火狼烟')) continue
         const killCard = await this.promptResponseKill(target, player.getId(), '烽火狼烟', 1)
         if (killCard) {
+          this.eventBus.emit({
+            type: 'card:play',
+            sourceHeroId: target.getId(),
+            targetHeroId: player.getId(),
+            data: { cardId: killCard.id, cardName: killCard.name, card: killCard, isResponse: true },
+          })
           this.removeCardFromPlayer(target, killCard)
+          this.cardDeck.discard([killCard])
           this.eventBus.emit({
             type: 'damage:prevent', sourceHeroId: target.getId(),
             targetHeroId: player.getId(),
@@ -2535,6 +2554,12 @@ export class Game {
         if (await this.tryYuRuYiDodge(target, '万箭齐发')) continue
         const dodgeCard = await this.promptResponseDodge(target, player.getId(), '万箭齐发')
         if (dodgeCard) {
+          this.eventBus.emit({
+            type: 'card:play',
+            sourceHeroId: target.getId(),
+            targetHeroId: player.getId(),
+            data: { cardId: dodgeCard.id, cardName: dodgeCard.name, card: dodgeCard, isResponse: true },
+          })
           this.removeHandCard(target,dodgeCard.id)
           this.cardDeck.discard([dodgeCard])
           this.eventBus.emit({
