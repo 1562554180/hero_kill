@@ -60,6 +60,8 @@ export interface GameConfig {
   discardPickHandler?: (game: Game, player: Player, handCards: Card[], discardCount: number) => Promise<string[]>
   /** 霸王弓: 选拆哪匹马, 返回 'attackMount' | 'defenseMount' | null */
   baWangMountHandler?: (game: Game, attacker: Player, defender: Player, mountOptions: { attackMount: Card | null; defenseMount: Card | null }) => Promise<'attackMount' | 'defenseMount' | null>
+  /** UI 动画就绪门控: web 端返回的 Promise 在 flyingCards 全部完成后 resolve */
+  awaitUIReady?: () => Promise<void>
   /** 强掠: 杀被闪后是否要发动 (true=发动判定; false=不发动) */
   qiangLueHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
   /** 刺客: 出杀指定目标后是否发动 (true=发动判定; false=不发动) */
@@ -162,6 +164,13 @@ export class Game {
   }
   isAoJianActive(playerId: string): boolean {
     return this.aoJianActive.has(playerId)
+  }
+
+  /** 调 UI handler 前的动画就绪闸门 — 等 web 端 flyingCards 清空 */
+  private async awaitUI(): Promise<void> {
+    if (this.config.awaitUIReady) {
+      await this.config.awaitUIReady()
+    }
   }
 
   isEffectivelyRed(card: Card, player: Player): boolean {
@@ -1540,6 +1549,35 @@ export class Game {
   }
 
   /**
+   * 群体锦囊响应(万箭齐发/南蛮入侵/烽火狼烟):
+   * 允许目标打出闪/杀(响应), 或者打无懈可击(免于响应, 也免于本锦囊伤害)
+   * 返回卡牌 = 已响应或免于响应 (caller 走免伤分支); 返回null = 不响应, 承受伤害
+   */
+  private async promptAoeResponse(player: Player, sourceId: string, schemeName: string, kind: 'dodge' | 'kill'): Promise<Card | null> {
+    const handlerType = kind === 'dodge' ? 'dodge' : 'kill'
+    if (player.getRole() === 'player') {
+      if (!this.config.responseActionHandler) return null
+      const cardId = await this.config.responseActionHandler(this, player, handlerType, { sourceHeroId: sourceId, schemeName, targetHeroId: player.getId() })
+      if (!cardId) return null
+      const card = player.getHand().find(c => c.id === cardId)
+      if (!card) return null
+      // 无懈可击: 免于响应 (不需要出闪/杀, 也免伤)
+      if (card.name === '无懈可击') return card
+      // 正常响应: 闪 (dodge) 或 杀 (kill)
+      if (kind === 'dodge' && this.canUseAsDodge(card, player)) return card
+      if (kind === 'kill' && this.canUseAsKill(card, player)) return card
+      return null
+    }
+    // AI: 优先闪/杀, 其次无懈可击 (免于响应)
+    if (kind === 'dodge') return this.findDodgeCard(player) ?? this.findWuXieCard(player) ?? null
+    return this.findKillCard(player) ?? this.findWuXieCard(player) ?? null
+  }
+
+  private findWuXieCard(player: Player): Card | undefined {
+    return player.getHand().find(c => c.name === '无懈可击')
+  }
+
+  /**
    * 玉如意/国色: 受到闪响应请求时(杀/万箭齐发), 可判定一次, 红色视为闪
    * 返回 true=已发动且红色, 视作闪响应成功
    * attackName: 用于UI显示(如"杀"/"万箭齐发")
@@ -1883,7 +1921,8 @@ export class Game {
     // 这种情况下 schemePlayer 是敌方, 与 harmful 列表重叠, isEnemy 已正确覆盖
 
     const isFirstWuXie = lastActor === schemePlayer
-    const harmful = ['决斗', '釜底抽薪', '探囊取物', '画地为牢', '手捧雷', '万箭齐发', '南蛮入侵']
+    // 群体锦囊(万箭齐发/南蛮入侵/烽火狼烟/五谷丰登/休养生息)走响应阶段的免于响应, 不在使用阶段被抵消, 故不出现在 harmful
+    const harmful = ['决斗', '釜底抽薪', '探囊取物', '画地为牢', '手捧雷']
     const isHarmfulToMySide = isEnemy && harmful.includes(schemeCard.name)
 
     let probability = 0
@@ -2395,8 +2434,11 @@ export class Game {
     }
 
     // 立即锦囊: 先检查无懈可击
+    // 群体锦囊(万箭齐发/南蛮入侵/烽火狼烟/五谷丰登/休养生息): 使用阶段不能被无懈可击打断, 只能在响应阶段用无懈免于响应
+    const aoeSchemeNames = ['万箭齐发', '南蛮入侵', '烽火狼烟', '五谷丰登', '休养生息']
+    const isAoe = aoeSchemeNames.includes(effectiveCard.name)
     const schemeTarget = targetId ? this.players.find(p => p.getId() === targetId) : undefined
-    const schemeNullified = await this.checkNullification(player, schemeTarget, card)
+    const schemeNullified = isAoe ? false : await this.checkNullification(player, schemeTarget, card)
     if (schemeNullified) {
       // 被抵消, 不执行效果
     } else {
@@ -2511,7 +2553,7 @@ export class Game {
           continue
         }
         if (await this.checkDieHun(target, '烽火狼烟')) continue
-        const killCard = await this.promptResponseKill(target, player.getId(), '烽火狼烟', 1)
+        const killCard = await this.promptAoeResponse(target, player.getId(), '烽火狼烟', 'kill')
         if (killCard) {
           this.eventBus.emit({
             type: 'card:play',
@@ -2552,7 +2594,7 @@ export class Game {
         if (await this.checkDieHun(target, '万箭齐发')) continue
         // 玉如意/国色: 受到万箭齐发时也可判定, 红色视为闪
         if (await this.tryYuRuYiDodge(target, '万箭齐发')) continue
-        const dodgeCard = await this.promptResponseDodge(target, player.getId(), '万箭齐发')
+        const dodgeCard = await this.promptAoeResponse(target, player.getId(), '万箭齐发', 'dodge')
         if (dodgeCard) {
           this.eventBus.emit({
             type: 'card:play',
@@ -2569,7 +2611,7 @@ export class Game {
           })
           if (dodgeCard.name === '闪') await this.triggerHouZhu(target)
           // 轻灵: 使用闪后30%几率摸一张
-          if (this.rollSubTreasure(target, 'treasure-qing-ling')) {
+          if (dodgeCard.name === '闪' && this.rollSubTreasure(target, 'treasure-qing-ling')) {
             const drawn = this.cardDeck.draw(1)
             target.drawCards(drawn)
             this.emitSkillTrigger(target, '轻灵', '出闪后摸1张')
@@ -3313,12 +3355,7 @@ export class Game {
       // 蝶魂: 群体锦囊目标可发动, 跳过拿牌
       if (await this.checkDieHun(p, '五谷丰登')) return
 
-      const virtualCard = { name: '五谷丰登', type: 'scheme' as const, id: 'wugu-virtual', suit: 'heart', number: 1, delayed: false } as Card
-      const nullified = await this.checkNullification(player, p, virtualCard)
-      if (nullified) {
-        this.emitSkillTrigger(p, '五谷丰登', `${p.getName()}被无懈可击-跳过`)
-        return
-      }
+      // 群体锦囊(五谷丰登): 使用阶段不能被无懈可击打断, 直接进入选牌
 
       let pickedId: string | null = null
       if (this.config.wuguPickHandler) {
