@@ -775,7 +775,6 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         set({
           phase: 'selectLuYeQiangTarget',
           luYeQiangCandidates: candidates.map(p => ({ id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() })),
-          luYeQiangKillCardId: null,
         })
         return new Promise<string | null>(resolve => {
           set({ resolveLuYeQiangTarget: resolve })
@@ -1160,6 +1159,23 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           set({ gameState: game.getState(), playerHand: player.getHand() })
         }
       },
+      // 动画就绪门控: 等 flyingCards 全部清空才让 engine 调下一个 UI handler
+      // 事件驱动 (Zustand subscribe), 0 polling; 5s 安全超时防卡死
+      awaitUIReady: () => new Promise<void>(resolve => {
+        const state = useBattleStore.getState()
+        if (state.flyingCards.length === 0) {
+          resolve()
+          return
+        }
+        let unsub: (() => void) | null = null
+        unsub = useBattleStore.subscribe((s, prev) => {
+          if (s.flyingCards.length === 0 && prev.flyingCards.length > 0) {
+            unsub?.()
+            resolve()
+          }
+        })
+        setTimeout(() => { unsub?.(); resolve() }, 5000)
+      }),
     }
 
     const game = new Game(wrappedConfig)
@@ -1475,11 +1491,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         return
       }
     }
-    // 狼牙棒: 最后一张手牌出杀时最多3目标
+    // 狼牙棒: 最后一张手牌出杀时最多3目标 (含傲剑/武穆 等所有可当杀的牌)
     if (game) {
       const player = game.getPlayer()
-      const card = player.getHand().find(c => c.id === cardId)
-      const isKill = card?.name === '杀' || card?.name === '血杀' || card?.name === '暗杀'
+      const isKill = game.canPlayerUseAsKill(cardId)
       if (isKill && player.getWeaponName() === '狼牙棒' && player.getHandSize() === 1) {
         const enemies = game.players.filter(p => p.getRole() !== 'player' && p.getRole() !== 'ally' && p.isAlive())
         set({
@@ -1788,13 +1803,19 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (!resolveDualCard) return
     if (selectedDualCards.length !== 2) return
     resolveDualCard(selectedDualCards)
-    set({ resolveDualCard: null, selectedDualCards: [], phase: 'playing' })
+    // 第一张当杀 - 高亮显示【杀】徽章, 让玩家看到"杀的提示"再选目标
+    set({
+      resolveDualCard: null,
+      selectedDualCards: [],
+      luYeQiangKillCardId: selectedDualCards[0],
+      phase: 'playing',
+    })
   },
   cancelDualCards: () => {
     const { resolveDualCard } = get()
     if (!resolveDualCard) return
     resolveDualCard([])
-    set({ resolveDualCard: null, selectedDualCards: [], phase: 'playing' })
+    set({ resolveDualCard: null, selectedDualCards: [], luYeQiangKillCardId: null, phase: 'playing' })
   },
   selectLuYeQiangTarget: (targetId: string) => {
     const { resolveLuYeQiangTarget } = get()
