@@ -1548,7 +1548,8 @@ export class Game {
       if (!card || !this.canUseAsDodge(card, player)) return null
       return card
     }
-    // AI: 有闪则自动用
+    // AI: 有闪则自动用, 但要先等前序动画跑完再响应 (避免响应卡动画和前序卡重叠)
+    await this.awaitUI()
     return this.findDodgeCard(player) ?? null
   }
 
@@ -1573,7 +1574,8 @@ export class Game {
       if (kind === 'kill' && this.canUseAsKill(card, player)) return card
       return null
     }
-    // AI: 优先闪/杀, 其次无懈可击 (免于响应)
+    // AI: 优先闪/杀, 其次无懈可击 (免于响应); 等前序动画跑完再决策, 避免响应卡和前序卡重叠
+    await this.awaitUI()
     if (kind === 'dodge') return this.findDodgeCard(player) ?? this.findWuXieCard(player) ?? null
     return this.findKillCard(player) ?? this.findWuXieCard(player) ?? null
   }
