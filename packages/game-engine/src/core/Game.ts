@@ -741,6 +741,7 @@ export class Game {
       // 出牌阶段
       this.eventBus.emit({ type: 'phase:start', sourceHeroId: player.getId(), data: { phase: 'play' } })
       if (player.getRole() === 'player' && this.config.playerActionHandler) {
+        await this.awaitUI()
         await this.config.playerActionHandler(this, player)
       } else {
         await this.autoPlayPhase(player)
