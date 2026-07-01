@@ -1192,6 +1192,7 @@ export class Game {
         const totalCards = defender.getHandSize() + this.collectEquipmentCards(defender).length + defender.getJudgeCards().length
         if (totalCards > 0) {
           if (attacker.getRole() === 'player' && this.config.longLinPickHandler) {
+            await this.awaitUI()
             longLinPickedIds = await this.config.longLinPickHandler(
               this, attacker, defender,
               { hand: defender.getHand(), judge: defender.getJudgeCards(), equipment: this.collectEquipmentCards(defender) },
@@ -2478,6 +2479,7 @@ export class Game {
           this.emitSkillTrigger(player, '探囊取物', '无合法目标-失效')
           return
         }
+        await this.awaitUI()
         const chosenId = await this.config.tanNangTargetHandler(this, player, candidates)
         if (!chosenId) return
         target = this.players.find(p => p.getId() === chosenId)
@@ -2499,6 +2501,7 @@ export class Game {
       // 选1张牌(手牌/装备/判定)
       let pickedId: string | null = null
       if (player.getRole() === 'player' && this.config.tanNangPickHandler) {
+        await this.awaitUI()
         pickedId = await this.config.tanNangPickHandler(
           this, player, target,
           { hand: target.getHand(), judge: target.getJudgeCards(), equipment: this.collectEquipmentCards(target) },
@@ -3368,6 +3371,7 @@ export class Game {
           type: 'wugu:pickStart', sourceHeroId: p.getId(),
           data: { playerId: p.getId(), playerName: p.getName(), cards: remaining.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number })) },
         })
+        await this.awaitUI()
         pickedId = await this.config.wuguPickHandler(this, p, remaining)
       }
       if (!pickedId) {
@@ -3441,6 +3445,7 @@ export class Game {
       }
       let hid: string | null = null
       if (this.config.jieDaoTargetHandler) {
+        await this.awaitUI()
         hid = await this.config.jieDaoTargetHandler(this, player, weaponHolders)
       } else {
         hid = weaponHolders[0].getId()
@@ -3460,6 +3465,7 @@ export class Game {
     }
     let attackTargetId: string | null = null
     if (this.config.jieDaoAttackTargetHandler) {
+      await this.awaitUI()
       attackTargetId = await this.config.jieDaoAttackTargetHandler(this, player, holder, candidates)
     } else {
       attackTargetId = candidates[0].getId()
@@ -3497,6 +3503,7 @@ export class Game {
     if (!killCard || !this.canUseAsKill(killCard, player)) return
     if (this.config.multiTargetHandler) {
       const enemies = this.getEnemies(player)
+      await this.awaitUI()
       const targetIds = await this.config.multiTargetHandler(this, player, enemies)
       for (const tid of targetIds) {
         const target = this.players.find(p => p.getId() === tid)
@@ -3543,6 +3550,7 @@ export class Game {
     if (this.xiaDanLossThisTurn.has(player.getId())) return
     // 杀次数已用尽 (虎符/天狼 仍可无限)
     if (!this.hasUnlimitedKill(player) && this.killsUsedThisTurn >= this.killsMaxThisTurn) return
+    await this.awaitUI()
     const cardIds = await this.config.dualCardHandler(this, player)
     if (cardIds.length !== 2) return
     const cards = cardIds.map(id => player.getHand().find(c => c.id === id)).filter((c): c is Card => !!c)
@@ -3555,6 +3563,7 @@ export class Game {
     const inRange = this.getEnemies(player).filter(e => this.isInAttackRange(player, e))
     let targetId: string | null = null
     if (this.config.luYeQiangTargetHandler) {
+      await this.awaitUI()
       targetId = await this.config.luYeQiangTargetHandler(this, player, inRange)
     }
     const target = targetId ? this.players.find(p => p.getId() === targetId) : null
