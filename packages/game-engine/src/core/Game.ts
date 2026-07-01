@@ -1576,6 +1576,8 @@ export class Game {
     }
     // AI: 优先闪/杀, 其次无懈可击 (免于响应); 等前序动画跑完再决策, 避免响应卡和前序卡重叠
     await this.awaitUI()
+    // 多人响应时, AI 之间加一点间隔, 避免视觉上像同时响应/显得乱
+    await new Promise(r => setTimeout(r, 250))
     if (kind === 'dodge') return this.findDodgeCard(player) ?? this.findWuXieCard(player) ?? null
     return this.findKillCard(player) ?? this.findWuXieCard(player) ?? null
   }
@@ -2157,6 +2159,23 @@ export class Game {
     return this.players.filter(p => p.isAlive())
   }
 
+  /**
+   * 返回从 fromPlayer 开始按逆时针 (与 advanceToNextAlive 一致, index - 1) 排序的存活玩家序列,
+   * 用于群体锦囊 (烽火狼烟/万箭齐发/五谷丰登/休养生息) 的结算顺序。fromPlayer 自身通常会被
+   * caller 跳过 (锦囊使用者通常不是自己的目标)。
+   */
+  getAlivePlayersCounterClockwiseFrom(fromPlayer: Player): Player[] {
+    const alive = this.getAlivePlayers()
+    const n = alive.length
+    const startIdx = alive.findIndex(p => p.getId() === fromPlayer.getId())
+    if (startIdx < 0 || n === 0) return alive
+    const result: Player[] = []
+    for (let i = 0; i < n; i++) {
+      result.push(alive[(startIdx - i + n) % n])
+    }
+    return result
+  }
+
   getPlayer(): Player {
     return this.players.find(p => p.getRole() === 'player')!
   }
@@ -2538,7 +2557,7 @@ export class Game {
         this.emitSkillTrigger(target, '洞察', `免疫黑桃锦囊-决斗失效`)
       }
     } else if (card.name === '休养生息') {
-      for (const p of this.getAlivePlayers()) {
+      for (const p of this.getAlivePlayersCounterClockwiseFrom(player)) {
         if (!this.canBeSchemeTarget(p, card)) {
           this.emitSkillTrigger(p, '洞察', `免疫黑桃锦囊-休养生息无效`)
           continue
@@ -2555,7 +2574,7 @@ export class Game {
     } else if (card.name === '烽火狼烟') {
       let langYanBoost = false
       if (this.rollSubTreasure(player, 'treasure-lang-yan')) langYanBoost = true
-      for (const target of this.players) {
+      for (const target of this.getAlivePlayersCounterClockwiseFrom(player)) {
         if (target.getId() === player.getId()) continue
         if (!target.isAlive()) continue
         if (!this.canBeSchemeTarget(target, card)) {
@@ -2594,7 +2613,7 @@ export class Game {
     } else if (card.name === '万箭齐发') {
       let wanJianBoost = false
       if (this.rollSubTreasure(player, 'treasure-wan-jian')) wanJianBoost = true
-      for (const target of this.players) {
+      for (const target of this.getAlivePlayersCounterClockwiseFrom(player)) {
         if (target.getId() === player.getId()) continue
         if (!target.isAlive()) continue
         if (!this.canBeSchemeTarget(target, card)) {
@@ -2946,7 +2965,7 @@ export class Game {
     if (this.rollSubTreasure(player, 'treasure-lang-yan')) langYanBoost = true
     // 烽火狼烟 card 引用(用于 canBeSchemeTarget)
     const fengHuoCard: Card = { id: 'fhly-virtual', suit: 'spade', number: 1, type: 'scheme', name: '烽火狼烟' } as Card
-    for (const target of this.players) {
+    for (const target of this.getAlivePlayersCounterClockwiseFrom(player)) {
       if (target.getId() === player.getId()) continue
       if (!target.isAlive()) continue
       if (!this.canBeSchemeTarget(target, fengHuoCard)) {
@@ -2956,6 +2975,12 @@ export class Game {
       if (await this.checkDieHun(target, '烽火狼烟')) continue
       const killCard = this.findKillCard(target)
       if (killCard) {
+        this.eventBus.emit({
+          type: 'card:play',
+          sourceHeroId: target.getId(),
+          targetHeroId: player.getId(),
+          data: { cardId: killCard.id, cardName: killCard.name, card: killCard, isResponse: true },
+        })
         this.removeHandCard(target,killCard.id)
         this.cardDeck.discard([killCard])
         this.eventBus.emit({
@@ -3344,12 +3369,8 @@ export class Game {
     })
     this.emitSkillTrigger(player, '五谷丰登', `翻${cards.length}张牌`)
 
-    // 从使用者开始, 每人拿1张
-    const startIdx = alive.indexOf(player)
-    const ordered = [
-      ...alive.slice(startIdx),
-      ...alive.slice(0, startIdx),
-    ]
+    // 从使用者开始, 逆时针 (index - 1) 每人拿1张
+    const ordered = this.getAlivePlayersCounterClockwiseFrom(player)
     const remaining = [...cards]
 
     // 单次选牌逻辑

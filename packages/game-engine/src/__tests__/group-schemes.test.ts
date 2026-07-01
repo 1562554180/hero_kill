@@ -84,7 +84,7 @@ describe('万箭齐发', () => {
     expect(enemy.getCurrentHp()).toBe(before - 1)
   })
 
-  it('群锦囊: 出闪前可被无懈可击抵消', async () => {
+  it('群锦囊: 使用阶段不能被无懈可击打断 (响应阶段才能免于响应)', async () => {
     const game = new Game({
       playerHeroId: 'shang-yang', playerInstance: baseInstance,
       allyHeroIds: [], enemyHeroIds: ['han-xin'],
@@ -102,8 +102,34 @@ describe('万箭齐发', () => {
     ])
     const before = enemy.getCurrentHp()
     await game.playerPlayScheme(player, 'wj1')
-    // 玩家用无懈可击 → 跳过敌人出闪 → 敌人掉1血
-    expect(enemy.getCurrentHp()).toBe(before - 1)
+    // 群体锦囊使用阶段不能被无懈可击打断 → 敌人出闪 → 不掉血
+    expect(enemy.getCurrentHp()).toBe(before)
+  })
+
+  it('群锦囊响应: 目标无闪但有无懈可击 → 无懈可击免于响应 (不掉血)', async () => {
+    const game = new Game({
+      playerHeroId: 'shang-yang', playerInstance: baseInstance,
+      allyHeroIds: [], enemyHeroIds: ['han-xin'],
+      playerActionHandler: async () => null,
+      responseActionHandler: async (_g, p, type) => {
+        // 玩家(本场景是敌方AI)响应时优先用闪, 否则用无懈可击
+        if (type === 'dodge') {
+          const wx = p.getHand().find(c => c.name === '无懈可击')
+          if (wx) return wx.id
+        }
+        return null
+      },
+    })
+    const player = game.getPlayer()
+    const enemy = game.getPlayerById('han-xin')!
+    player.drawCards([scheme('万箭齐发', 'wj1')])
+    enemy.drawCards([
+      { id: 'wx1', suit: 'diamond', number: 7, type: 'scheme', name: '无懈可击' } as any,
+    ])
+    const before = enemy.getCurrentHp()
+    await game.playerPlayScheme(player, 'wj1')
+    // 敌人用无懈可击免于响应 → 不掉血
+    expect(enemy.getCurrentHp()).toBe(before)
   })
 })
 
