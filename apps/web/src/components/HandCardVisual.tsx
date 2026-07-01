@@ -1,11 +1,12 @@
 // apps/web/src/components/HandCardVisual.tsx
+import { memo } from 'react'
 import type { Card } from '@hero-legend/shared-types'
 
-// 卡牌图片: 扫 cards/*.png, 文件名即卡名
-const cardImgModules = import.meta.glob('../images/cards/*.png', { eager: true, import: 'default' }) as Record<string, string>
+// 卡牌图片: 扫 cards/*.webp, 文件名即卡名
+const cardImgModules = import.meta.glob('../images/cards/*.webp', { eager: true, import: 'default' }) as Record<string, string>
 const CARD_IMAGES: Record<string, string> = {}
 for (const [path, url] of Object.entries(cardImgModules)) {
-  const filename = path.replace('../images/cards/', '').replace('.png', '')
+  const filename = path.replace('../images/cards/', '').replace('.webp', '')
   CARD_IMAGES[filename] = url
 }
 
@@ -29,7 +30,7 @@ interface Props {
   card: Card
 }
 
-export function HandCardVisual({ card }: Props) {
+function HandCardVisualInner({ card }: Props) {
   const theme = TYPE_THEME[card.type] ?? TYPE_THEME.basic
   const num = card.number > 13 ? '' : card.number === 1 ? 'A' : card.number > 10 ? ['J','Q','K'][card.number - 11] : String(card.number)
   const mainChar = card.name.length > 2 ? card.name.slice(0, 2) : card.name
@@ -112,3 +113,5 @@ export function HandCardVisual({ card }: Props) {
     </div>
   )
 }
+export const HandCardVisual = memo(HandCardVisualInner)
+

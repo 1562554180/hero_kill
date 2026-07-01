@@ -1,12 +1,12 @@
-import { useRef } from 'react'
+import { memo, useRef } from 'react'
 import type { Card } from '@hero-legend/shared-types'
 import { isRedSuit, isBlackSuit } from '@hero-legend/shared-types'
 
-// 卡牌图片: 扫 cards/*.png, 文件名即卡名
-const cardImgModules = import.meta.glob('../images/cards/*.png', { eager: true, import: 'default' }) as Record<string, string>
+// 卡牌图片: 扫 cards/*.webp, 文件名即卡名
+const cardImgModules = import.meta.glob('../images/cards/*.webp', { eager: true, import: 'default' }) as Record<string, string>
 const CARD_IMAGES: Record<string, string> = {}
 for (const [path, url] of Object.entries(cardImgModules)) {
-  const filename = path.replace('../images/cards/', '').replace('.png', '')
+  const filename = path.replace('../images/cards/', '').replace('.webp', '')
   CARD_IMAGES[filename] = url
 }
 
@@ -24,6 +24,8 @@ interface Props {
   treasureSelectMode?: boolean
   selectDualMode?: boolean
   selectDiscardMode?: boolean
+  /** 芦叶枪: 这张牌被选为"当杀"的第一张牌 (高亮【杀】徽章) */
+  isLuYeQiangKillCard?: boolean
   /** 任一"选手牌"模式: 弃牌/侠胆/曼舞/天香/补刀/超脱/treasure/... 此模式下整张牌都不可加阴影 */
   isHandCardSelect?: boolean
   hasValidSchemeTarget?: boolean
@@ -57,7 +59,7 @@ const TYPE_LABEL: Record<string, string> = {
 const suitFontColor = (suit: string) => (suit === 'heart' || suit === 'diamond') ? '#c62828' : '#212121'
 const suitWaterColor = (suit: string) => (suit === 'heart' || suit === 'diamond') ? 'rgba(198,40,40,0.10)' : 'rgba(33,33,33,0.10)'
 
-export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, isHandCardSelect, hasValidSchemeTarget = true, huiChunAvailable, shadowed = false, hasLeiInJudge = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
+function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, isHandCardSelect, isLuYeQiangKillCard, hasValidSchemeTarget = true, huiChunAvailable, shadowed = false, hasLeiInJudge = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
   const cardRef = useRef<HTMLDivElement>(null)
   const clickPos = (): { x: number; y: number } | undefined => {
     const el = cardRef.current
@@ -160,7 +162,7 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
         cursor: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode || isHandCardSelect) ? 'pointer' : 'default',
         opacity: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode || isHandCardSelect) ? (isShadowedByRule && !isResponse && !isHandCardSelect ? 0.5 : 1) : 0.45,
         filter: (isShadowedByRule && !isResponse && !isHandCardSelect) ? 'grayscale(0.4) brightness(0.85)' : 'none',
-        transition: 'all 0.15s',
+        transition: 'transform 0.15s, opacity 0.15s, box-shadow 0.15s, filter 0.15s',
         userSelect: 'none',
         overflow: 'hidden',
         transform: (isPending || isLifted) ? 'translateY(-4px)' : 'translateY(0)',
@@ -241,6 +243,16 @@ export function HandCard({ card, disabled, canPlayKill, isFullHp, aoJianActive, 
           background: '#e57373', color: '#fff', fontSize: '10px',
           padding: '0 3px', borderRadius: '2px', fontWeight: 'bold',
         }}>当杀</div>
+      )}
+      {/* 芦叶枪: 第一张牌被选为"当杀", 高亮【杀】徽章 */}
+      {isLuYeQiangKillCard && (
+        <div style={{
+          position: 'absolute', top: '-5px', left: '-3px',
+          background: '#d32f2f', color: '#fff', fontSize: '9px',
+          padding: '1px 4px', borderRadius: '2px', fontWeight: 'bold',
+          border: '1px solid #ffeb3b',
+          boxShadow: '0 0 6px rgba(211,47,47,0.6)',
+        }}>【杀】</div>
       )}
       {isResponse && canUseAsKill && (
         <div style={{
@@ -755,3 +767,6 @@ function MountIcon({ color, accent, type }: { color: string; accent: string; typ
     </svg>
   )
 }
+
+export const HandCard = memo(HandCardInner)
+

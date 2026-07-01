@@ -1,10 +1,10 @@
 // apps/web/src/components/FlyingCardOverlay.tsx
 import { createPortal } from 'react-dom'
-import { useBattleStore } from '../stores/battleStore'
+import { useAnimationStore } from '../stores/animationStore'
 import { FlyingCard } from './FlyingCard'
 
 export function FlyingCardOverlay() {
-  const flyingCards = useBattleStore(s => s.flyingCards)
+  const flyingCards = useAnimationStore(s => s.flyingCards)
   return createPortal(
     <>
       {flyingCards.map(fc => (

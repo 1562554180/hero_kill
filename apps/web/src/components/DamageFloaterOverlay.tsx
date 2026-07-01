@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useBattleStore } from '../stores/battleStore'
+import { useAnimationStore } from '../stores/animationStore'
 
 export function DamageFloaterOverlay() {
-  const floaters = useBattleStore(s => s.damageFloaters)
-  const remove = useBattleStore(s => s.removeFloater)
+  const floaters = useAnimationStore(s => s.damageFloaters)
+  const remove = useAnimationStore(s => s.removeFloater)
   if (floaters.length === 0) return null
   return createPortal(
     <div data-floater-overlay style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1700 }}>

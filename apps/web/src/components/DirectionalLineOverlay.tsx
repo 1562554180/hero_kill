@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { useBattleStore } from '../stores/battleStore'
+import { useAnimationStore } from '../stores/animationStore'
 
 export function DirectionalLineOverlay() {
   return createPortal(
@@ -11,7 +11,7 @@ export function DirectionalLineOverlay() {
 }
 
 function DirectionalLineLayer() {
-  const lines = useBattleStore(s => s.directionalLines)
+  const lines = useAnimationStore(s => s.directionalLines)
   if (lines.length === 0) return null
   return (
     <svg style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>

@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import type { CSSProperties } from 'react'
 import { useBattleStore } from '../stores/battleStore'
+import { useShallow } from 'zustand/react/shallow'
 
 import { HeroBattleCard } from './HeroBattleCard'
 import { HandCard } from './HandCard'
@@ -10,6 +11,20 @@ import { DamageFloaterOverlay } from './DamageFloaterOverlay'
 import { BattleLog } from './BattleLog'
 import type { Card } from '@hero-legend/shared-types'
 
+// 稳定的空回调, 避免每次渲染生成新箭头函数破坏 React.memo
+const noop = () => {}
+
+// 模块作用域常量样式, 避免每次渲染重建对象
+const treasureBtnStyle = {
+  fontSize: '12px',
+  padding: '4px 10px',
+  background: 'var(--bg-dark)',
+  color: 'var(--text-light)',
+  border: '1px solid #b8860b',
+  borderRadius: '4px',
+  cursor: 'pointer',
+} as const
+
 export function BattleBoard() {
   const [resultOverlayDismissed, setResultOverlayDismissed] = useState(false)
   const {
@@ -17,9 +32,9 @@ export function BattleBoard() {
     playKill, playScheme, playSchemeSelf, confirmTarget, confirmPlay, cancelPlay, playHeal, equipCard, endPlayPhase, cancelSelection, game,
     judgeReplace, judgeCard, responsePrompt, toggleAoJian, respondWithCard,
     multiTargetCandidates, selectedTargets, toggleTarget, confirmMultiTarget, cancelMultiTarget,
-    killMultiMax, killMultiRemaining, toggleKillMultiTarget, confirmKillMultiTarget, cancelKillMultiTarget,
+    killMultiMax, killMultiRemaining, killMultiCardId, toggleKillMultiTarget, confirmKillMultiTarget, cancelKillMultiTarget,
     selectedDualCards, toggleDualCard, confirmDualCards, cancelDualCards,
-    luYeQiangCandidates, selectLuYeQiangTarget, cancelLuYeQiangTarget,
+    luYeQiangCandidates, luYeQiangKillCardId, selectLuYeQiangTarget, cancelLuYeQiangTarget,
     longLinTargetInfo, longLinSelectedCards, toggleLongLinCard, confirmLongLinPick, cancelLongLinPick,
     jieDaoHolders, jieDaoCandidates, selectJieDaoHolder, cancelJieDaoHolder, selectJieDaoTarget, cancelJieDaoTarget,
     tanNangCandidates, tanNangTargetInfo, selectTanNangTarget, cancelTanNangTarget, selectTanNangCard, cancelTanNangCard,
@@ -51,7 +66,46 @@ export function BattleBoard() {
     houZhuPrompt, selectHouZhuTarget,
     huiChunHeal,
     lastJudgeResult,
-  } = useBattleStore()
+  } = useBattleStore(useShallow(s => ({
+    gameState: s.gameState, phase: s.phase, playerHand: s.playerHand, actionLog: s.actionLog, result: s.result, equippedCards: s.equippedCards, pendingCardId: s.pendingCardId, pendingCardType: s.pendingCardType, selectedTargetId: s.selectedTargetId,
+    playKill: s.playKill, playScheme: s.playScheme, playSchemeSelf: s.playSchemeSelf, confirmTarget: s.confirmTarget, confirmPlay: s.confirmPlay, cancelPlay: s.cancelPlay, playHeal: s.playHeal, equipCard: s.equipCard, endPlayPhase: s.endPlayPhase, cancelSelection: s.cancelSelection, game: s.game,
+    judgeReplace: s.judgeReplace, judgeCard: s.judgeCard, responsePrompt: s.responsePrompt, toggleAoJian: s.toggleAoJian, respondWithCard: s.respondWithCard,
+    multiTargetCandidates: s.multiTargetCandidates, selectedTargets: s.selectedTargets, toggleTarget: s.toggleTarget, confirmMultiTarget: s.confirmMultiTarget, cancelMultiTarget: s.cancelMultiTarget,
+    killMultiMax: s.killMultiMax, killMultiRemaining: s.killMultiRemaining, killMultiCardId: s.killMultiCardId, toggleKillMultiTarget: s.toggleKillMultiTarget, confirmKillMultiTarget: s.confirmKillMultiTarget, cancelKillMultiTarget: s.cancelKillMultiTarget,
+    selectedDualCards: s.selectedDualCards, toggleDualCard: s.toggleDualCard, confirmDualCards: s.confirmDualCards, cancelDualCards: s.cancelDualCards,
+    luYeQiangCandidates: s.luYeQiangCandidates, luYeQiangKillCardId: s.luYeQiangKillCardId, selectLuYeQiangTarget: s.selectLuYeQiangTarget, cancelLuYeQiangTarget: s.cancelLuYeQiangTarget,
+    longLinTargetInfo: s.longLinTargetInfo, longLinSelectedCards: s.longLinSelectedCards, toggleLongLinCard: s.toggleLongLinCard, confirmLongLinPick: s.confirmLongLinPick, cancelLongLinPick: s.cancelLongLinPick,
+    jieDaoHolders: s.jieDaoHolders, jieDaoCandidates: s.jieDaoCandidates, selectJieDaoHolder: s.selectJieDaoHolder, cancelJieDaoHolder: s.cancelJieDaoHolder, selectJieDaoTarget: s.selectJieDaoTarget, cancelJieDaoTarget: s.cancelJieDaoTarget,
+    tanNangCandidates: s.tanNangCandidates, tanNangTargetInfo: s.tanNangTargetInfo, selectTanNangTarget: s.selectTanNangTarget, cancelTanNangTarget: s.cancelTanNangTarget, selectTanNangCard: s.selectTanNangCard, cancelTanNangCard: s.cancelTanNangCard,
+    wuguCandidates: s.wuguCandidates, selectWuguCard: s.selectWuguCard, cancelWuguPick: s.cancelWuguPick,
+    fudiTargetInfo: s.fudiTargetInfo, selectFudiTarget: s.selectFudiTarget, cancelFudiTarget: s.cancelFudiTarget, selectFudiCard: s.selectFudiCard, cancelFudiCard: s.cancelFudiCard,
+    faJiaTargetInfo: s.faJiaTargetInfo, selectFaJiaCard: s.selectFaJiaCard, cancelFaJiaCard: s.cancelFaJiaCard,
+    treasureSkill: s.treasureSkill, treasurePrompt: s.treasurePrompt, treasureCardIds: s.treasureCardIds, treasureTargetIds: s.treasureTargetIds, qiYiCardMap: s.qiYiCardMap, yuRenCardIds: s.yuRenCardIds,
+    useTreasureSkill: s.useTreasureSkill, pickTreasureCard: s.pickTreasureCard, pickTreasureTarget: s.pickTreasureTarget, confirmTreasureTargets: s.confirmTreasureTargets, cancelTreasureSkill: s.cancelTreasureSkill, confirmYuRenCards: s.confirmYuRenCards, pickQiYiCard: s.pickQiYiCard, confirmQiYiCards: s.confirmQiYiCards,
+    qiYiDecision: s.qiYiDecision, qiYiStep: s.qiYiStep, pickQiYiDecisionTarget: s.pickQiYiDecisionTarget, pickQiYiDecisionCard: s.pickQiYiDecisionCard, confirmQiYiDecision: s.confirmQiYiDecision, cancelQiYiDecision: s.cancelQiYiDecision,
+    xiaDanOpponentCard: s.xiaDanOpponentCard, xiaDanTargetName: s.xiaDanTargetName, pickXiaDanCard: s.pickXiaDanCard, cancelXiaDanCard: s.cancelXiaDanCard, xiaDanActive: s.xiaDanActive, cancelXiaDan: s.cancelXiaDan,
+    xiaDanUsedThisTurn: s.xiaDanUsedThisTurn, yuRenUsedThisTurn: s.yuRenUsedThisTurn,
+    selectedDiscardCards: s.selectedDiscardCards, discardCount: s.discardCount, toggleDiscardCard: s.toggleDiscardCard, confirmDiscardCards: s.confirmDiscardCards, cancelDiscardCards: s.cancelDiscardCards,
+    baWangOptions: s.baWangOptions, selectBaWangMount: s.selectBaWangMount,
+    ciKePrompt: s.ciKePrompt, confirmCiKe: s.confirmCiKe, cancelCiKe: s.cancelCiKe,
+    yuRuYiPrompt: s.yuRuYiPrompt, confirmYuRuYi: s.confirmYuRuYi, cancelYuRuYi: s.cancelYuRuYi,
+    dieHunPrompt: s.dieHunPrompt, confirmDieHun: s.confirmDieHun, cancelDieHun: s.cancelDieHun,
+    manWuPrompt: s.manWuPrompt, manWuRedHeartCards: s.manWuRedHeartCards, manWuSelectedCardId: s.manWuSelectedCardId, selectManWuCard: s.selectManWuCard, selectManWuTarget: s.selectManWuTarget, confirmManWuCard: s.confirmManWuCard, cancelManWu: s.cancelManWu,
+    tianXiangJudgeCard: s.tianXiangJudgeCard, tianXiangEquipment: s.tianXiangEquipment, selectTianXiangCard: s.selectTianXiangCard,
+    menShenCandidates: s.menShenCandidates, selectMenShenTarget: s.selectMenShenTarget, cancelMenShenTarget: s.cancelMenShenTarget,
+    jueBieCandidates: s.jueBieCandidates, selectJueBieTarget: s.selectJueBieTarget, cancelJueBieTarget: s.cancelJueBieTarget,
+    zhenShaPrompt: s.zhenShaPrompt, confirmZhenSha: s.confirmZhenSha, cancelZhenSha: s.cancelZhenSha,
+    buDaoPrompt: s.buDaoPrompt, selectBuDaoCard: s.selectBuDaoCard,
+    sanBanFuPrompt: s.sanBanFuPrompt, confirmSanBanFu: s.confirmSanBanFu, cancelSanBanFu: s.cancelSanBanFu,
+    fuChouTriggerPrompt: s.fuChouTriggerPrompt, confirmFuChouTrigger: s.confirmFuChouTrigger, cancelFuChouTrigger: s.cancelFuChouTrigger,
+    fuChouChoosePrompt: s.fuChouChoosePrompt, confirmFuChouChoose: s.confirmFuChouChoose,
+    fuChouPickSelected: s.fuChouPickSelected, toggleFuChouPick: s.toggleFuChouPick, confirmFuChouPick: s.confirmFuChouPick,
+    dyingRescuePrompt: s.dyingRescuePrompt, dyingRescueSelected: s.dyingRescueSelected, toggleDyingRescueCard: s.toggleDyingRescueCard, confirmDyingRescue: s.confirmDyingRescue, cancelDyingRescue: s.cancelDyingRescue,
+    chaoTuoPrompt: s.chaoTuoPrompt, selectChaoTuoCard: s.selectChaoTuoCard,
+    houZhuPrompt: s.houZhuPrompt, selectHouZhuTarget: s.selectHouZhuTarget,
+    huiChunHeal: s.huiChunHeal,
+    lastJudgeResult: s.lastJudgeResult,
+  })))
 
   // 濒死救援目标 id (用于在 HeroBattleCard 上区分 isDying vs isDead)
   const dyingTargetId = useBattleStore(s => s.dyingRescuePrompt?.targetId ?? null)
@@ -59,6 +113,8 @@ export function BattleBoard() {
   // 手牌容器宽度 — 用于判断是否启用叠放
   const handContainerRef = useRef<HTMLDivElement>(null)
   const [handContainerWidth, setHandContainerWidth] = useState(0)
+  // 狼牙棒多杀提示 — 跟随被点击手牌的位置/宽度
+  const [wolfFangPromptRect, setWolfFangPromptRect] = useState<{ left: number; top: number; width: number } | null>(null)
   useEffect(() => {
     const el = handContainerRef.current
     if (!el) return
@@ -69,61 +125,80 @@ export function BattleBoard() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [playerHand.length])
+  // 狼牙棒多杀 — 跟踪当前杀牌位置, 让提示跟随手牌
+  useEffect(() => {
+    if (phase !== 'selectKillMultiTargets' || !killMultiCardId) {
+      setWolfFangPromptRect(null)
+      return
+    }
+    const update = () => {
+      const el = document.querySelector(`[data-card-id="${killMultiCardId}"]`) as HTMLElement | null
+      if (!el) {
+        setWolfFangPromptRect(null)
+        return
+      }
+      const r = el.getBoundingClientRect()
+      setWolfFangPromptRect({ left: r.left, top: r.top, width: r.width })
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [phase, killMultiCardId])
   // HandCard 宽度约 55px. 放不下时启用叠放
   const HAND_CARD_WIDTH = 55
+  const HAND_CARD_GAP = 6
   const handNeedsOverlap = playerHand.length > 0 && playerHand.length * HAND_CARD_WIDTH > handContainerWidth
+  // 叠放时计算负 margin: 让所有牌恰好填满容器宽度, 不出现横向滚动条
+  // 总宽 = 第一张全宽 + (n-1) * (HAND_CARD_WIDTH + marginLeft)
+  // 令总宽 <= containerWidth, 解出 marginLeft = (containerWidth - HAND_CARD_WIDTH) / (n-1) - HAND_CARD_WIDTH
+  // 留 8px 右padding 兜底, 避免边界溢出
+  const handOverlapMarginLeft = handNeedsOverlap && playerHand.length > 1 && handContainerWidth > 0
+    ? Math.min(-2, Math.floor((handContainerWidth - 8 - HAND_CARD_WIDTH) / (playerHand.length - 1)) - HAND_CARD_WIDTH)
+    : -32
 
-  if (!gameState) return null
+  // 角色排布派生值 — 用 useMemo 稳定引用, 让 HeroBattleCard 的 React.memo 真正生效
+  // 注意: 必须放在 early return 之前 (hooks 规则)
+  const { enemies, allies, player, others, otherPositions } = useMemo(() => {
+    const enemies = gameState?.heroes.filter(h => h.role === 'enemy') ?? []
+    const allies = gameState?.heroes.filter(h => h.role === 'ally') ?? []
+    const player = gameState?.heroes.find(h => h.role === 'player')
 
-  const treasureBtnStyle = {
-    fontSize: '12px',
-    padding: '4px 10px',
-    background: 'var(--bg-dark)',
-    color: 'var(--text-light)',
-    border: '1px solid #b8860b',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  } as const
+    // 角色排布 (与引擎座位顺序一致 [player, allies..., enemies...], 距离按座位计算):
+    // - 玩家在左下 (在下方独立面板里, 由外层 div 控制)
+    // - others = [...allies, ...enemies] — 与引擎 seating 顺序一致
+    // - others[0] = 玩家右侧邻位 (seating idx 1, 距离1)
+    //   others[others.length-1] = 玩家左侧邻位 (seating idx n-1, 距离1)
+    // - 排布规则:
+    //   - 1个: 顶部居中
+    //   - 2个: 中部左右 (都是距离1)
+    //   - ≥3个: 中部左 + 顶部 (N-2) 水平均布 + 中部右
+    const others = [...allies, ...enemies]
 
-  const enemies = gameState.heroes.filter(h => h.role === 'enemy')
-  const allies = gameState.heroes.filter(h => h.role === 'ally')
-  const player = gameState.heroes.find(h => h.role === 'player')
-
-  // 角色排布 (与引擎座位顺序一致 [player, allies..., enemies...], 距离按座位计算):
-  // - 玩家在左下 (在下方独立面板里, 由外层 div 控制)
-  // - others = [...allies, ...enemies] — 与引擎 seating 顺序一致
-  // - others[0] = 玩家右侧邻位 (seating idx 1, 距离1)
-  //   others[others.length-1] = 玩家左侧邻位 (seating idx n-1, 距离1)
-  // - 排布规则:
-  //   - 1个: 顶部居中
-  //   - 2个: 中部左右 (都是距离1)
-  //   - ≥3个: 中部左 + 顶部 (N-2) 水平均布 + 中部右
-  const others = [...allies, ...enemies]
-
-  const otherPositions: CSSProperties[] = (() => {
     const n = others.length
+    let otherPositions: CSSProperties[]
     if (n === 1) {
-      return [{ left: '50%', top: '8px', transform: 'translateX(-50%)' }]
-    }
-    if (n === 2) {
-      // 2个都是距离1: 都放中部
-      return [
+      otherPositions = [{ left: '50%', top: '8px', transform: 'translateX(-50%)' }]
+    } else if (n === 2) {
+      otherPositions = [
         { left: '8px', top: '50%' },
         { right: '8px', top: '50%' },
       ]
+    } else {
+      const topCount = n - 2
+      const positions: CSSProperties[] = [
+        { left: '8px', top: '50%' },
+      ]
+      for (let i = 0; i < topCount; i++) {
+        const leftPct = 5 + (i + 0.5) * (90 / topCount)
+        positions.push({ left: `${leftPct}%`, top: '8px' })
+      }
+      positions.push({ right: '8px', top: '50%' })
+      otherPositions = positions
     }
-    // n >= 3
-    const topCount = n - 2
-    const positions: CSSProperties[] = [
-      { left: '8px', top: '50%' },       // others[0]: 中部左 (seating idx 1, 距离1)
-    ]
-    for (let i = 0; i < topCount; i++) {
-      const leftPct = 5 + (i + 0.5) * (90 / topCount)
-      positions.push({ left: `${leftPct}%`, top: '8px' })    // others[1..N-2]: 顶部
-    }
-    positions.push({ right: '8px', top: '50%' })             // others[N-1]: 中部右 (seating idx n-1, 距离1)
-    return positions
-  })()
+    return { enemies, allies, player, others, otherPositions }
+  }, [gameState])
+
+  if (!gameState) return null
 
   // pending 状态下, 杀/锦囊目标可选 (但不直接commit, 仅高亮)
   const isPendingTargeting = phase === 'playing' && pendingCardId !== null && (pendingCardType === 'kill' || pendingCardType === 'scheme')
@@ -791,7 +866,7 @@ export function BattleBoard() {
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     {tianXiangEquipment.map(card => (
                       <div key={card.id} onClick={() => selectTianXiangCard(card.id)} style={{ cursor: 'pointer' }}>
-                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
                       </div>
                     ))}
                   </div>
@@ -1078,6 +1153,29 @@ export function BattleBoard() {
                 </div>
               )}
 
+              {/* 27b. 芦叶枪 — 选目标 (第一张牌已高亮【杀】徽章) */}
+              {phase === 'selectLuYeQiangTarget' && luYeQiangKillCardId && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'linear-gradient(135deg, rgba(211,47,47,0.18), rgba(183,28,28,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #d32f2f',
+                  color: '#ffcdd2', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(211,47,47,0.4)',
+                }}>
+                  <span style={{ flex: 1 }}>
+                    🗡️ <b>【芦叶枪·杀】</b> 请点击敌方角色选择目标 (高亮的第一张牌当杀)
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button style={treasureBtnStyle} onClick={cancelLuYeQiangTarget}>取消</button>
+                  </div>
+                </div>
+              )}
+
               {/* 28. 狼牙棒多目标 — 最后一张手牌出杀可指定多目标 (最多3) */}
               {phase === 'selectMultiTargets' && (
                 <div style={{
@@ -1098,20 +1196,45 @@ export function BattleBoard() {
 
               {/* 29. 侠胆/狼牙棒多杀 — 选多目标出杀 (无视距离, 最多 killMultiMax 目标/张) */}
               {phase === 'selectKillMultiTargets' && (
-                <div style={{
-                  pointerEvents: 'auto',
-                  padding: '8px 12px',
-                  background: 'rgba(255,215,0,0.15)', borderRadius: '4px',
-                  border: '1px solid rgba(255,215,0,0.3)',
-                  color: '#ffd54f', fontSize: '12px',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
-                }}>
-                  <span>🗡️ 多杀 — 点击敌方选择目标 (最多 {killMultiMax || 2} 个, 已选 {selectedTargets.length}/{killMultiMax || 2})</span>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button style={treasureBtnStyle} onClick={cancelKillMultiTarget}>取消</button>
-                    <button className="primary" style={treasureBtnStyle} disabled={selectedTargets.length === 0} onClick={confirmKillMultiTarget}>出杀</button>
-                  </div>
-                </div>
+                wolfFangPromptRect
+                  ? (
+                    <div style={{
+                      position: 'fixed',
+                      left: wolfFangPromptRect.left,
+                      top: wolfFangPromptRect.top - 38,
+                      width: wolfFangPromptRect.width,
+                      zIndex: 100,
+                      pointerEvents: 'auto',
+                      padding: '4px 6px',
+                      background: 'rgba(255,215,0,0.95)', borderRadius: '4px',
+                      border: '1px solid rgba(255,215,0,0.8)',
+                      color: '#1a1a1a', fontSize: '11px', fontWeight: 600,
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                    }}>
+                      <span>🗡️ 多杀 {selectedTargets.length}/{killMultiMax || 2}</span>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button style={treasureBtnStyle} onClick={cancelKillMultiTarget}>取消</button>
+                        <button className="primary" style={treasureBtnStyle} disabled={selectedTargets.length === 0} onClick={confirmKillMultiTarget}>出杀</button>
+                      </div>
+                    </div>
+                  )
+                  : (
+                    <div style={{
+                      pointerEvents: 'auto',
+                      padding: '8px 12px',
+                      background: 'rgba(255,215,0,0.15)', borderRadius: '4px',
+                      border: '1px solid rgba(255,215,0,0.3)',
+                      color: '#ffd54f', fontSize: '12px',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+                    }}>
+                      <span>🗡️ 多杀 — 点击敌方选择目标 (最多 {killMultiMax || 2} 个, 已选 {selectedTargets.length}/{killMultiMax || 2})</span>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button style={treasureBtnStyle} onClick={cancelKillMultiTarget}>取消</button>
+                        <button className="primary" style={treasureBtnStyle} disabled={selectedTargets.length === 0} onClick={confirmKillMultiTarget}>出杀</button>
+                      </div>
+                    </div>
+                  )
               )}
 
               {/* 30. 起义 (陈胜) — Step 1: 是否发动 */}
@@ -1280,8 +1403,8 @@ export function BattleBoard() {
           {/* Hand cards — 数量多时扑克牌式叠放, 否则正常并排 */}
           <div ref={handContainerRef} style={{
             flex: 1, minHeight: 0, display: 'flex',
-            flexWrap: handNeedsOverlap ? 'nowrap' : 'wrap',
-            overflowX: handNeedsOverlap ? 'auto' : 'visible',
+            flexWrap: 'nowrap',
+            overflowX: 'hidden',
             overflowY: 'hidden',
             alignItems: handNeedsOverlap ? 'flex-end' : 'stretch',
             gap: handNeedsOverlap ? 0 : '6px',
@@ -1295,6 +1418,7 @@ export function BattleBoard() {
               const isSelectedFuChou = phase === 'selectFuChouDiscard' && fuChouPickSelected.includes(card.id)
               const isSelectedManWu = manWuSelectedCardId === card.id
               const isPending = pendingCardId === card.id
+              const isLuYeQiangKillCard = luYeQiangKillCardId === card.id
               return (
                 <div
                   key={card.id}
@@ -1327,7 +1451,7 @@ export function BattleBoard() {
                   style={{
                     flexShrink: handNeedsOverlap ? 0 : 1,
                     alignSelf: 'flex-end',
-                    marginLeft: handNeedsOverlap && idx > 0 ? -32 : 0,
+                    marginLeft: handNeedsOverlap && idx > 0 ? handOverlapMarginLeft : 0,
                     outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu) ? '2px solid #b8860b' : 'none',
                     borderRadius: '4px',
                     cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
@@ -1356,6 +1480,7 @@ export function BattleBoard() {
                       || phase === 'selectFuChouDiscard' || phase === 'tianXiang' || phase === 'buDaoKill'
                       || manWuRedHeartCards.length > 0 || phase === 'chaoTuoPick'
                     }
+                    isLuYeQiangKillCard={isLuYeQiangKillCard}
                     hasValidSchemeTarget={hasValidSchemeTarget(card.name)}
                     huiChunAvailable={huiChunAvailable}
                     onPlayKill={playKill}
@@ -1745,7 +1870,7 @@ export function BattleBoard() {
                         cursor: 'pointer', border: sel ? '2px solid #ff8a65' : 'none',
                         borderRadius: '6px',
                       }}>
-                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
                       </div>
                     )
                   })}
@@ -1764,7 +1889,7 @@ export function BattleBoard() {
                         cursor: 'pointer', border: sel ? '2px solid #ff8a65' : 'none',
                         borderRadius: '6px',
                       }}>
-                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                        <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
                       </div>
                     )
                   })}
@@ -1814,7 +1939,7 @@ export function BattleBoard() {
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '16px' }}>
               {wuguCandidates.map(card => (
                 <div key={card.id} onClick={() => selectWuguCard(card.id)} style={{ cursor: 'pointer' }}>
-                  <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                  <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
                 </div>
               ))}
             </div>
@@ -1869,7 +1994,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {tanNangTargetInfo.judge.map(card => (
                     <div key={card.id} onClick={() => selectTanNangCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
                     </div>
                   ))}
                 </div>
@@ -1882,7 +2007,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {tanNangTargetInfo.equipment.map(card => (
                     <div key={card.id} onClick={() => selectTanNangCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
                     </div>
                   ))}
                 </div>
@@ -1943,7 +2068,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {fudiTargetInfo.judge.map(card => (
                     <div key={card.id} onClick={() => selectFudiCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
                     </div>
                   ))}
                 </div>
@@ -1956,7 +2081,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {fudiTargetInfo.equipment.map(card => (
                     <div key={card.id} onClick={() => selectFudiCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
                     </div>
                   ))}
                 </div>
@@ -2017,7 +2142,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {faJiaTargetInfo.judge.map(card => (
                     <div key={card.id} onClick={() => selectFaJiaCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
                     </div>
                   ))}
                 </div>
@@ -2030,7 +2155,7 @@ export function BattleBoard() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
                   {faJiaTargetInfo.equipment.map(card => (
                     <div key={card.id} onClick={() => selectFaJiaCard(card.id)} style={{ cursor: 'pointer' }}>
-                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={() => {}} onPlayHeal={() => {}} onEquip={() => {}} />
+                      <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
                     </div>
                   ))}
                 </div>
@@ -2119,12 +2244,6 @@ export function BattleBoard() {
           </div>
         </div>
       )}
-      <style>{`
-        @keyframes judgePopup {
-          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
-          100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        }
-      `}</style>
       {/* 中心 marker: 飞行卡的中心点定位参考 (1x1 不可见) */}
       <div data-center-marker style={{ position: 'fixed', top: '50%', left: '50%', width: '1px', height: '1px', pointerEvents: 'none', zIndex: -1 }} />
       {/* 飞行卡浮层: Portal 到 body, zIndex 2000 */}

@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import { Game, type GameConfig, type Player } from '@hero-legend/game-engine'
 import type { GameState, BattleResult, Card, GameEvent, GameEventType, HeroInstance, EquipmentSlot } from '@hero-legend/shared-types'
 import type { FlyingCard, FlyingStage } from '../components/FlyingCard'
+import { useAnimationStore } from './animationStore'
+import type { DirectionalLine, DamageFloater } from './animationStore'
+// 重导出类型, 保持向后兼容 (overlay 之前从 battleStore 导入)
+export type { DirectionalLine, DamageFloater } from './animationStore'
 
 export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm' | 'selectFuChouDiscard' | 'dyingRescue' | 'chaoTuoPick' | 'houZhuTarget' | 'qiYiPrompt'
 
@@ -288,24 +292,6 @@ interface BattleState {
   removeFloater: (id: string) => void
 }
 
-export type DirectionalLine = {
-  id: string
-  fromX: number
-  fromY: number
-  toX: number
-  toY: number
-  cardName: string
-  createdAt: number
-}
-
-export type DamageFloater = {
-  id: string
-  heroId: string
-  amount: number      // 正数=治疗, 负数=伤害, dodge/response-kill时忽略
-  type: 'damage' | 'heal' | 'dodge' | 'response-kill'
-  createdAt: number
-}
-
 const heroNames: Record<string, string> = {}
 
 function getHeroName(id: string, game: Game): string {
@@ -545,52 +531,13 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   directionalLines: [],
   damageFloaters: [],
   _queueFlyingCard: (req) => {
-    const fromHeroId = req.fromHeroId ?? ''
-    const from = req.fromPos ?? findSourcePos(fromHeroId, req.sourceType, req.sourceRef)
-    if (!from) return
-    const center = findCenterPos()
-    let stages: FlyingStage[]
-    if (req.targetType === 'discard') {
-      stages = [
-        { from, to: center, durationMs: 500 },
-        { from: center, to: center, durationMs: 1000, endScale: 0.3, endOpacity: 0 },
-      ]
-    } else if (req.targetType === 'equipment' && req.targetSlot) {
-      const equipPos = (() => {
-        const heroEl = document.querySelector(`[data-hero-id="${req.targetHeroId}"]`) as HTMLElement | null
-        const slotEl = heroEl?.querySelector(`[data-equip-slot="${req.targetSlot}"]`) as HTMLElement | null
-        return slotEl ? rectCenter(slotEl.getBoundingClientRect()) : center
-      })()
-      stages = [
-        { from, to: center, durationMs: 300 },
-        { from: center, to: center, durationMs: 300 },
-        { from: center, to: equipPos, durationMs: 500, endScale: 0.3, endOpacity: 0 },
-      ]
-    } else if (req.targetType === 'hand' && req.targetHeroId) {
-      const handPos = findHandPos(req.targetHeroId) ?? center
-      stages = [
-        { from, to: center, durationMs: 300 },
-        { from: center, to: center, durationMs: 300 },
-        { from: center, to: handPos, durationMs: 500, endScale: 0.3, endOpacity: 0 },
-      ]
-    } else {
-      stages = [
-        { from, to: center, durationMs: 500 },
-        { from: center, to: center, durationMs: 1000, endScale: 0.3, endOpacity: 0 },
-      ]
-    }
-    const id = `fly-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    set(s => ({
-      flyingCards: [...s.flyingCards, { id, card: req.card, stages, onDone: () => {
-        set(cur => ({ flyingCards: cur.flyingCards.filter(fc => fc.id !== id) }))
-        req.onComplete?.()
-      }}],
-    }))
+    // 转发到 animationStore, 让高频动画状态脱离 battleStore (避免 BattleBoard 全量订阅被动画 mutate 触发重渲染)
+    useAnimationStore.getState()._queueFlyingCard(req)
   },
 
-  removeFloater: (id: string) => set(s => ({
-    damageFloaters: s.damageFloaters.filter(f => f.id !== id),
-  })),
+  removeFloater: (id: string) => {
+    useAnimationStore.getState().removeFloater(id)
+  },
 
   startBattle: async (config: GameConfig) => {
     Object.keys(heroNames).forEach(k => delete heroNames[k])
@@ -692,6 +639,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       directionalLines: [],
       damageFloaters: [],
     })
+    // 同步重置 animationStore
+    useAnimationStore.getState().reset()
 
     const wrappedConfig: GameConfig = {
       ...config,
@@ -1161,14 +1110,15 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       },
       // 动画就绪门控: 等 flyingCards 全部清空才让 engine 调下一个 UI handler
       // 事件驱动 (Zustand subscribe), 0 polling; 5s 安全超时防卡死
+      // 注意: flyingCards 实际状态在 animationStore (拆出去避免高频动画 mutate battleStore 触发全屏重渲染)
       awaitUIReady: () => new Promise<void>(resolve => {
-        const state = useBattleStore.getState()
-        if (state.flyingCards.length === 0) {
+        const animState = useAnimationStore.getState()
+        if (animState.flyingCards.length === 0) {
           resolve()
           return
         }
         let unsub: (() => void) | null = null
-        unsub = useBattleStore.subscribe((s, prev) => {
+        unsub = useAnimationStore.subscribe((s, prev) => {
           if (s.flyingCards.length === 0 && prev.flyingCards.length > 0) {
             unsub?.()
             resolve()
@@ -1180,36 +1130,21 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
     const game = new Game(wrappedConfig)
 
-    const AGGREGATE_WINDOW_MS = 120
-
+    // 飘字入队: 转发到 animationStore, 让高频动画状态脱离 battleStore
     const pushFloater = (entry: { heroId: string; amount: number; type: 'damage' | 'heal' | 'dodge' | 'response-kill' }) => {
-      const now = Date.now()
-      set(s => {
-        const existing = s.damageFloaters.find(
-          f => f.heroId === entry.heroId
-            && f.type === entry.type
-            && now - f.createdAt < AGGREGATE_WINDOW_MS
-        )
-        if (existing) {
-          return {
-            damageFloaters: s.damageFloaters.map(f =>
-              f.id === existing.id ? { ...f, amount: f.amount + entry.amount, createdAt: now } : f
-            ),
-          }
-        }
-        return {
-          damageFloaters: [
-            ...s.damageFloaters,
-            { id: `${now}-${Math.random().toString(36).slice(2, 6)}`, createdAt: now, ...entry },
-          ],
-        }
-      })
+      useAnimationStore.getState().pushFloater(entry)
     }
 
+    const MAX_LOG = 200
     const handler = (event: GameEvent) => {
       const msg = eventToLog(event, game)
       if (msg) {
-        set(s => ({ actionLog: [...s.actionLog, msg] }))
+        set(s => {
+          const next = [...s.actionLog, msg]
+          // 长局日志截断, 避免无界增长 + 减少 BattleLog 重渲染成本
+          if (next.length > MAX_LOG + 20) next.splice(0, next.length - MAX_LOG)
+          return { actionLog: next }
+        })
       }
       // 判定最终结果 (中央高亮显示 3 秒)
       if (event.type === 'judge' && event.data?.phase === 'result') {
@@ -1350,13 +1285,9 @@ export const useBattleStore = create<BattleState>((set, get) => ({
                   cardName: cardName ?? '',
                   createdAt: now,
                 }))
-                set(s => ({ directionalLines: [...s.directionalLines, ...newLines] }))
+                useAnimationStore.getState().addDirectionalLines(newLines)
                 setTimeout(() => {
-                  useBattleStore.setState(s => ({
-                    directionalLines: s.directionalLines.filter(
-                      l => !newLines.find(n => n.id === l.id)
-                    ),
-                  }))
+                  useAnimationStore.getState().removeDirectionalLines(newLines.map(n => n.id))
                 }, 1100)
               }
             }

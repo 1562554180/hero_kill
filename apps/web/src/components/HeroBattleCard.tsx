@@ -1,17 +1,17 @@
 import type { BattleHero, Card, Treasure } from '@hero-legend/shared-types'
 import { isRedSuit, getTreasureSlots } from '@hero-legend/shared-types'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { useBattleStore } from '../stores/battleStore'
 import { HeroPortrait } from './HeroPortrait'
 
 /** 调试: 鼠标悬停AI手牌数时显示具体手牌内容. 关闭后回到原样(只显示数字) */
 const DEBUG_SHOW_AI_HAND = true
 
-// 卡牌图片: 扫 cards/*.png, 文件名即卡名
-const cardImgModules = import.meta.glob('../images/cards/*.png', { eager: true, import: 'default' }) as Record<string, string>
+// 卡牌图片: 扫 cards/*.webp, 文件名即卡名
+const cardImgModules = import.meta.glob('../images/cards/*.webp', { eager: true, import: 'default' }) as Record<string, string>
 const CARD_IMAGES: Record<string, string> = {}
 for (const [path, url] of Object.entries(cardImgModules)) {
-  const filename = path.replace('../images/cards/', '').replace('.png', '')
+  const filename = path.replace('../images/cards/', '').replace('.webp', '')
   CARD_IMAGES[filename] = url
 }
 
@@ -36,7 +36,7 @@ interface Props {
 
 const SLOT_SIZE = '18px'
 
-export function HeroBattleCard({ hero, isCurrentTurn, isSelectable, isSelected, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang, isDying = false, isDead = false }: Props) {
+function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang, isDying = false, isDead = false }: Props) {
   const game = useBattleStore(s => s.game)
   const phase = useBattleStore(s => s.phase)
   const treasureSkill = useBattleStore(s => s.treasureSkill)
@@ -465,3 +465,6 @@ function TreasureSlot({ treasure, type, locked, heroStarLevel }: { treasure: Tre
     >{displayChar}</div>
   )
 }
+
+export const HeroBattleCard = memo(HeroBattleCardInner)
+

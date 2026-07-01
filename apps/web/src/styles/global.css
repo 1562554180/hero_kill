@@ -144,3 +144,9 @@ button.danger {
 .hp-cell {
   transition: background-color 0.3s ease-out;
 }
+
+/* 判定结果中央弹窗 (BattleBoard) */
+@keyframes judgePopup {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}

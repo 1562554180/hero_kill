@@ -1,5 +1,5 @@
 // apps/web/src/components/FlyingCard.tsx
-import { useState, useEffect } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { HandCardVisual } from './HandCardVisual'
 import type { Card } from '@hero-legend/shared-types'
@@ -21,7 +21,7 @@ export interface FlyingCard {
 
 const EASE = [0.25, 0.1, 0.25, 1] as const
 
-export function FlyingCard({ animation }: { animation: FlyingCard }) {
+function FlyingCardInner({ animation }: { animation: FlyingCard }) {
   const [stageIdx, setStageIdx] = useState(0)
   const stage = animation.stages[stageIdx]
   // 用 setTimeout 推进 stage (而不是依赖 framer-motion 的 onAnimationComplete).
@@ -59,3 +59,5 @@ export function FlyingCard({ animation }: { animation: FlyingCard }) {
     </motion.div>
   )
 }
+export const FlyingCard = memo(FlyingCardInner)
+
