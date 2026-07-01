@@ -1517,6 +1517,7 @@ export class Game {
       return this.findKillCard(player) ?? null
     }
     if (!this.config.responseActionHandler) return null
+    await this.awaitUI()
     const cardId = await this.config.responseActionHandler(this, player, 'kill', { sourceHeroId, schemeName, needCount })
     if (!cardId) return null
     // 先查手牌, 再查装备区 (傲剑可用红色装备当杀)
@@ -1539,6 +1540,7 @@ export class Game {
   private async promptResponseDodge(player: Player, attackerId: string, schemeName: string): Promise<Card | null> {
     if (player.getRole() === 'player') {
       if (!this.config.responseActionHandler) return null
+      await this.awaitUI()
       const cardId = await this.config.responseActionHandler(this, player, 'dodge', { sourceHeroId: attackerId, schemeName, targetHeroId: player.getId() })
       if (!cardId) return null  // 玩家主动选择掉血
       const card = player.getHand().find(c => c.id === cardId)
@@ -1558,6 +1560,7 @@ export class Game {
     const handlerType = kind === 'dodge' ? 'dodge' : 'kill'
     if (player.getRole() === 'player') {
       if (!this.config.responseActionHandler) return null
+      await this.awaitUI()
       const cardId = await this.config.responseActionHandler(this, player, handlerType, { sourceHeroId: sourceId, schemeName, targetHeroId: player.getId() })
       if (!cardId) return null
       const card = player.getHand().find(c => c.id === cardId)
@@ -1890,6 +1893,7 @@ export class Game {
 
     if (candidate.getRole() === 'player') {
       if (!this.config.responseActionHandler) return null
+      await this.awaitUI()
       const cardId = await this.config.responseActionHandler(
         this, candidate, 'nullify',
         { sourceHeroId: schemePlayer.getId(), schemeName: schemeCard.name, targetHeroId: undefined },
