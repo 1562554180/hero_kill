@@ -42,11 +42,6 @@ const MAT_LABEL: Record<string, string> = {
   heroToken: '英雄令牌',
 }
 
-// 分解宝具碎片奖励: 5★=2500 / 4★=1000 / 3★=400 / 2★=100 / 1★=20
-const DECOMPOSE_FRAGMENTS: Record<number, number> = {
-  1: 20, 2: 100, 3: 400, 4: 1000, 5: 2500,
-}
-
 const SLOT_LABEL: Record<string, string> = { main: '主印槽', sub: '辅印槽' }
 
 const MAX_LEVEL = 45
@@ -145,34 +140,7 @@ export function BackpackPage() {
     }
   }
 
-  const decompose = async (treasure: Treasure) => {
-    if (busy) return
-    const equipped = equippedMap.get(treasure.id)
-    const heroName = equipped ? (heroMap.get(equipped.heroId)?.name ?? equipped.heroId) : ''
-    const confirmMsg = equipped
-      ? `确定要分解 ${'★'.repeat(treasure.starLevel)} ${treasure.name} 吗?\n该宝具当前装备在 [${heroName} ${SLOT_LABEL[equipped.slot]}${equipped.index + 1}], 会被卸下.`
-      : `确定要分解 ${'★'.repeat(treasure.starLevel)} ${treasure.name} 吗?`
-    if (!confirm(confirmMsg)) return
-    setBusy(true)
-    setMessage('')
-    try {
-      const res = await fetch(`${API}/treasure/decompose/${userId}/${encodeURIComponent(treasure.id)}`, { method: 'POST' })
-      const data = await res.json()
-      if (data.error) {
-        setMessage('分解失败: ' + data.error)
-      } else {
-        const equippedTip = data.removedFrom
-          ? ` (已从 ${heroMap.get(data.removedFrom.heroId)?.name ?? data.removedFrom.heroId} 卸下)`
-          : ''
-        setMessage(`分解成功: ${treasure.name} → +${data.fragments} 宝具碎片${equippedTip}`)
-        await refresh()
-      }
-    } catch (e: any) {
-      setMessage('分解失败: ' + (e?.message ?? '网络错误'))
-    } finally {
-      setBusy(false)
-    }
-  }
+  // 分解功能已移到宝具工坊
 
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', height: '100vh', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
@@ -298,15 +266,13 @@ export function BackpackPage() {
               背包中没有宝具
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: '8px' }}>
               {treasures.map(t => {
                 const n = t.count ?? 1
                 const equipped = equippedMap.get(t.id)
                 const equippedHeroName = equipped
                   ? heroMap.get(equipped.heroId)?.name ?? equipped.heroId
                   : null
-                const fragments = DECOMPOSE_FRAGMENTS[t.starLevel] ?? 0
-                // 辅印才显示强化信息
                 const lvl = t.level ?? 0
                 const cnt = t.enhanceCount ?? 0
                 const atMaxLevel = lvl >= MAX_LEVEL
@@ -317,75 +283,99 @@ export function BackpackPage() {
                   : rate >= 50 ? 'var(--text-gold)'
                   : rate >= 20 ? '#ff9e3a'
                   : '#ff6b6b'
+                const icon = getSkillIcon(t.skill?.name ?? t.name)
+                const isEquipped = !!equipped
                 return (
-                  <div key={t.id} style={{
-                    background: 'var(--bg-dark)', padding: '10px', borderRadius: '4px',
-                    border: `1px solid ${equipped ? '#ff6b6b' : 'var(--border-wood)'}`,
-                    display: 'flex', gap: '10px', alignItems: 'flex-start',
-                  }}>
-                    {(() => {
-                      const icon = getSkillIcon(t.skill?.name ?? t.name)
-                      return icon ? (
-                        <img src={icon} alt={t.name} style={{
-                          width: '48px', height: '48px', flexShrink: 0, borderRadius: '4px',
-                          objectFit: 'contain', background: '#1a1a1a',
-                          border: '1px solid var(--border-wood)',
-                        }} />
-                      ) : null
-                    })()}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)', fontWeight: 'bold' }}>
-                        {t.name} * {n}
-                      </span>
-                      <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>
-                        {'★'.repeat(t.starLevel)}
-                      </span>
+                  <div key={t.id} className="treasure-cell" style={{ position: 'relative' }}>
+                    <div style={{
+                      width: '100%', aspectRatio: '1',
+                      background: icon ? `url(${icon}) center/contain no-repeat, #1a1a1a` : 'var(--bg-dark)',
+                      borderRadius: '4px',
+                      border: `1px solid ${isEquipped ? '#ff6b6b' : 'var(--border-wood)'}`,
+                      boxShadow: isEquipped ? '0 0 6px rgba(255,107,107,0.5)' : 'none',
+                      position: 'relative',
+                      cursor: 'help',
+                    }}>
+                      {!icon && (
+                        <div style={{
+                          position: 'absolute', inset: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)',
+                          fontSize: '13px', fontWeight: 'bold',
+                        }}>{t.name?.[0] ?? '?'}</div>
+                      )}
+                      {/* 数量角标 */}
+                      {n > 1 && (
+                        <span style={{
+                          position: 'absolute', right: '2px', bottom: '2px',
+                          background: 'rgba(0,0,0,0.7)', color: 'var(--text-gold)',
+                          fontSize: '10px', fontWeight: 'bold', padding: '0 4px', borderRadius: '3px',
+                          lineHeight: '14px',
+                        }}>×{n}</span>
+                      )}
+                      {/* 星级角标 */}
+                      <span style={{
+                        position: 'absolute', left: '2px', top: '2px',
+                        color: 'var(--text-gold)', fontSize: '9px',
+                        textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                        lineHeight: 1,
+                      }}>{'★'.repeat(t.starLevel)}</span>
+                      {/* 装备中标记 */}
+                      {isEquipped && (
+                        <span style={{
+                          position: 'absolute', right: '2px', top: '2px',
+                          width: '8px', height: '8px', borderRadius: '50%',
+                          background: '#ff6b6b', boxShadow: '0 0 4px rgba(255,107,107,0.8)',
+                        }} title={`装备中: ${equippedHeroName}`} />
+                      )}
                     </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                      {t.type === 'main' ? '主印' : '辅印'} | 触发率: {Math.round(t.triggerRate * 100)}%
-                    </div>
-                    {isSub && (
-                      <div style={{ display: 'flex', gap: '12px', fontSize: '11px', marginTop: '2px' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>
-                          强化: Lv.<span style={{ color: 'var(--text-gold)', fontWeight: 'bold' }}>{lvl}</span>/{MAX_LEVEL}
+                    {/* hover 弹层 */}
+                    <div className="treasure-tooltip" style={{
+                      position: 'absolute', zIndex: 50,
+                      top: '100%', left: '50%', transform: 'translateX(-50%) translateY(4px)',
+                      minWidth: '240px', maxWidth: '320px',
+                      background: 'var(--bg-medium)', border: '1px solid var(--border-gold)',
+                      borderRadius: '6px', padding: '10px',
+                      pointerEvents: 'none', opacity: 0,
+                      transition: 'opacity 0.15s',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)', fontWeight: 'bold', fontSize: '13px' }}>
+                          {t.name}{n > 1 && <span style={{ color: 'var(--text-muted)', marginLeft: '4px' }}>×{n}</span>}
                         </span>
-                        <span style={{ color: cnt >= MAX_ENHANCE_COUNT ? '#ff6b6b' : 'var(--text-muted)' }}>
-                          次数: {cnt}/{MAX_ENHANCE_COUNT}
-                        </span>
-                        <span style={{ color: rateColor, fontWeight: 'bold' }}>
-                          下次成功率: {atMaxLevel ? '已满级' : `${rate}%`}
+                        <span style={{ color: 'var(--text-gold)', fontSize: '11px' }}>
+                          {'★'.repeat(t.starLevel)}
                         </span>
                       </div>
-                    )}
-                    <div style={{
-                      color: equipped ? '#ff6b6b' : 'var(--text-muted)',
-                      fontSize: '11px', marginTop: '2px',
-                      fontWeight: equipped ? 'bold' : 'normal',
-                    }}>
-                      {equipped
-                        ? `装备中: ${equippedHeroName} (${SLOT_LABEL[equipped.slot]}${equipped.index + 1})`
-                        : '未装备'}
-                    </div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
-                      {t.skill?.description ?? ''}
-                    </div>
-                    <div style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      marginTop: '8px', paddingTop: '6px',
-                      borderTop: '1px dashed var(--border-wood)',
-                    }}>
-                      <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>
-                        分解 → +{fragments} 碎片
-                      </span>
-                      <button
-                        disabled={busy}
-                        onClick={() => decompose(t)}
-                        style={{ fontSize: '12px', padding: '4px 12px' }}
-                      >
-                        分解
-                      </button>
-                    </div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px' }}>
+                        {t.type === 'main' ? '主印' : '辅印'} | 触发率: {Math.round(t.triggerRate * 100)}%
+                      </div>
+                      {isSub && (
+                        <div style={{ display: 'flex', gap: '10px', fontSize: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            强化 Lv.<span style={{ color: 'var(--text-gold)', fontWeight: 'bold' }}>{lvl}</span>/{MAX_LEVEL}
+                          </span>
+                          <span style={{ color: cnt >= MAX_ENHANCE_COUNT ? '#ff6b6b' : 'var(--text-muted)' }}>
+                            次数 {cnt}/{MAX_ENHANCE_COUNT}
+                          </span>
+                          <span style={{ color: rateColor, fontWeight: 'bold' }}>
+                            下次: {atMaxLevel ? '已满级' : `${rate}%`}
+                          </span>
+                        </div>
+                      )}
+                      <div style={{
+                        color: isEquipped ? '#ff6b6b' : 'var(--text-muted)',
+                        fontSize: '10px', marginBottom: '4px',
+                        fontWeight: isEquipped ? 'bold' : 'normal',
+                      }}>
+                        {isEquipped
+                          ? `装备中: ${equippedHeroName} (${SLOT_LABEL[equipped!.slot]}${equipped!.index + 1})`
+                          : '未装备'}
+                      </div>
+                      <div style={{ color: 'var(--text-light)', fontSize: '11px', lineHeight: 1.4 }}>
+                        {t.skill?.description ?? ''}
+                      </div>
                     </div>
                   </div>
                 )

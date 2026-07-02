@@ -150,3 +150,9 @@ button.danger {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
   100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
+
+/* 背包宝具格子 hover 弹层 */
+.treasure-cell:hover .treasure-tooltip,
+.treasure-cell:focus-within .treasure-tooltip {
+  opacity: 1 !important;
+}
