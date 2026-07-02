@@ -12,6 +12,7 @@ import { BattleLog } from './BattleLog'
 import { SkillBar } from './battle/SkillBar'
 import { BattleOverlays } from './battle/BattleOverlays'
 import { FloatingPrompts } from './battle/FloatingPrompts'
+import { PlayerHand } from './battle/PlayerHand'
 import type { Card } from '@hero-legend/shared-types'
 
 // 稳定的空回调, 避免每次渲染生成新箭头函数破坏 React.memo
@@ -112,51 +113,6 @@ export function BattleBoard() {
   // 濒死救援目标 id (用于在 HeroBattleCard 上区分 isDying vs isDead)
   const dyingTargetId = useBattleStore(s => s.dyingRescuePrompt?.targetId ?? null)
 
-  // 手牌容器宽度 — 用于判断是否启用叠放
-  const handContainerRef = useRef<HTMLDivElement>(null)
-  const [handContainerWidth, setHandContainerWidth] = useState(0)
-  // 狼牙棒多杀提示 — 跟随被点击手牌的位置/宽度
-  const [wolfFangPromptRect, setWolfFangPromptRect] = useState<{ left: number; top: number; width: number } | null>(null)
-  useEffect(() => {
-    const el = handContainerRef.current
-    if (!el) return
-    setHandContainerWidth(el.offsetWidth)
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) setHandContainerWidth(e.contentRect.width)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [playerHand.length])
-  // 狼牙棒多杀 — 跟踪当前杀牌位置, 让提示跟随手牌
-  useEffect(() => {
-    if (phase !== 'selectKillMultiTargets' || !killMultiCardId) {
-      setWolfFangPromptRect(null)
-      return
-    }
-    const update = () => {
-      const el = document.querySelector(`[data-card-id="${killMultiCardId}"]`) as HTMLElement | null
-      if (!el) {
-        setWolfFangPromptRect(null)
-        return
-      }
-      const r = el.getBoundingClientRect()
-      setWolfFangPromptRect({ left: r.left, top: r.top, width: r.width })
-    }
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [phase, killMultiCardId])
-  // HandCard 宽度约 55px. 放不下时启用叠放
-  const HAND_CARD_WIDTH = 55
-  const HAND_CARD_GAP = 6
-  const handNeedsOverlap = playerHand.length > 0 && playerHand.length * HAND_CARD_WIDTH > handContainerWidth
-  // 叠放时计算负 margin: 让所有牌恰好填满容器宽度, 不出现横向滚动条
-  // 总宽 = 第一张全宽 + (n-1) * (HAND_CARD_WIDTH + marginLeft)
-  // 令总宽 <= containerWidth, 解出 marginLeft = (containerWidth - HAND_CARD_WIDTH) / (n-1) - HAND_CARD_WIDTH
-  // 留 8px 右padding 兜底, 避免边界溢出
-  const handOverlapMarginLeft = handNeedsOverlap && playerHand.length > 1 && handContainerWidth > 0
-    ? Math.min(-2, Math.floor((handContainerWidth - 8 - HAND_CARD_WIDTH) / (playerHand.length - 1)) - HAND_CARD_WIDTH)
-    : -32
 
   // 角色排布派生值 — 用 useMemo 稳定引用, 让 HeroBattleCard 的 React.memo 真正生效
   // 注意: 必须放在 early return 之前 (hooks 规则)
@@ -525,101 +481,7 @@ export function BattleBoard() {
             {/* 右侧: 手牌 + 技能按钮行 (提示已移到上方浮动容器) */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, gap: '6px' }}>
           {/* Hand cards — 数量多时扑克牌式叠放, 否则正常并排 */}
-          <div ref={handContainerRef} style={{
-            flex: 1, minHeight: 0, display: 'flex',
-            flexWrap: 'nowrap',
-            overflowX: 'hidden',
-            overflowY: 'hidden',
-            alignItems: handNeedsOverlap ? 'flex-end' : 'stretch',
-            gap: handNeedsOverlap ? 0 : '6px',
-            padding: handNeedsOverlap ? '10px 4px 8px 0' : '6px 0 6px 0',
-          }}>
-            {playerHand.map((card, idx) => {
-              const isSelectedDual = selectedDualCards.includes(card.id)
-              const isSelectedTreasure = treasureCardIds.includes(card.id)
-              const isSelectedYuRen = treasureSkill === 'yu-ren' && yuRenCardIds.includes(card.id)
-              const isSelectedDiscard = selectedDiscardCards.includes(card.id)
-              const isSelectedFuChou = phase === 'selectFuChouDiscard' && fuChouPickSelected.includes(card.id)
-              const isSelectedManWu = manWuSelectedCardId === card.id
-              const isPending = pendingCardId === card.id
-              const isLuYeQiangKillCard = luYeQiangKillCardId === card.id
-              return (
-                <div
-                  key={card.id}
-                  data-card-id={card.id}
-                  onClick={() => {
-                    if (phase === 'selectDualCards') toggleDualCard(card.id)
-                    else if (phase === 'selectDiscardCards') toggleDiscardCard(card.id)
-                    else if (phase === 'selectFuChouDiscard') toggleFuChouPick(card.id)
-                    else if (phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards') pickTreasureCard(card.id)
-                    else if (phase === 'treasureSelectEquipment' && card.type === 'equipment') pickTreasureCard(card.id)
-                    else if (phase === 'treasureSelectWeapon' && card.type === 'equipment' && (card as any).slot === 'weapon') {
-                      // 绝击: 选武器则丢弃, 否则需要cancel+重选
-                      const { game, treasureTargetIds } = useBattleStore.getState()
-                      const player = game!.getPlayer()!
-                      game!.playerJueJi(player, card.id, treasureTargetIds[0])
-                      useBattleStore.setState({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureCardIds: [], treasureTargetIds: [], gameState: game!.getState(), playerHand: player.getHand() })
-                    } else if (phase === 'xiaDanPickCard') {
-                      pickXiaDanCard(card.id)
-                    } else if (phase === 'tianXiang') {
-                      // 天香: 弃这张手牌免判
-                      selectTianXiangCard(card.id)
-                    } else if (manWuRedHeartCards.length > 0 && manWuRedHeartCards.some(c => c.id === card.id)) {
-                      // 曼舞: 标记选中的牌 (需点确定才生效)
-                      selectManWuCard(isSelectedManWu ? null : card.id)
-                    } else if (phase === 'buDaoKill' && game?.canPlayerUseAsKill(card.id)) {
-                      // 补刀: 点击可当杀的牌直接补杀
-                      selectBuDaoCard(card.id)
-                    }
-                  }}
-                  style={{
-                    flexShrink: handNeedsOverlap ? 0 : 1,
-                    alignSelf: 'flex-end',
-                    marginLeft: handNeedsOverlap && idx > 0 ? handOverlapMarginLeft : 0,
-                    outline: (isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu) ? '2px solid #b8860b' : 'none',
-                    borderRadius: '4px',
-                    cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
-                    zIndex: isPending ? 2 : 0,
-                    position: 'relative',
-                  }}
-                >
-                  <HandCard
-                    card={card}
-                    disabled={!(isPlayerTurn || phase === 'judgeReplace' || phase === 'awaitingResponse' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || phase === 'selectFuChouDiscard' || huiChunAvailable) || !!fuChouTriggerPrompt || !!fuChouChoosePrompt}
-                    canPlayKill={canPlayKill}
-                    isFullHp={isFullHp}
-                    aoJianActive={aoJianActive}
-                    hasHongZhuang={hasHongZhuang}
-                    hasLeiInJudge={hasLeiInJudge}
-                    isResponse={phase === 'awaitingResponse'}
-                    isJudgeReplace={phase === 'judgeReplace'}
-                    isPending={isPending}
-                    isLifted={isPending}
-                    treasureSelectMode={phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'xiaDanPickCard'}
-                    selectDualMode={phase === 'selectDualCards'}
-                    selectDiscardMode={phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard'}
-                    isHandCardSelect={
-                      phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment'
-                      || phase === 'xiaDanPickCard' || phase === 'selectDualCards' || phase === 'selectDiscardCards'
-                      || phase === 'selectFuChouDiscard' || phase === 'tianXiang' || phase === 'buDaoKill'
-                      || manWuRedHeartCards.length > 0 || phase === 'chaoTuoPick'
-                    }
-                    isLuYeQiangKillCard={isLuYeQiangKillCard}
-                    hasValidSchemeTarget={hasValidSchemeTarget(card.name)}
-                    huiChunAvailable={huiChunAvailable}
-                    onPlayKill={playKill}
-                    onPlayHeal={playHeal}
-                    onEquip={equipCard}
-                    onPlayScheme={playScheme}
-                    onPlaySchemeSelf={playSchemeSelf}
-                    onJudgeReplace={judgeReplace}
-                    onRespondWithCard={respondWithCard}
-                    onHuiChunHeal={huiChunHeal}
-                  />
-                </div>
-              )
-            })}
-          </div>
+          <PlayerHand />
 
             {/* 技能按钮行: 主动技能 + 宝具技能 + 傲剑 + 芦叶枪 + 结束出牌 (有询问提示/弹框时也显示, 加遮罩禁止操作) */}
             <SkillBar />
