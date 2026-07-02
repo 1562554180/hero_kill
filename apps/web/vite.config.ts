@@ -12,4 +12,22 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // 拆 vendor chunk: 改业务代码不重下 vendor
+        manualChunks(id) {
+          if (id.includes('node_modules/framer-motion')) return 'battle-motion'
+          if (id.includes('node_modules/@hero-legend/game-engine')
+           || id.includes('node_modules/@hero-legend/game-data')
+           || id.includes('node_modules/@hero-legend/ai-engine')) return 'battle-engine'
+          if (id.includes('node_modules/react-router')
+           || id.includes('node_modules/zustand')) return 'vendor-router'
+          if (id.includes('node_modules/react')
+           || id.includes('node_modules/react-dom')
+           || id.includes('node_modules/scheduler')) return 'vendor-react'
+        },
+      },
+    },
+  },
 })

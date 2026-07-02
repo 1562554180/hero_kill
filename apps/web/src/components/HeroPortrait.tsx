@@ -12,11 +12,11 @@ const NAME_TO_ID: Record<string, string> = {
   '岳飞': 'yue-fei', '赵匡胤': 'zhao-kuang-yin', '朱元璋': 'zhu-yuan-zhang', '诸葛亮': 'zhuge-liang',
 }
 
-// 自动扫 images/ 下所有 PNG, 按文件名匹配 hero ID
-const portraitModules = import.meta.glob('../images/*.png', { eager: true, import: 'default' }) as Record<string, string>
+// 自动扫 images/ 下所有 JPG, 按文件名匹配 hero ID
+const portraitModules = import.meta.glob('../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
 const HERO_PORTRAIT_IMAGES: Record<string, string> = {}
 for (const [path, url] of Object.entries(portraitModules)) {
-  const filename = path.replace('../images/', '').replace('.png', '')
+  const filename = path.replace('../images/', '').replace('.jpg', '')
   const heroId = NAME_TO_ID[filename]
   if (heroId) HERO_PORTRAIT_IMAGES[heroId] = url
 }

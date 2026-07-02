@@ -17,10 +17,10 @@ const NAME_TO_ID: Record<string, string> = {
   '萧太后': 'xiao-tai-hou', '兰陵王': 'lan-ling-wang',
 }
 
-const portraitModules = import.meta.glob('../../images/*.png', { eager: true, import: 'default' }) as Record<string, string>
+const portraitModules = import.meta.glob('../../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
 const HERO_PORTRAITS: Record<string, string> = {}
 for (const [path, url] of Object.entries(portraitModules)) {
-  const filename = path.replace('../../images/', '').replace('.png', '')
+  const filename = path.replace('../../images/', '').replace('.jpg', '')
   const heroId = NAME_TO_ID[filename]
   if (heroId) HERO_PORTRAITS[heroId] = url
 }
