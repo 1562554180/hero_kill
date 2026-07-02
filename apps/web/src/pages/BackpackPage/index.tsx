@@ -44,6 +44,8 @@ const MAT_LABEL: Record<string, string> = {
 
 const SLOT_LABEL: Record<string, string> = { main: '主印槽', sub: '辅印槽' }
 
+const TREASURE_PAGE_SIZE = 48
+
 const MAX_LEVEL = 45
 const MAX_ENHANCE_COUNT = 50
 
@@ -73,6 +75,7 @@ function groupStones(stones: HeroStone[]): StoneGroup[] {
 export function BackpackPage() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('stones')
+  const [treasurePage, setTreasurePage] = useState(0)
   const [allHeroes, setAllHeroes] = useState<Hero[]>([])
   const [heroInstances, setHeroInstances] = useState<HeroInstance[]>([])
   const [stones, setStones] = useState<HeroStone[]>([])
@@ -167,7 +170,7 @@ export function BackpackPage() {
           { key: 'treasures', label: `宝具 (${treasures.length})` },
           { key: 'materials', label: '材料' },
         ] as Array<{ key: Tab; label: string }>).map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
+          <button key={t.key} onClick={() => { setTab(t.key); setTreasurePage(0) }} style={{
             flex: 1, padding: '8px',
             background: tab === t.key ? 'var(--bg-light)' : 'var(--bg-medium)',
             border: `1px solid ${tab === t.key ? 'var(--border-gold)' : 'var(--border-wood)'}`,
@@ -266,8 +269,9 @@ export function BackpackPage() {
               背包中没有宝具
             </div>
           ) : (
+            <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: '8px' }}>
-              {treasures.map(t => {
+              {treasures.slice(treasurePage * TREASURE_PAGE_SIZE, (treasurePage + 1) * TREASURE_PAGE_SIZE).map(t => {
                 const n = t.count ?? 1
                 const equipped = equippedMap.get(t.id)
                 const equippedHeroName = equipped
@@ -381,6 +385,28 @@ export function BackpackPage() {
                 )
               })}
             </div>
+            {(() => {
+              const totalPages = Math.ceil(treasures.length / TREASURE_PAGE_SIZE)
+              if (totalPages <= 1) return null
+              return (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+                  <button
+                    disabled={treasurePage === 0}
+                    onClick={() => setTreasurePage(p => Math.max(0, p - 1))}
+                    style={{ fontSize: '12px', padding: '4px 12px' }}
+                  >上一页</button>
+                  <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>
+                    {treasurePage + 1} / {totalPages}
+                  </span>
+                  <button
+                    disabled={treasurePage >= totalPages - 1}
+                    onClick={() => setTreasurePage(p => Math.min(totalPages - 1, p + 1))}
+                    style={{ fontSize: '12px', padding: '4px 12px' }}
+                  >下一页</button>
+                </div>
+              )
+            })()}
+            </>
           )
         )}
 
