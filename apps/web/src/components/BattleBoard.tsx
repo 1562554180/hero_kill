@@ -13,6 +13,7 @@ import { SkillBar } from './battle/SkillBar'
 import { BattleOverlays } from './battle/BattleOverlays'
 import { FloatingPrompts } from './battle/FloatingPrompts'
 import { PlayerHand } from './battle/PlayerHand'
+import { PlayerHeroCard } from './battle/PlayerHeroCard'
 import type { Card } from '@hero-legend/shared-types'
 
 // 稳定的空回调, 避免每次渲染生成新箭头函数破坏 React.memo
@@ -451,32 +452,7 @@ export function BattleBoard() {
           {/* 布局: 玩家卡(左侧上下占满) | 手牌 + 技能按钮行 (提示已上移到浮动容器) */}
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'stretch' }}>
             {/* 左侧: 玩家卡 (上下占满) */}
-            <div style={{ flex: '0 0 auto', display: 'flex' }}>
-              {(() => {
-                const isDying = player.currentHp === 0 && dyingTargetId === player.hero.id
-                const isDead  = player.currentHp <= 0 && !isDying
-                return (
-              <HeroBattleCard
-                hero={player}
-                isCurrentTurn={isPlayerTurn}
-                isDying={isDying}
-                isDead={isDead}
-                isSelectable={isPendingTargeting && jieDaoCandidates.length > 0 && isValidTarget(player.hero.id)}
-                isSelected={selectedTargetId === player.hero.id}
-                onClick={() => {
-                  if (isPendingTargeting && isValidTarget(player.hero.id)) confirmTarget(player.hero.id)
-                }}
-                aoJianActive={aoJianActive}
-                canPlayKill={canPlayKill && (isPlayerTurn || phase === 'awaitingResponse')}
-                hasHongZhuang={hasHongZhuang}
-                onEquipAsKill={(cardId: string, fromPos) => {
-                  if (phase === 'playing') playKill(cardId, fromPos)
-                  else if (phase === 'awaitingResponse') respondWithCard(cardId)
-                }}
-              />
-                )
-              })()}
-            </div>
+            <PlayerHeroCard />
 
             {/* 右侧: 手牌 + 技能按钮行 (提示已移到上方浮动容器) */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, gap: '6px' }}>
