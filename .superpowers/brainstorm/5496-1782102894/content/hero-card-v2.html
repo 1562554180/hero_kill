@@ -1,0 +1,97 @@
+<h2>人物卡 A 方案 — 细节确认</h2>
+<p class="subtitle">阵营配色 + HP 显示 + 装备区风格，三组选项可多选。</p>
+
+<div class="mockup">
+  <div class="mockup-header">三方阵营配色对比</div>
+  <div class="mockup-body" style="padding:20px; background:#1a1a1a; display:flex; gap:20px; justify-content:center;">
+    <div style="position:relative; width:130px; background: linear-gradient(180deg, #f4e4bc 0%, #e8d4a0 100%); border:2px solid #1565c0; border-radius:6px; padding:6px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span style="color:#0d47a1; font-weight:bold; font-size:13px; font-family:'KaiTi',serif;">玩家 · 关羽</span>
+        <span style="color:#1565c0; font-size:11px;">★5</span>
+      </div>
+      <div style="width:100%; height:70px; background: linear-gradient(135deg, #1565c0, #0d47a1); border-radius:4px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.4); font-size:32px; font-family:'KaiTi',serif;">武圣</div>
+    </div>
+    <div style="position:relative; width:130px; background: linear-gradient(180deg, #f4e4bc 0%, #e8d4a0 100%); border:2px solid #2e7d32; border-radius:6px; padding:6px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span style="color:#1b5e20; font-weight:bold; font-size:13px; font-family:'KaiTi',serif;">友军 · 张飞</span>
+        <span style="color:#2e7d32; font-size:11px;">AI ★5</span>
+      </div>
+      <div style="width:100%; height:70px; background: linear-gradient(135deg, #2e7d32, #1b5e20); border-radius:4px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.4); font-size:32px; font-family:'KaiTi',serif;">咆哮</div>
+    </div>
+    <div style="position:relative; width:130px; background: linear-gradient(180deg, #f4e4bc 0%, #e8d4a0 100%); border:2px solid #c62828; border-radius:6px; padding:6px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span style="color:#c62828; font-weight:bold; font-size:13px; font-family:'KaiTi',serif;">敌方 · 曹操</span>
+        <span style="color:#c62828; font-size:11px;">AI ★5</span>
+      </div>
+      <div style="width:100%; height:70px; background: linear-gradient(135deg, #c62828, #8b0000); border-radius:4px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.4); font-size:32px; font-family:'KaiTi',serif;">奸雄</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>关键设计决策</h3>
+  <p class="subtitle">每行可点选，多选后告诉我你的选择</p>
+
+  <h4>1. 阵营色 (边框 + 标题色)</h4>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="blue-player" onclick="toggleSelect(this)">
+      <div class="letter">蓝</div>
+      <div class="content">
+        <h3>玩家 蓝</h3>
+        <p>蓝色边框/标题 (#1565c0)</p>
+      </div>
+    </div>
+    <div class="option" data-choice="green-ally" onclick="toggleSelect(this)">
+      <div class="letter">绿</div>
+      <div class="content">
+        <h3>友军 绿</h3>
+        <p>绿色边框/标题 (#2e7d32)</p>
+      </div>
+    </div>
+    <div class="option" data-choice="red-enemy" onclick="toggleSelect(this)">
+      <div class="letter">红</div>
+      <div class="content">
+        <h3>敌方 红</h3>
+        <p>红色边框/标题 (#c62828)</p>
+      </div>
+    </div>
+  </div>
+
+  <h4>2. HP 显示</h4>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="hp-grid" onclick="toggleSelect(this)">
+      <div class="letter">格</div>
+      <div class="content">
+        <h3>血量格子</h3>
+        <p>每点HP一格，红色填充 — 当前实现</p>
+      </div>
+    </div>
+    <div class="option" data-choice="hp-bar" onclick="toggleSelect(this)">
+      <div class="letter">条</div>
+      <div class="content">
+        <h3>HP进度条</h3>
+        <p>单条进度条 + 数字</p>
+      </div>
+    </div>
+  </div>
+
+  <h4>3. 武将称号色块</h4>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="title-block" onclick="toggleSelect(this)">
+      <div class="letter">块</div>
+      <div class="content">
+        <h3>大色块</h3>
+        <p>武将名大字置于色块中 (武圣/咆哮/奸雄)</p>
+      </div>
+    </div>
+    <div class="option" data-choice="title-text" onclick="toggleSelect(this)">
+      <div class="letter">文</div>
+      <div class="content">
+        <h3>仅文字</h3>
+        <p>武将称号作文字显示，背景色不变</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:20px;">完成后直接在终端告诉我选了哪些 (例如 "1蓝绿红, 2格子, 3色块")。</p>

@@ -107,7 +107,28 @@
       "Bash(git -C \"D:\\\\work\\\\hero-legend\" log --oneline -20 -- \"packages/game-engine/src/__tests__/\")",
       "Bash(git *)",
       "Bash(echo \"EXIT=$?\")",
-      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__resize_page"
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__resize_page",
+      "Bash(echo \"EXIT: $?\")",
+      "mcp__plugin_everything-claude-code_exa__web_search_exa",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(echo \"EXIT_CODE: $?\")",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(command -v ffmpeg)",
+      "WebSearch",
+      "Bash(mongosh --eval \"db.runCommand\\({ping:1}\\)\" --quiet)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(echo \"engine_exit=$?\")",
+      "Bash(echo \"web_exit=$?\")",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_start_trace",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_stop_trace",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__performance_analyze_insight",
+      "Bash(pkill -f \"vite preview\")",
+      "Read(//d/d/work/hero-legend/**)",
+      "Read(//d/d/work/hero-legend/packages/game-engine/**)",
+      "Bash(python -c ' *)",
+      "Bash(sed -n '493,1370p' apps/web/src/components/BattleBoard.tsx)",
+      "Bash(rm apps/web/src/components/battle/.fp-body.tmp)"
     ]
   }
 }

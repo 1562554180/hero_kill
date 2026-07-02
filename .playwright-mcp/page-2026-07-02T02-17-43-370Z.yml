@@ -1,0 +1,52 @@
+- generic [ref=f1e7]:
+  - generic [ref=f1e8]:
+    - heading "主城" [level=2] [ref=f1e9]
+    - generic [ref=f1e10]:
+      - generic [ref=f1e11]: "金币: 1000"
+      - button "关卡" [ref=f1e12] [cursor=pointer]
+      - button "英雄" [ref=f1e13] [cursor=pointer]
+      - button "背包" [ref=f1e14] [cursor=pointer]
+      - button "招贤馆" [ref=f1e15] [cursor=pointer]
+  - generic [ref=f1e16]:
+    - heading "主城 Lv.1" [level=3] [ref=f1e17]
+    - paragraph [ref=f1e18]: "每次征收金币: 100"
+  - generic [ref=f1e19]:
+    - generic [ref=f1e20]:
+      - generic [ref=f1e21]:
+        - heading "主城" [level=4] [ref=f1e22]
+        - generic [ref=f1e23]: Lv.1
+      - paragraph [ref=f1e24]: 提升金币征收量
+      - button "升级 (需 300 金币)" [ref=f1e25] [cursor=pointer]
+    - generic [ref=f1e26]:
+      - generic [ref=f1e27]:
+        - heading "招贤馆" [level=4] [ref=f1e28]
+        - generic [ref=f1e29]: Lv.1
+      - paragraph [ref=f1e30]: 解锁更高星级英雄招募
+      - button "进入招贤馆" [ref=f1e31] [cursor=pointer]
+      - button "升级 (需 300 金币)" [ref=f1e32] [cursor=pointer]
+    - generic [ref=f1e33]:
+      - generic [ref=f1e34]:
+        - heading "熔炼炉" [level=4] [ref=f1e35]
+        - generic [ref=f1e36]: Lv.1
+      - paragraph [ref=f1e37]: 解锁更高星级英雄熔炼
+      - button "进入熔炼炉" [ref=f1e38] [cursor=pointer]
+      - button "升级 (需 300 金币)" [ref=f1e39] [cursor=pointer]
+    - generic [ref=f1e40]:
+      - generic [ref=f1e41]:
+        - heading "宝具工坊" [level=4] [ref=f1e42]
+        - generic [ref=f1e43]: Lv.1
+      - paragraph [ref=f1e44]: 提高辅印强化等级上限
+      - button "进入宝具工坊" [ref=f1e45] [cursor=pointer]
+      - button "升级 (需 300 金币)" [ref=f1e46] [cursor=pointer]
+    - generic [ref=f1e47]:
+      - generic [ref=f1e48]:
+        - heading "校练场" [level=4] [ref=f1e49]
+        - generic [ref=f1e50]: Lv.1
+      - paragraph [ref=f1e51]: 提高训练成长值
+      - button "升级 (需 300 金币)" [ref=f1e52] [cursor=pointer]
+    - generic [ref=f1e53]:
+      - generic [ref=f1e54]:
+        - heading "点将台" [level=4] [ref=f1e55]
+        - generic [ref=f1e56]: Lv.1
+      - paragraph [ref=f1e57]: 增加持有英雄数量上限
+      - button "升级 (需 300 金币)" [ref=f1e58] [cursor=pointer]

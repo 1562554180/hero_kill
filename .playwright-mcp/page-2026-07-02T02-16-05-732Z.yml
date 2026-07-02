@@ -1,0 +1,4 @@
+- generic [ref=f1e3]:
+  - heading "英雄传奇" [level=1] [ref=f1e4]
+  - paragraph [ref=f1e5]: 挑战关卡，收集英雄，搭配宝具
+  - button "进入游戏" [ref=f1e6] [cursor=pointer]

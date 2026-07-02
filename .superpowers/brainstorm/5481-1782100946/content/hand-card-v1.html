@@ -1,0 +1,88 @@
+<h2>手牌设计方向</h2>
+<p class="subtitle">参考英雄杀风格，纯 CSS 实现（无图片资源）。左侧当前样式，右侧提案样式。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">当前</div>
+    <div class="mockup-body" style="display:flex; gap:10px; align-items:center; justify-content:center; padding: 30px; background: #1a1a1a;">
+      <!-- Current HandCard style -->
+      <div style="background:#1a1a1a; border:1px solid #8b6914; border-radius:6px; padding:22px 8px 8px; min-width:60px; text-align:center;">
+        <div style="position:absolute; top:4px; left:6px; color:#fff; font-size:10px; font-weight:bold;">杀</div>
+        <div style="color:#fff; font-size:20px; font-weight:bold; margin:2px 0 6px;">杀</div>
+        <div style="color:#888; font-size:10px;">基本</div>
+      </div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">英雄杀风格提案</div>
+    <div class="mockup-body" style="display:flex; gap:10px; align-items:center; justify-content:center; padding: 30px; background: #1a1a1a;">
+      <!-- 杀 红桃 -->
+      <div style="position:relative; width:78px; height:118px; background: linear-gradient(135deg, #f4e4bc 0%, #e8d4a0 50%, #dcc890 100%); border: 2px solid #8b6914; border-radius:6px; box-shadow: 0 0 4px rgba(139,105,20,0.4), inset 0 0 8px rgba(139,105,20,0.15); text-align:center; font-family: 'KaiTi','STKaiti',serif;">
+        <div style="position:absolute; top:3px; left:4px; color:#c62828; font-size:10px; line-height:1;">♥<br>7</div>
+        <div style="position:absolute; top:3px; right:4px; color:#c62828; font-size:10px; line-height:1;">♥<br>7</div>
+        <div style="position:absolute; top:28px; left:0; right:0; color:#5d4037; font-size:11px;">基本</div>
+        <div style="margin-top:46px; color:#c62828; font-size:42px; font-weight:bold; text-shadow: 0 0 4px rgba(198,40,40,0.3);">杀</div>
+        <div style="position:absolute; bottom:3px; left:0; right:0; color:#5d4037; font-size:9px;">KILL</div>
+      </div>
+      <!-- 闪 黑桃 -->
+      <div style="position:relative; width:78px; height:118px; background: linear-gradient(135deg, #f4e4bc 0%, #e8d4a0 50%, #dcc890 100%); border: 2px solid #8b6914; border-radius:6px; box-shadow: 0 0 4px rgba(139,105,20,0.4), inset 0 0 8px rgba(139,105,20,0.15); text-align:center; font-family: 'KaiTi','STKaiti',serif;">
+        <div style="position:absolute; top:3px; left:4px; color:#212121; font-size:10px; line-height:1;">♠<br>K</div>
+        <div style="position:absolute; top:3px; right:4px; color:#212121; font-size:10px; line-height:1;">♠<br>K</div>
+        <div style="position:absolute; top:28px; left:0; right:0; color:#5d4037; font-size:11px;">基本</div>
+        <div style="margin-top:46px; color:#212121; font-size:42px; font-weight:bold;">闪</div>
+        <div style="position:absolute; bottom:3px; left:0; right:0; color:#5d4037; font-size:9px;">DODGE</div>
+      </div>
+      <!-- 锦囊: 决斗 -->
+      <div style="position:relative; width:78px; height:118px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%); border: 2px solid #1565c0; border-radius:6px; box-shadow: 0 0 4px rgba(21,101,192,0.4), inset 0 0 8px rgba(21,101,192,0.15); text-align:center; font-family: 'KaiTi','STKaiti',serif;">
+        <div style="position:absolute; top:3px; left:4px; color:#212121; font-size:10px; line-height:1;">♠<br>A</div>
+        <div style="position:absolute; top:3px; right:4px; color:#212121; font-size:10px; line-height:1;">♠<br>A</div>
+        <div style="position:absolute; top:28px; left:0; right:0; color:#0d47a1; font-size:11px;">锦囊</div>
+        <div style="margin-top:46px; color:#0d47a1; font-size:38px; font-weight:bold;">决</div>
+        <div style="position:absolute; bottom:3px; left:0; right:0; color:#0d47a1; font-size:9px;">DUEL</div>
+      </div>
+      <!-- 装备: 诸葛连弩 -->
+      <div style="position:relative; width:78px; height:118px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%); border: 2px solid #2e7d32; border-radius:6px; box-shadow: 0 0 4px rgba(46,125,50,0.4), inset 0 0 8px rgba(46,125,50,0.15); text-align:center; font-family: 'KaiTi','STKaiti',serif;">
+        <div style="position:absolute; top:3px; left:4px; color:#212121; font-size:10px; line-height:1;">♣<br>2</div>
+        <div style="position:absolute; top:3px; right:4px; color:#212121; font-size:10px; line-height:1;">♣<br>2</div>
+        <div style="position:absolute; top:28px; left:0; right:0; color:#1b5e20; font-size:11px;">装备</div>
+        <div style="margin-top:36px; color:#1b5e20; font-size:28px; font-weight:bold; line-height:1;">弩</div>
+        <div style="position:absolute; bottom:8px; left:0; right:0; color:#1b5e20; font-size:8px; padding: 0 4px;">诸葛连</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>视觉元素说明</h3>
+  <ul>
+    <li><b>卡背景</b>: 三色区分 (基本米色 / 锦囊蓝色 / 装备绿色)，更易识别牌类型</li>
+    <li><b>主视觉</b>: 卡名汉字大幅居中 (42px 楷体)，红桃/方块红字，黑桃/梅花黑字</li>
+    <li><b>角落</b>: 上下双角显示花色+数字 (类似扑克)，左上右下</li>
+    <li><b>边框</b>: 金色/蓝色/绿色双线描边 + 内阴影</li>
+    <li><b>类型标签</b>: 顶部小字 "基本/锦囊/装备"</li>
+  </ul>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>就这个方向</h3>
+      <p>按此风格实现，细节后续微调</p>
+    </div>
+  </div>
+  <div class="option" data-choice="more" onclick="toggleSelect(this)">
+    <div class="letter">+</div>
+    <div class="content">
+      <h3>要更丰富的视觉</h3>
+      <p>加点缀/花纹/SVG图标，更接近真实卡牌</p>
+    </div>
+  </div>
+  <div class="option" data-choice="minimal" onclick="toggleSelect(this)">
+    <div class="letter">−</div>
+    <div class="content">
+      <h3>更简洁</h3>
+      <p>去掉楷体/英文字符，保持现代扁平风</p>
+    </div>
+  </div>
+</div>

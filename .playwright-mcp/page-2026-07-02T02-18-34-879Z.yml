@@ -1,0 +1,23 @@
+- generic [ref=f1e81]:
+  - heading "徐州 - 第 1 战" [level=2] [ref=f1e82]
+  - generic [ref=f1e83]:
+    - paragraph [ref=f1e84]: "敌方: chen-sheng, song-jiang, li-kui | 友军: 无"
+    - generic [ref=f1e85]:
+      - paragraph [ref=f1e86]: "选择出战英雄:"
+      - generic [ref=f1e87]:
+        - generic [ref=f1e88] [cursor=pointer]:
+          - generic [ref=f1e89]: 关羽
+          - generic [ref=f1e90]: ★★★★ Lv.1
+        - generic [ref=f1e91] [cursor=pointer]:
+          - generic [ref=f1e92]: 诸葛亮
+          - generic [ref=f1e93]: ★★★★★ Lv.1
+    - generic [ref=f1e94]:
+      - paragraph [ref=f1e95]: "选择友军 (可选, 不会出战):"
+      - generic [ref=f1e96]:
+        - generic [ref=f1e97] [cursor=pointer]:
+          - generic [ref=f1e98]: 无友军
+          - generic [ref=f1e99]: 单独出战
+        - generic [ref=f1e100] [cursor=pointer]:
+          - generic [ref=f1e101]: 诸葛亮
+          - generic [ref=f1e102]: ★★★★★ Lv.1
+  - button "开始战斗" [ref=f1e104] [cursor=pointer]

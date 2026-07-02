@@ -1,0 +1,147 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e105]:
+    - generic [ref=f1e107]:
+      - generic [ref=f1e108]: ── 关羽 的回合 (第1回合) ──
+      - generic [ref=f1e283]: ── 李逵 的回合 (第2回合) ──
+      - generic [ref=f1e284]:
+        - text: 李逵 对 关羽 使用了
+        - generic [ref=f1e285]: 【杀】
+    - generic [ref=f1e109]:
+      - generic [ref=f1e110]:
+        - generic [ref=f1e112]:
+          - generic [ref=f1e113]:
+            - generic [ref=f1e115]:
+              - img "陈胜" [ref=f1e116]
+              - generic [ref=f1e117]: 君
+              - generic [ref=f1e118]: 陈胜
+            - generic [ref=f1e119]: AI
+          - generic [ref=f1e121]: "4"
+          - generic [ref=f1e127]:
+            - generic [ref=f1e128]:
+              - generic "空凹槽" [ref=f1e129]
+              - generic "未开启凹槽 (升星解锁)" [ref=f1e130]: ✕
+              - generic "未开启凹槽 (升星解锁)" [ref=f1e131]: ✕
+              - generic "未开启凹槽 (升星解锁)" [ref=f1e132]: ✕
+            - 'generic "陈胜 手牌 (4): 杀♦9, 闪♣6, 闪♦2, 手捧雷♠1" [ref=f1e133]': "4"
+          - generic [ref=f1e134]:
+            - generic [ref=f1e135]: 武
+            - generic [ref=f1e136]: 防
+            - generic [ref=f1e137]: +马
+            - generic [ref=f1e138]: "-马"
+        - generic [ref=f1e140]:
+          - generic [ref=f1e141]:
+            - generic [ref=f1e143]:
+              - img "宋江" [ref=f1e144]
+              - generic [ref=f1e145]: 民
+              - generic [ref=f1e146]: 宋江
+            - generic [ref=f1e147]: AI
+          - generic [ref=f1e149]: "4"
+          - generic [ref=f1e155]:
+            - generic [ref=f1e156]:
+              - generic "空凹槽" [ref=f1e157]
+              - generic "未开启凹槽 (升星解锁)" [ref=f1e158]: ✕
+              - generic "未开启凹槽 (升星解锁)" [ref=f1e159]: ✕
+              - generic "未开启凹槽 (升星解锁)" [ref=f1e160]: ✕
+            - 'generic "宋江 手牌 (4): 药♦3, 五谷丰登♥4, 杀♦10, 杀♥3" [ref=f1e161]': "4"
+          - generic [ref=f1e162]:
+            - generic [ref=f1e163]: 武
+            - generic [ref=f1e164]: 防
+            - generic [ref=f1e165]: +马
+            - generic [ref=f1e166]: "-马"
+        - generic [ref=f1e168]:
+          - generic [ref=f1e169]:
+            - generic [ref=f1e171]:
+              - img "李逵" [ref=f1e172]
+              - generic [ref=f1e173]: 民
+              - generic [ref=f1e174]: 李逵
+            - generic [ref=f1e175]: AI
+          - generic [ref=f1e177]: "4"
+          - generic [ref=f1e183]:
+            - generic [ref=f1e184]:
+              - generic "空凹槽" [ref=f1e185]
+              - generic "未开启凹槽 (升星解锁)" [ref=f1e186]: ✕
+              - generic "未开启凹槽 (升星解锁)" [ref=f1e187]: ✕
+              - generic "未开启凹槽 (升星解锁)" [ref=f1e188]: ✕
+            - 'generic "李逵 手牌 (5): 釜底抽薪♠6, 闪♦4, 闪♣3, 杀♥9, 杀♠12" [ref=f1e286]': "5"
+          - generic [ref=f1e190]:
+            - generic [ref=f1e191]: 武
+            - generic [ref=f1e192]: 防
+            - generic [ref=f1e193]: +马
+            - generic [ref=f1e194]: "-马"
+      - generic [ref=f1e196]:
+        - generic [ref=f1e198]:
+          - generic [ref=f1e201]:
+            - img "关羽" [ref=f1e202]
+            - generic [ref=f1e203]: 臣
+            - generic [ref=f1e204]: 关羽
+          - generic [ref=f1e206]: "7"
+          - generic [ref=f1e215]:
+            - generic [ref=f1e216]:
+              - generic "空凹槽" [ref=f1e217]
+              - generic "空凹槽" [ref=f1e218]
+              - generic "空凹槽" [ref=f1e219]
+              - generic "空凹槽" [ref=f1e220]
+            - generic [ref=f1e221]: "6"
+          - generic [ref=f1e222]:
+            - generic [ref=f1e223]: 武
+            - generic [ref=f1e224]: 防
+            - generic [ref=f1e225]: +马
+            - generic [ref=f1e226]: "-马"
+        - generic [ref=f1e228]:
+          - generic [ref=f1e230]:
+            - img "无中生有"
+            - generic [ref=f1e231]:
+              - generic [ref=f1e232]: ♥
+              - generic [ref=f1e233]: "10"
+            - generic [ref=f1e234]:
+              - generic [ref=f1e235]: ♥
+              - generic [ref=f1e236]: "10"
+          - generic [ref=f1e287]:
+            - img "闪"
+            - generic [ref=f1e239]:
+              - generic [ref=f1e240]: ♥
+              - generic [ref=f1e241]: "6"
+            - generic [ref=f1e242]:
+              - generic [ref=f1e243]: ♥
+              - generic [ref=f1e244]: "6"
+          - generic [ref=f1e246]:
+            - img "画地为牢"
+            - generic [ref=f1e247]:
+              - generic [ref=f1e248]: ♣
+              - generic [ref=f1e249]: A
+            - generic [ref=f1e250]:
+              - generic [ref=f1e251]: ♣
+              - generic [ref=f1e252]: A
+          - generic [ref=f1e254]:
+            - img "五谷丰登"
+            - generic [ref=f1e255]:
+              - generic [ref=f1e256]: ♥
+              - generic [ref=f1e257]: "3"
+            - generic [ref=f1e258]:
+              - generic [ref=f1e259]: ♥
+              - generic [ref=f1e260]: "3"
+          - generic [ref=f1e288]:
+            - img "药"
+            - generic [ref=f1e263]:
+              - generic [ref=f1e264]: ♦
+              - generic [ref=f1e265]: A
+            - generic [ref=f1e266]:
+              - generic [ref=f1e267]: ♦
+              - generic [ref=f1e268]: A
+          - generic [ref=f1e270]:
+            - img "鱼肠剑"
+            - generic [ref=f1e271]:
+              - generic [ref=f1e272]: ♠
+              - generic [ref=f1e273]: "6"
+            - generic [ref=f1e274]:
+              - generic [ref=f1e275]: ♠
+              - generic [ref=f1e276]: "6"
+  - generic:
+    - generic:
+      - img "杀"
+      - generic:
+        - generic: ♦
+        - generic: "7"
+      - generic:
+        - generic: ♦
+        - generic: "7"

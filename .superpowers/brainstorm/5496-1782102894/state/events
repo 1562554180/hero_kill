@@ -1,0 +1,5 @@
+{"type":"click","text":"蓝\n      \n        玩家 蓝\n        蓝色边框/标题 (#1565c0)","choice":"blue-player","id":null,"timestamp":1782107679390}
+{"type":"click","text":"绿\n      \n        友军 绿\n        绿色边框/标题 (#2e7d32)","choice":"green-ally","id":null,"timestamp":1782107679996}
+{"type":"click","text":"红\n      \n        敌方 红\n        红色边框/标题 (#c62828)","choice":"red-enemy","id":null,"timestamp":1782107680859}
+{"type":"click","text":"格\n      \n        血量格子\n        每点HP一格，红色填充 — 当前实现","choice":"hp-grid","id":null,"timestamp":1782107691916}
+{"type":"click","text":"块\n      \n        大色块\n        武将名大字置于色块中 (武圣/咆哮/奸雄)","choice":"title-block","id":null,"timestamp":1782107700483}

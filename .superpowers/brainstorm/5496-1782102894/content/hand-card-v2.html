@@ -1,0 +1,114 @@
+<h2>手牌设计 v2 — 更丰富的视觉</h2>
+<p class="subtitle">加入 SVG 图标、装饰花纹、背景纹理，更接近真实卡牌。</p>
+
+<div class="mockup">
+  <div class="mockup-header">四种卡牌样式</div>
+  <div class="mockup-body" style="display:flex; gap:14px; align-items:center; justify-content:center; padding: 30px; background: #1a1a1a;">
+    <!-- 杀 红桃 -->
+    <div style="position:relative; width:84px; height:128px; background: linear-gradient(135deg, #f4e4bc 0%, #e8d4a0 50%, #dcc890 100%); border-radius:8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 0 12px rgba(139,105,20,0.2); overflow:hidden;">
+      <!-- 装饰边框 -->
+      <div style="position:absolute; inset:3px; border: 1px solid rgba(139,105,20,0.6); border-radius:5px; pointer-events:none;"></div>
+      <div style="position:absolute; inset:5px; border: 1px dashed rgba(139,105,20,0.3); border-radius:4px; pointer-events:none;"></div>
+      <!-- 背景水印 (大字杀) -->
+      <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:80px; font-family:'KaiTi','STKaiti',serif; color: rgba(198,40,40,0.08); font-weight:bold; line-height:1;">杀</div>
+      <!-- 角落花色 -->
+      <div style="position:absolute; top:6px; left:6px; color:#c62828; font-size:11px; font-weight:bold; line-height:1.1; font-family:'KaiTi',serif;">♥<br><span style="font-size:13px;">7</span></div>
+      <div style="position:absolute; bottom:6px; right:6px; color:#c62828; font-size:11px; font-weight:bold; line-height:1.1; transform:rotate(180deg); font-family:'KaiTi',serif;">♥<br><span style="font-size:13px;">7</span></div>
+      <!-- 类型 -->
+      <div style="position:absolute; top:9px; left:0; right:0; text-align:center; color:#5d4037; font-size:9px; letter-spacing:2px;">基本牌</div>
+      <!-- SVG 图标: 刀剑 -->
+      <div style="position:absolute; top:34px; left:0; right:0; text-align:center;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="#c62828">
+          <path d="M6.92 5L5 6.92l6.84 6.84-2.05 4.05 1.41 1.41 4.05-4.05 6.84 6.84L23.92 20 19 15.08l4.05-4.05-1.41-1.41-4.05 2.05L11.75 5.83 13.92 3.66 12.5 2.25 9.83 4.92z"/>
+        </svg>
+      </div>
+      <!-- 主字 -->
+      <div style="position:absolute; bottom:18px; left:0; right:0; text-align:center; color:#c62828; font-size:32px; font-weight:bold; font-family:'KaiTi','STKaiti',serif; text-shadow: 0 0 6px rgba(198,40,40,0.4);">杀</div>
+    </div>
+    <!-- 闪 黑桃 -->
+    <div style="position:relative; width:84px; height:128px; background: linear-gradient(135deg, #f4e4bc 0%, #e8d4a0 50%, #dcc890 100%); border-radius:8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 0 12px rgba(139,105,20,0.2); overflow:hidden;">
+      <div style="position:absolute; inset:3px; border: 1px solid rgba(139,105,20,0.6); border-radius:5px;"></div>
+      <div style="position:absolute; inset:5px; border: 1px dashed rgba(139,105,20,0.3); border-radius:4px;"></div>
+      <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:80px; font-family:'KaiTi','STKaiti',serif; color: rgba(33,33,33,0.08); font-weight:bold; line-height:1;">闪</div>
+      <div style="position:absolute; top:6px; left:6px; color:#212121; font-size:11px; font-weight:bold; line-height:1.1; font-family:'KaiTi',serif;">♠<br><span style="font-size:13px;">K</span></div>
+      <div style="position:absolute; bottom:6px; right:6px; color:#212121; font-size:11px; font-weight:bold; line-height:1.1; transform:rotate(180deg); font-family:'KaiTi',serif;">♠<br><span style="font-size:13px;">K</span></div>
+      <div style="position:absolute; top:9px; left:0; right:0; text-align:center; color:#5d4037; font-size:9px; letter-spacing:2px;">基本牌</div>
+      <!-- SVG: 盾牌 -->
+      <div style="position:absolute; top:34px; left:0; right:0; text-align:center;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="#212121">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        </svg>
+      </div>
+      <div style="position:absolute; bottom:18px; left:0; right:0; text-align:center; color:#212121; font-size:32px; font-weight:bold; font-family:'KaiTi','STKaiti',serif;">闪</div>
+    </div>
+    <!-- 锦囊 决斗 -->
+    <div style="position:relative; width:84px; height:128px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%); border-radius:8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 0 12px rgba(21,101,192,0.2); overflow:hidden;">
+      <div style="position:absolute; inset:3px; border: 1px solid rgba(21,101,192,0.6); border-radius:5px;"></div>
+      <div style="position:absolute; inset:5px; border: 1px dashed rgba(21,101,192,0.3); border-radius:4px;"></div>
+      <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:80px; font-family:'KaiTi','STKaiti',serif; color: rgba(13,71,161,0.08); font-weight:bold; line-height:1;">决</div>
+      <div style="position:absolute; top:6px; left:6px; color:#212121; font-size:11px; font-weight:bold; line-height:1.1;">♠<br><span style="font-size:13px;">A</span></div>
+      <div style="position:absolute; bottom:6px; right:6px; color:#212121; font-size:11px; font-weight:bold; line-height:1.1; transform:rotate(180deg);">♠<br><span style="font-size:13px;">A</span></div>
+      <div style="position:absolute; top:9px; left:0; right:0; text-align:center; color:#0d47a1; font-size:9px; letter-spacing:2px;">锦囊牌</div>
+      <!-- SVG: 剑交叉 -->
+      <div style="position:absolute; top:34px; left:0; right:0; text-align:center;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="#0d47a1">
+          <path d="M6.92 5L5 6.92l6.84 6.84-2.05 4.05 1.41 1.41 4.05-4.05 6.84 6.84L23.92 20 19 15.08l4.05-4.05-1.41-1.41-4.05 2.05L11.75 5.83 13.92 3.66 12.5 2.25 9.83 4.92z"/>
+        </svg>
+      </div>
+      <div style="position:absolute; bottom:18px; left:0; right:0; text-align:center; color:#0d47a1; font-size:28px; font-weight:bold; font-family:'KaiTi','STKaiti',serif;">决斗</div>
+    </div>
+    <!-- 装备 诸葛连弩 -->
+    <div style="position:relative; width:84px; height:128px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%); border-radius:8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 0 12px rgba(46,125,50,0.2); overflow:hidden;">
+      <div style="position:absolute; inset:3px; border: 1px solid rgba(46,125,50,0.6); border-radius:5px;"></div>
+      <div style="position:absolute; inset:5px; border: 1px dashed rgba(46,125,50,0.3); border-radius:4px;"></div>
+      <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:60px; font-family:'KaiTi','STKaiti',serif; color: rgba(27,94,32,0.08); font-weight:bold; line-height:1;">弩</div>
+      <div style="position:absolute; top:6px; left:6px; color:#212121; font-size:11px; font-weight:bold; line-height:1.1;">♣<br><span style="font-size:13px;">2</span></div>
+      <div style="position:absolute; bottom:6px; right:6px; color:#212121; font-size:11px; font-weight:bold; line-height:1.1; transform:rotate(180deg);">♣<br><span style="font-size:13px;">2</span></div>
+      <div style="position:absolute; top:9px; left:0; right:0; text-align:center; color:#1b5e20; font-size:9px; letter-spacing:2px;">装备牌</div>
+      <!-- SVG: 弩/弓 -->
+      <div style="position:absolute; top:34px; left:0; right:0; text-align:center;">
+        <svg width="36" height="32" viewBox="0 0 32 32" fill="#1b5e20">
+          <path d="M3 16C8 8 18 6 26 6l3-3-1 5 3-2-3 4-3-1 1 4-3-2c-7 0-15 2-20 5z"/>
+        </svg>
+      </div>
+      <div style="position:absolute; bottom:14px; left:0; right:0; text-align:center; color:#1b5e20; font-size:18px; font-weight:bold; font-family:'KaiTi','STKaiti',serif;">诸葛弩</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>新增的视觉元素</h3>
+  <ul>
+    <li><b>背景水印</b>: 中央大字 8% 透明度水印 (杀/闪/决/弩)</li>
+    <li><b>双层边框</b>: 实线 + 虚线嵌套，增加层次</li>
+    <li><b>SVG 图标</b>: 杀配剑, 闪配盾, 锦囊配剑, 装备配弓</li>
+    <li><b>四角花色</b>: 左上和右下镜像显示 (类似扑克)</li>
+    <li><b>卡名大字</b>: 楷体置于卡片底部</li>
+    <li><b>类型标签</b>: 顶部 "基本牌/锦囊牌/装备牌"</li>
+    <li><b>阴影立体感</b>: 外阴影 + 内阴影增加卡片厚度</li>
+  </ul>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>就这样</h3>
+      <p>按 v2 实现</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tune" onclick="toggleSelect(this)">
+    <div class="letter">⚙</div>
+    <div class="content">
+      <h3>微调</h3>
+      <p>我提具体修改意见</p>
+    </div>
+  </div>
+  <div class="option" data-choice="back" onclick="toggleSelect(this)">
+    <div class="letter">←</div>
+    <div class="content">
+      <h3>回到 v1</h3>
+      <p>v2 装饰太多</p>
+    </div>
+  </div>
+</div>

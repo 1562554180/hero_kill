@@ -1,0 +1,52 @@
+- generic [ref=e7]:
+  - generic [ref=e8]:
+    - heading "主城" [level=2] [ref=e9]
+    - generic [ref=e10]:
+      - generic [ref=e11]: "金币: 1000"
+      - button "关卡" [ref=e12] [cursor=pointer]
+      - button "英雄" [ref=e13] [cursor=pointer]
+      - button "背包" [ref=e14] [cursor=pointer]
+      - button "招贤馆" [ref=e15] [cursor=pointer]
+  - generic [ref=e16]:
+    - heading "主城 Lv.1" [level=3] [ref=e17]
+    - paragraph [ref=e18]: "每次征收金币: 100"
+  - generic [ref=e19]:
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - heading "主城" [level=4] [ref=e22]
+        - generic [ref=e23]: Lv.1
+      - paragraph [ref=e24]: 提升金币征收量
+      - button "升级 (需 300 金币)" [ref=e25] [cursor=pointer]
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - heading "招贤馆" [level=4] [ref=e28]
+        - generic [ref=e29]: Lv.1
+      - paragraph [ref=e30]: 解锁更高星级英雄招募
+      - button "进入招贤馆" [ref=e31] [cursor=pointer]
+      - button "升级 (需 300 金币)" [ref=e32] [cursor=pointer]
+    - generic [ref=e33]:
+      - generic [ref=e34]:
+        - heading "熔炼炉" [level=4] [ref=e35]
+        - generic [ref=e36]: Lv.1
+      - paragraph [ref=e37]: 解锁更高星级英雄熔炼
+      - button "进入熔炼炉" [ref=e38] [cursor=pointer]
+      - button "升级 (需 300 金币)" [ref=e39] [cursor=pointer]
+    - generic [ref=e40]:
+      - generic [ref=e41]:
+        - heading "宝具工坊" [level=4] [ref=e42]
+        - generic [ref=e43]: Lv.1
+      - paragraph [ref=e44]: 提高辅印强化等级上限
+      - button "进入宝具工坊" [ref=e45] [cursor=pointer]
+      - button "升级 (需 300 金币)" [ref=e46] [cursor=pointer]
+    - generic [ref=e47]:
+      - generic [ref=e48]:
+        - heading "校练场" [level=4] [ref=e49]
+        - generic [ref=e50]: Lv.1
+      - paragraph [ref=e51]: 提高训练成长值
+      - button "升级 (需 300 金币)" [ref=e52] [cursor=pointer]
+    - generic [ref=e53]:
+      - generic [ref=e54]:
+        - heading "点将台" [level=4] [ref=e55]
+        - generic [ref=e56]: Lv.1
+      - paragraph [ref=e57]: 增加持有英雄数量上限
+      - button "升级 (需 300 金币)" [ref=e58] [cursor=pointer]

@@ -1,0 +1,20 @@
+- generic [ref=f1e59]:
+  - heading "选择关卡" [level=1] [ref=f1e60]
+  - generic [ref=f1e61]:
+    - generic [ref=f1e62]:
+      - generic [ref=f1e63]:
+        - heading "徐州" [level=3] [ref=f1e64]
+        - paragraph [ref=f1e65]: 群雄逐鹿之地，刘邦故里
+        - paragraph [ref=f1e66]: "进度: 0/5 | 星级:"
+      - button "挑战" [ref=f1e67] [cursor=pointer]
+    - generic [ref=f1e69]:
+      - heading "🔒 扬州" [level=3] [ref=f1e70]
+      - paragraph [ref=f1e71]: 隋末乱世，瓦岗英雄
+      - paragraph [ref=f1e72]: "进度: 0/5 | 星级:"
+    - generic [ref=f1e74]:
+      - heading "🔒 益州" [level=3] [ref=f1e75]
+      - paragraph [ref=f1e76]: 天府之国，三国鼎立
+      - paragraph [ref=f1e77]: "进度: 0/5 | 星级:"
+  - generic [ref=f1e78]:
+    - button "主城" [ref=f1e79] [cursor=pointer]
+    - button "英雄" [ref=f1e80] [cursor=pointer]
