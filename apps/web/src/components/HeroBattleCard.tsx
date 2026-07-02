@@ -3,6 +3,7 @@ import { isRedSuit, getTreasureSlots } from '@hero-legend/shared-types'
 import { memo, useEffect, useRef, useState } from 'react'
 import { useBattleStore } from '../stores/battleStore'
 import { HeroPortrait } from './HeroPortrait'
+import { getSkillIcon } from '../skillIcons'
 
 /** 调试: 鼠标悬停AI手牌数时显示具体手牌内容. 关闭后回到原样(只显示数字) */
 const DEBUG_SHOW_AI_HAND = true
@@ -437,6 +438,7 @@ function TreasureSlot({ treasure, type, locked, heroStarLevel }: { treasure: Tre
     )
   }
 
+  const icon = getSkillIcon(treasure.skill?.name ?? treasure.name)
   const displayChar = (treasure.name?.[0] ?? '?')
   const baseRate = treasure.triggerRate ?? 0
   const lvl = treasure.level ?? 0
@@ -461,8 +463,9 @@ function TreasureSlot({ treasure, type, locked, heroStarLevel }: { treasure: Tre
         fontWeight: 'bold',
         cursor: 'help',
         textShadow: '0 0 2px rgba(0,0,0,0.6)',
+        overflow: 'hidden',
       }}
-    >{displayChar}</div>
+    >{icon ? <img src={icon} alt={treasure.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayChar}</div>
   )
 }
 

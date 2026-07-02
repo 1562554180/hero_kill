@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Hero, HeroInstance, Treasure } from '@hero-legend/shared-types'
+import { getSkillIcon } from '../../skillIcons'
 
 const NAME_TO_ID: Record<string, string> = {
   '扁鹊': 'bian-que', '曹操': 'cao-cao', '陈胜': 'chen-sheng', '程咬金': 'cheng-yao-jin',
@@ -124,6 +125,7 @@ export function HeroPage() {
                 还没有英雄 — 去招贤馆抽卡获得英雄石, 在背包"使用"获得英雄
               </div>
             )}
+            
             {myHeroes.map((h, idx) => {
               const cfg = allHeroes.find(c => c.id === h.heroId)
               if (!cfg) return null
@@ -289,8 +291,20 @@ export function HeroPage() {
                               background: 'var(--bg-medium)', border: '1px solid var(--border-wood)',
                               borderRadius: '4px', padding: '6px 10px', fontSize: '12px',
                               cursor: 'pointer', userSelect: 'none',
+                              display: 'flex', gap: '8px', alignItems: 'flex-start',
                             }}
                           >
+                            {(() => {
+                              const icon = getSkillIcon(t.skill?.name ?? t.name)
+                              return icon ? (
+                                <img src={icon} alt={t.name} style={{
+                                  width: '36px', height: '36px', flexShrink: 0, borderRadius: '4px',
+                                  objectFit: 'contain', background: '#1a1a1a',
+                                  border: '1px solid var(--border-wood)',
+                                }} />
+                              ) : null
+                            })()}
+                            <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)' }}>
                               {t.name} * {n}
                             </div>
@@ -307,6 +321,7 @@ export function HeroPage() {
                             )}
                             <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
                               {t.skill.description}
+                            </div>
                             </div>
                           </div>
                         )

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Hero, HeroInstance, HeroStone, Material, Treasure } from '@hero-legend/shared-types'
+import { getSkillIcon } from '../../skillIcons'
 
 const API = '/api'
 
@@ -320,7 +321,19 @@ export function BackpackPage() {
                   <div key={t.id} style={{
                     background: 'var(--bg-dark)', padding: '10px', borderRadius: '4px',
                     border: `1px solid ${equipped ? '#ff6b6b' : 'var(--border-wood)'}`,
+                    display: 'flex', gap: '10px', alignItems: 'flex-start',
                   }}>
+                    {(() => {
+                      const icon = getSkillIcon(t.skill?.name ?? t.name)
+                      return icon ? (
+                        <img src={icon} alt={t.name} style={{
+                          width: '48px', height: '48px', flexShrink: 0, borderRadius: '4px',
+                          objectFit: 'contain', background: '#1a1a1a',
+                          border: '1px solid var(--border-wood)',
+                        }} />
+                      ) : null
+                    })()}
+                    <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                       <span style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)', fontWeight: 'bold' }}>
                         {t.name} * {n}
@@ -372,6 +385,7 @@ export function BackpackPage() {
                       >
                         分解
                       </button>
+                    </div>
                     </div>
                   </div>
                 )
