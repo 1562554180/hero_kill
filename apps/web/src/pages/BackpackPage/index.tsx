@@ -46,6 +46,15 @@ const SLOT_LABEL: Record<string, string> = { main: '主印槽', sub: '辅印槽'
 
 const TREASURE_PAGE_SIZE = 48
 
+// 星级 → 边框色
+const STAR_BORDER: Record<number, string> = {
+  5: '#ffd700',
+  4: '#a78bfa',
+  3: '#60a5fa',
+  2: '#86efac',
+  1: '#9ca3af',
+}
+
 const MAX_LEVEL = 45
 const MAX_ENHANCE_COUNT = 50
 
@@ -270,7 +279,7 @@ export function BackpackPage() {
             </div>
           ) : (
             <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(24px, 1fr))', gap: '4px' }}>
               {treasures.slice(treasurePage * TREASURE_PAGE_SIZE, (treasurePage + 1) * TREASURE_PAGE_SIZE).map(t => {
                 const n = t.count ?? 1
                 const equipped = equippedMap.get(t.id)
@@ -289,14 +298,19 @@ export function BackpackPage() {
                   : '#ff6b6b'
                 const icon = getSkillIcon(t.skill?.name ?? t.name)
                 const isEquipped = !!equipped
+                const borderColor = isEquipped ? '#ff6b6b' : (STAR_BORDER[t.starLevel] ?? 'var(--border-wood)')
                 return (
                   <div key={t.id} className="treasure-cell" style={{ position: 'relative' }}>
                     <div style={{
                       width: '100%', aspectRatio: '1',
-                      background: icon ? `url(${icon}) center/contain no-repeat, #1a1a1a` : 'var(--bg-dark)',
-                      borderRadius: '4px',
-                      border: `1px solid ${isEquipped ? '#ff6b6b' : 'var(--border-wood)'}`,
-                      boxShadow: isEquipped ? '0 0 6px rgba(255,107,107,0.5)' : 'none',
+                      backgroundColor: '#1a1a1a',
+                      backgroundImage: icon ? `url(${icon})` : 'none',
+                      backgroundPosition: '1px -1px',
+                      backgroundSize: 'contain',
+                      backgroundRepeat: 'no-repeat',
+                      borderRadius: '3px',
+                      border: `1px solid ${borderColor}`,
+                      boxShadow: isEquipped ? '0 0 4px rgba(255,107,107,0.6)' : 'none',
                       position: 'relative',
                       cursor: 'help',
                     }}>
@@ -305,32 +319,18 @@ export function BackpackPage() {
                           position: 'absolute', inset: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)',
-                          fontSize: '13px', fontWeight: 'bold',
+                          fontSize: '10px', fontWeight: 'bold',
                         }}>{t.name?.[0] ?? '?'}</div>
                       )}
                       {/* 数量角标 */}
                       {n > 1 && (
                         <span style={{
-                          position: 'absolute', right: '2px', bottom: '2px',
-                          background: 'rgba(0,0,0,0.7)', color: 'var(--text-gold)',
-                          fontSize: '10px', fontWeight: 'bold', padding: '0 4px', borderRadius: '3px',
-                          lineHeight: '14px',
+                          position: 'absolute', right: '0', bottom: '0',
+                          background: 'rgba(0,0,0,0.85)', color: 'var(--text-gold)',
+                          fontSize: '9px', fontWeight: 'bold', padding: '0 3px',
+                          lineHeight: '11px',
+                          borderRadius: '3px 0 0 0',
                         }}>×{n}</span>
-                      )}
-                      {/* 星级角标 */}
-                      <span style={{
-                        position: 'absolute', left: '2px', top: '2px',
-                        color: 'var(--text-gold)', fontSize: '9px',
-                        textShadow: '0 1px 2px rgba(0,0,0,0.8)',
-                        lineHeight: 1,
-                      }}>{'★'.repeat(t.starLevel)}</span>
-                      {/* 装备中标记 */}
-                      {isEquipped && (
-                        <span style={{
-                          position: 'absolute', right: '2px', top: '2px',
-                          width: '8px', height: '8px', borderRadius: '50%',
-                          background: '#ff6b6b', boxShadow: '0 0 4px rgba(255,107,107,0.8)',
-                        }} title={`装备中: ${equippedHeroName}`} />
                       )}
                     </div>
                     {/* hover 弹层 */}

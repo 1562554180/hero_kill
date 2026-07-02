@@ -9,6 +9,8 @@ function isSameTreasureKind(a: Treasure, b: Partial<Treasure>): boolean {
     && a.type === b.type
     && a.starLevel === b.starLevel
     && a.triggerRate === b.triggerRate
+    && (a.level ?? 0) === (b.level ?? 0)
+    && (a.enhanceCount ?? 0) === (b.enhanceCount ?? 0)
 }
 
 /** 合并新宝具到背包: 找到同类则 count++, 否则 push. 返回更新后的 treasures 数组 */
