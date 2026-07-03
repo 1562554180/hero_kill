@@ -36,6 +36,7 @@ export function HeroPage() {
   const [message, setMessage] = useState('')
   // 镶嵌凹槽选中状态: 点击槽位时展开可镶嵌列表
   const [activeSlot, setActiveSlot] = useState<{ slotType: 'main' | 'sub'; slotIndex: number } | null>(null)
+  const [equipPage, setEquipPage] = useState(0)
 
   useEffect(() => {
     const uid = localStorage.getItem('hero-legend-userId') || ''
@@ -230,7 +231,7 @@ export function HeroPage() {
                   const isActive = activeSlot?.slotType === 'main' && activeSlot?.slotIndex === i
                   return (
                     <div key={`main-${i}`}
-                      onClick={() => setActiveSlot(isActive ? null : { slotType: 'main', slotIndex: i })}
+                      onClick={() => { setActiveSlot(isActive ? null : { slotType: 'main', slotIndex: i }); setEquipPage(0) }}
                       onDoubleClick={() => { if (t) unequipTreasure(selectedInstance.instanceId!, 'main', i) }}
                       style={{
                         background: isActive ? '#3a2a1a' : 'var(--bg-dark)',
@@ -248,7 +249,7 @@ export function HeroPage() {
                   const isActive = activeSlot?.slotType === 'sub' && activeSlot?.slotIndex === i
                   return (
                     <div key={`sub-${i}`}
-                      onClick={() => setActiveSlot(isActive ? null : { slotType: 'sub', slotIndex: i })}
+                      onClick={() => { setActiveSlot(isActive ? null : { slotType: 'sub', slotIndex: i }); setEquipPage(0) }}
                       onDoubleClick={() => { if (t) unequipTreasure(selectedInstance.instanceId!, 'sub', i) }}
                       style={{
                         background: isActive ? '#3a2a1a' : 'var(--bg-dark)',
@@ -268,10 +269,14 @@ export function HeroPage() {
               {activeSlot && (() => {
                 const candidates = inventory.filter(t => t.type === activeSlot.slotType)
                 const heroStar = selectedInstance.starLevel ?? 1
+                const PAGE_SIZE = 20
+                const totalPages = Math.ceil(candidates.length / PAGE_SIZE)
+                const safePage = Math.min(equipPage, Math.max(0, totalPages - 1))
+                const pageItems = candidates.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
                 return candidates.length > 0 ? (
                   <div style={{ marginTop: '8px', background: 'var(--bg-dark)', borderRadius: '4px', padding: '10px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
-                      {candidates.map(t => {
+                      {pageItems.map(t => {
                         const n = t.count ?? 1
                         const lvl = t.level ?? 0
                         const cnt = t.enhanceCount ?? 0
@@ -327,6 +332,23 @@ export function HeroPage() {
                         )
                       })}
                     </div>
+                    {totalPages > 1 && (
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+                        <button
+                          disabled={safePage === 0}
+                          onClick={() => setEquipPage(p => Math.max(0, p - 1))}
+                          style={{ fontSize: '12px', padding: '4px 12px' }}
+                        >上一页</button>
+                        <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>
+                          {safePage + 1} / {totalPages}
+                        </span>
+                        <button
+                          disabled={safePage >= totalPages - 1}
+                          onClick={() => setEquipPage(p => Math.min(totalPages - 1, p + 1))}
+                          style={{ fontSize: '12px', padding: '4px 12px' }}
+                        >下一页</button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div style={{ marginTop: '8px', color: 'var(--text-muted)', fontSize: '12px' }}>
