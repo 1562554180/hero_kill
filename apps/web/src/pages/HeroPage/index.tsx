@@ -17,14 +17,36 @@ const NAME_TO_ID: Record<string, string> = {
 }
 
 const portraitModules = import.meta.glob('../../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
-const HERO_PORTRAITS: Record<string, string> = {}
+const HERO_PORTRAITS_BY_NAME: Record<string, string> = {}
 for (const [path, url] of Object.entries(portraitModules)) {
   const filename = path.replace('../../images/', '').replace('.jpg', '')
-  const heroId = NAME_TO_ID[filename]
-  if (heroId) HERO_PORTRAITS[heroId] = url
+  HERO_PORTRAITS_BY_NAME[filename] = url
+}
+// 同时按 heroId 索引 (兼容旧代码)
+const HERO_PORTRAITS: Record<string, string> = {}
+for (const [cnName, heroId] of Object.entries(NAME_TO_ID)) {
+  if (HERO_PORTRAITS_BY_NAME[cnName]) HERO_PORTRAITS[heroId] = HERO_PORTRAITS_BY_NAME[cnName]
 }
 
 const API = '/api'
+
+// 宝具星级 → 边框色 (与背包宝具展示一致)
+const STAR_BORDER: Record<number, string> = {
+  5: '#ffd700',
+  4: '#a78bfa',
+  3: '#60a5fa',
+  2: '#86efac',
+  1: '#9ca3af',
+}
+
+// 英雄星级 → 名字颜色
+const STAR_NAME_COLOR: Record<number, string> = {
+  5: '#ffd700',
+  4: '#a78bfa',
+  3: '#60a5fa',
+  2: '#86efac',
+  1: '#9ca3af',
+}
 
 export function HeroPage() {
   const navigate = useNavigate()
@@ -117,52 +139,56 @@ export function HeroPage() {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', flex: 1, minHeight: 0 }}>
-        {/* Left: hero list */}
+        {/* Left: hero grid */}
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <h3 style={{ color: 'var(--text-gold)', marginBottom: '12px' }}>我的英雄</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto', minHeight: 0, paddingRight: '4px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))',
+            gap: '8px', flex: 1, overflowY: 'auto', minHeight: 0, paddingRight: '4px',
+            alignContent: 'start',
+          }}>
             {myHeroes.length === 0 && (
-              <div style={{ color: 'var(--text-muted)', padding: '20px', textAlign: 'center' }}>
+              <div style={{ color: 'var(--text-muted)', padding: '20px', textAlign: 'center', gridColumn: '1 / -1' }}>
                 还没有英雄 — 去招贤馆抽卡获得英雄石, 在背包"使用"获得英雄
               </div>
             )}
-            
+
             {myHeroes.map((h, idx) => {
               const cfg = allHeroes.find(c => c.id === h.heroId)
               if (!cfg) return null
-              // 同名多份时加序号标记
               const sameNameCount = myHeroes.filter(x => x.heroId === h.heroId).length
               const showIndex = sameNameCount > 1
               const sameNameIdx = myHeroes.slice(0, idx + 1).filter(x => x.heroId === h.heroId).length
+              const nameColor = STAR_NAME_COLOR[h.starLevel] ?? 'var(--text-light)'
+              const avatar = HERO_PORTRAITS_BY_NAME[cfg.name] ?? HERO_PORTRAITS[h.heroId]
               return (
-                <div key={h.instanceId ?? `${h.heroId}-${idx}`} onClick={() => { setSelectedInstanceId(h.instanceId ?? null); setActiveSlot(null) }} style={{
-                  background: selectedInstanceId === h.instanceId ? 'var(--bg-light)' : 'var(--bg-medium)',
-                  border: `1px solid ${selectedInstanceId === h.instanceId ? 'var(--border-gold)' : 'var(--border-wood)'}`,
-                  borderRadius: '6px', padding: '10px', cursor: 'pointer',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                    {HERO_PORTRAITS[h.heroId] && (
-                      <img
-                        src={HERO_PORTRAITS[h.heroId]}
-                        alt={cfg.name}
-                        style={{
-                          width: '40px', height: '40px', borderRadius: '4px',
-                          objectFit: 'cover', marginRight: '10px',
-                          border: '1px solid var(--border-wood)',
-                          background: 'var(--bg-dark)',
-                        }}
-                      />
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                      <span style={{ color: 'var(--text-light)', fontWeight: 'bold' }}>
-                        {cfg.name}{showIndex && <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginLeft: '4px' }}>#{sameNameIdx}</span>}
-                      </span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '4px' }}>
-                        Lv.{h.level} | {cfg.faction} | HP {cfg.baseHp + h.starLevel - 1}
-                      </span>
-                    </div>
-                    <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>{getStarDisplay(h.starLevel)}</span>
-                  </div>
+                <div
+                  key={h.instanceId ?? `${h.heroId}-${idx}`}
+                  onClick={() => { setSelectedInstanceId(h.instanceId ?? null); setActiveSlot(null) }}
+                  title={cfg.name}
+                  style={{
+                    background: selectedInstanceId === h.instanceId ? 'var(--bg-light)' : 'var(--bg-medium)',
+                    border: `1px solid ${selectedInstanceId === h.instanceId ? 'var(--border-gold)' : 'var(--border-wood)'}`,
+                    borderRadius: '6px', padding: '4px', cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                  }}
+                >
+                  {avatar && (
+                    <img
+                      src={avatar}
+                      alt={cfg.name}
+                      style={{
+                        width: '100%', aspectRatio: '1', borderRadius: '4px',
+                        objectFit: 'cover', display: 'block',
+                        border: '1px solid var(--border-wood)',
+                        background: 'var(--bg-dark)',
+                      }}
+                    />
+                  )}
+                  <span style={{ color: nameColor, fontWeight: 'bold', fontSize: '12px', textAlign: 'center', lineHeight: 1.1 }}>
+                    {cfg.name}{showIndex && <span style={{ color: 'var(--text-muted)', fontSize: '10px', marginLeft: '2px' }}>#{sameNameIdx}</span>}
+                  </span>
                 </div>
               )
             })}
@@ -179,87 +205,155 @@ export function HeroPage() {
               <h3 style={{ color: 'var(--text-gold)', fontSize: '20px', marginBottom: '8px' }}>
                 {selectedConfig.name}
               </h3>
-              {HERO_PORTRAITS[selectedConfig.id] && (
-                <img
-                  src={HERO_PORTRAITS[selectedConfig.id]}
-                  alt={selectedConfig.name}
-                  style={{
-                    width: '120px', height: '120px', borderRadius: '8px',
-                    objectFit: 'cover', marginBottom: '12px',
-                    border: '2px solid var(--border-wood)',
-                    background: 'var(--bg-dark)',
-                    display: 'block',
-                  }}
-                />
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
-                <div style={{ background: 'var(--bg-dark)', padding: '8px', borderRadius: '4px' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>等级</div>
-                  <div style={{ color: 'var(--text-light)' }}>Lv.{selectedInstance.level}</div>
-                </div>
-                <div style={{ background: 'var(--bg-dark)', padding: '8px', borderRadius: '4px' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>星级</div>
-                  <div style={{ color: 'var(--text-gold)' }}>{getStarDisplay(selectedInstance.starLevel)}</div>
-                </div>
-                <div style={{ background: 'var(--bg-dark)', padding: '8px', borderRadius: '4px' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>血量</div>
-                  <div style={{ color: 'var(--text-light)' }}>{selectedConfig.baseHp + selectedInstance.starLevel - 1}</div>
-                </div>
-                <div style={{ background: 'var(--bg-dark)', padding: '8px', borderRadius: '4px' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>阵营</div>
-                  <div style={{ color: 'var(--text-light)' }}>{selectedConfig.faction}</div>
+              <div style={{ display: 'flex', gap: '14px', alignItems: 'stretch', marginBottom: '16px' }}>
+                {HERO_PORTRAITS[selectedConfig.id] && (
+                  <img
+                    src={HERO_PORTRAITS[selectedConfig.id]}
+                    alt={selectedConfig.name}
+                    style={{
+                      width: '120px', height: '120px', borderRadius: '8px',
+                      objectFit: 'cover',
+                      border: '2px solid var(--border-wood)',
+                      background: 'var(--bg-dark)',
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', flex: 1, alignContent: 'stretch' }}>
+                  <div style={{ background: 'var(--bg-dark)', padding: '6px 10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>等级</div>
+                    <div style={{ color: 'var(--text-light)', fontSize: '13px', fontWeight: 'bold' }}>Lv.{selectedInstance.level}</div>
+                  </div>
+                  <div style={{ background: 'var(--bg-dark)', padding: '6px 10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>星级</div>
+                    <div style={{ color: 'var(--text-gold)', fontSize: '13px' }}>{getStarDisplay(selectedInstance.starLevel)}</div>
+                  </div>
+                  <div style={{ background: 'var(--bg-dark)', padding: '6px 10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>血量</div>
+                    <div style={{ color: 'var(--text-light)', fontSize: '13px', fontWeight: 'bold' }}>{selectedConfig.baseHp + selectedInstance.starLevel - 1}</div>
+                  </div>
+                  <div style={{ background: 'var(--bg-dark)', padding: '6px 10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>阵营</div>
+                    <div style={{ color: 'var(--text-light)', fontSize: '13px', fontWeight: 'bold' }}>{selectedConfig.faction}</div>
+                  </div>
                 </div>
               </div>
 
               <h4 style={{ color: 'var(--text-gold)', marginBottom: '8px' }}>技能</h4>
-              {selectedConfig.skills.map(s => (
-                <div key={s.id} style={{ background: 'var(--bg-dark)', padding: '8px', borderRadius: '4px', marginBottom: '6px' }}>
-                  <span style={{ color: 'var(--color-blue)' }}>{s.name}</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}> ({s.type === 'active' ? '主动' : '被动'})</span>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '2px' }}>{s.description}</p>
-                </div>
-              ))}
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                {selectedConfig.skills.map(s => (
+                  <span
+                    key={s.id}
+                    title={`${s.name} (${s.type === 'active' ? '主动' : '被动'})\n${s.description}`}
+                    style={{
+                      fontSize: '12px',
+                      padding: '4px 10px',
+                      borderRadius: '12px',
+                      background: s.type === 'active' ? 'rgba(255,215,0,0.12)' : 'rgba(144,202,249,0.12)',
+                      color: s.type === 'active' ? 'var(--text-gold)' : 'var(--color-blue)',
+                      border: `1px solid ${s.type === 'active' ? 'rgba(255,215,0,0.4)' : 'rgba(144,202,249,0.4)'}`,
+                      cursor: 'help',
+                      userSelect: 'none',
+                    }}
+                  >
+                    {s.name}
+                  </span>
+                ))}
+              </div>
 
-              {/* Treasure slots */}
+              {/* Treasure slots — 视觉/尺寸与背包宝具格子一致 */}
               <h4 style={{ color: 'var(--text-gold)', margin: '16px 0 8px' }}>
                 宝具槽
                 {activeSlot && <span style={{ fontSize: '12px', color: '#ff6b6b', marginLeft: '8px' }}>点击宝具镶嵌 (从背包)</span>}
               </h4>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, minmax(0, 1fr))', gap: '4px', maxWidth: '320px' }}>
                 {selectedInstance.treasures.main.map((t, i) => {
                   const isActive = activeSlot?.slotType === 'main' && activeSlot?.slotIndex === i
+                  const tt = t as any
+                  const icon = tt ? getSkillIcon(tt.skill?.name ?? tt.name) : null
+                  const borderColor = isActive ? '#ff6b6b' : (tt ? (STAR_BORDER[tt.starLevel] ?? 'var(--border-wood)') : 'var(--border-wood)')
                   return (
-                    <div key={`main-${i}`}
-                      onClick={() => { setActiveSlot(isActive ? null : { slotType: 'main', slotIndex: i }); setEquipPage(0) }}
-                      onDoubleClick={() => { if (t) unequipTreasure(selectedInstance.instanceId!, 'main', i) }}
-                      style={{
-                        background: isActive ? '#3a2a1a' : 'var(--bg-dark)',
-                        border: `1px ${isActive ? 'solid #ff6b6b' : t ? 'solid var(--border-wood)' : 'dashed var(--border-wood)'}`,
-                        borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
-                        color: t ? 'var(--text-light)' : 'var(--text-muted)',
-                        cursor: 'pointer', userSelect: 'none',
-                      }}
-                    >
-                      {t ? (t as any).name : '空'}
+                    <div key={`main-${i}`} className="treasure-cell" style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
+                      <div
+                        title={tt ? `${tt.name} (主印 · ${'★'.repeat(tt.starLevel ?? 1)})\n双击卸下\n${tt.skill?.description ?? ''}` : '空槽 (主印) - 点击选择'}
+                        onClick={() => { setActiveSlot(isActive ? null : { slotType: 'main', slotIndex: i }); setEquipPage(0) }}
+                        onDoubleClick={() => { if (tt) unequipTreasure(selectedInstance.instanceId!, 'main', i) }}
+                        style={{
+                          width: '100%', height: '100%',
+                          backgroundColor: '#1a1a1a',
+                          backgroundImage: icon ? `url(${icon})` : 'none',
+                          backgroundPosition: '0px -1px',
+                          backgroundSize: 'contain',
+                          backgroundRepeat: 'no-repeat',
+                          borderRadius: '3px',
+                          border: `1px solid ${borderColor}`,
+                          boxShadow: isActive ? '0 0 4px rgba(255,107,107,0.6)' : 'none',
+                          position: 'relative',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {!icon && (
+                          <div style={{
+                            position: 'absolute', inset: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: 'var(--text-gold)',
+                            fontSize: '10px', fontWeight: 'bold',
+                          }}>{tt ? (tt.name?.[0] ?? '?') : '主'}</div>
+                        )}
+                        {tt && tt.level > 0 && (
+                          <span style={{
+                            position: 'absolute', right: '0', bottom: '0',
+                            background: 'rgba(0,0,0,0.85)', color: 'var(--text-gold)',
+                            fontSize: '9px', fontWeight: 'bold', padding: '0 3px',
+                            lineHeight: '11px', borderRadius: '3px 0 0 0',
+                          }}>L{tt.level}</span>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
                 {selectedInstance.treasures.sub.map((t, i) => {
                   const isActive = activeSlot?.slotType === 'sub' && activeSlot?.slotIndex === i
+                  const tt = t as any
+                  const icon = tt ? getSkillIcon(tt.skill?.name ?? tt.name) : null
+                  const borderColor = isActive ? '#ff6b6b' : (tt ? (STAR_BORDER[tt.starLevel] ?? '#3a2a1a') : '#3a2a1a')
                   return (
-                    <div key={`sub-${i}`}
-                      onClick={() => { setActiveSlot(isActive ? null : { slotType: 'sub', slotIndex: i }); setEquipPage(0) }}
-                      onDoubleClick={() => { if (t) unequipTreasure(selectedInstance.instanceId!, 'sub', i) }}
-                      style={{
-                        background: isActive ? '#3a2a1a' : 'var(--bg-dark)',
-                        border: `1px ${isActive ? 'solid #ff6b6b' : t ? 'solid #3a2a1a' : 'dashed #3a2a1a'}`,
-                        borderRadius: '4px', padding: '6px 12px', fontSize: '12px',
-                        color: t ? 'var(--text-light)' : 'var(--text-muted)',
-                        cursor: 'pointer', userSelect: 'none',
-                      }}
-                    >
-                      {t ? (t as any).name : '空'}
+                    <div key={`sub-${i}`} className="treasure-cell" style={{ position: 'relative', width: '100%', aspectRatio: '1' }}>
+                      <div
+                        title={tt ? `${tt.name} (辅印 · ${'★'.repeat(tt.starLevel ?? 1)})\n双击卸下\n${tt.skill?.description ?? ''}` : '空槽 (辅印) - 点击选择'}
+                        onClick={() => { setActiveSlot(isActive ? null : { slotType: 'sub', slotIndex: i }); setEquipPage(0) }}
+                        onDoubleClick={() => { if (tt) unequipTreasure(selectedInstance.instanceId!, 'sub', i) }}
+                        style={{
+                          width: '100%', height: '100%',
+                          backgroundColor: '#1a1a1a',
+                          backgroundImage: icon ? `url(${icon})` : 'none',
+                          backgroundPosition: '0px -1px',
+                          backgroundSize: 'contain',
+                          backgroundRepeat: 'no-repeat',
+                          borderRadius: '3px',
+                          border: `1px solid ${borderColor}`,
+                          boxShadow: isActive ? '0 0 4px rgba(255,107,107,0.6)' : 'none',
+                          position: 'relative',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {!icon && (
+                          <div style={{
+                            position: 'absolute', inset: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: 'var(--color-blue)',
+                            fontSize: '10px', fontWeight: 'bold',
+                          }}>{tt ? (tt.name?.[0] ?? '?') : '辅'}</div>
+                        )}
+                        {tt && tt.level > 0 && (
+                          <span style={{
+                            position: 'absolute', right: '0', bottom: '0',
+                            background: 'rgba(0,0,0,0.85)', color: 'var(--text-gold)',
+                            fontSize: '9px', fontWeight: 'bold', padding: '0 3px',
+                            lineHeight: '11px', borderRadius: '3px 0 0 0',
+                          }}>L{tt.level}</span>
+                        )}
+                      </div>
                     </div>
                   )
                 })}

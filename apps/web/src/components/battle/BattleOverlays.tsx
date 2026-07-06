@@ -12,7 +12,6 @@ export function BattleOverlays() {
   const s = useBattleStore(useShallow(st => ({
     phase: st.phase,
     gameState: st.gameState,
-    game: st.game,
     treasureSkill: st.treasureSkill,
     treasurePrompt: st.treasurePrompt,
     treasureTargetIds: st.treasureTargetIds,
@@ -21,9 +20,14 @@ export function BattleOverlays() {
     longLinTargetInfo: st.longLinTargetInfo,
     longLinSelectedCards: st.longLinSelectedCards,
     wuguCandidates: st.wuguCandidates,
+    wuguPicks: st.wuguPicks,
+    wuguTotalPickers: st.wuguTotalPickers,
     tanNangTargetInfo: st.tanNangTargetInfo,
     fudiTargetInfo: st.fudiTargetInfo,
     faJiaTargetInfo: st.faJiaTargetInfo,
+    sheShenPrompt: st.sheShenPrompt,
+    sheShenSelectedCardIds: st.sheShenSelectedCardIds,
+    sheShenDistribution: st.sheShenDistribution,
     result: st.result,
     lastJudgeResult: st.lastJudgeResult,
     cancelTreasureSkill: st.cancelTreasureSkill,
@@ -38,22 +42,30 @@ export function BattleOverlays() {
     selectTanNangCard: st.selectTanNangCard,
     selectFudiCard: st.selectFudiCard,
     selectFaJiaCard: st.selectFaJiaCard,
+    toggleSheShenCard: st.toggleSheShenCard,
+    assignSheShenCard: st.assignSheShenCard,
+    unassignSheShenCard: st.unassignSheShenCard,
+    finishSheShen: st.finishSheShen,
+    playerJueJiSelf: st.playerJueJiSelf,
   })))
 
   const {
     phase, gameState, treasureSkill, treasurePrompt, treasureTargetIds, qiYiCardMap,
     xiaDanActive, longLinTargetInfo, longLinSelectedCards,
-    wuguCandidates, tanNangTargetInfo, fudiTargetInfo, faJiaTargetInfo,
+    wuguCandidates, wuguPicks, wuguTotalPickers, tanNangTargetInfo, fudiTargetInfo, faJiaTargetInfo,
+    sheShenPrompt, sheShenSelectedCardIds, sheShenDistribution,
     result, lastJudgeResult,
     cancelTreasureSkill, confirmTreasureTargets, confirmQiYiCards, pickQiYiCard,
     toggleLongLinCard, confirmLongLinPick, cancelLongLinPick,
     selectWuguCard, cancelWuguPick, selectTanNangCard, selectFudiCard, selectFaJiaCard,
+    toggleSheShenCard, assignSheShenCard, unassignSheShenCard, finishSheShen,
+    playerJueJiSelf,
   } = s
 
   return (
     <>
-      {/* 宝具技能 浮层 — 侠胆自己选牌时不要遮挡手牌, 侠胆激活时也无需浮层; 驭人/烽火/绝击用内联提示 */}
-      {treasureSkill && phase !== 'xiaDanPickCard' && !xiaDanActive && treasureSkill !== 'yu-ren' && treasureSkill !== 'feng-huo' && treasureSkill !== 'jue-ji' && (
+      {/* 宝具技能 浮层 — 侠胆自己选牌时不要遮挡手牌, 侠胆激活时也无需浮层; 驭人/烽火/绝击/疗伤/治愈用内联提示 */}
+      {treasureSkill && phase !== 'xiaDanPickCard' && !xiaDanActive && treasureSkill !== 'yu-ren' && treasureSkill !== 'feng-huo' && treasureSkill !== 'jue-ji' && treasureSkill !== 'liao-shang' && treasureSkill !== 'zhi-yu' && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
@@ -80,13 +92,7 @@ export function BattleOverlays() {
               {phase === 'treasureSelectWeapon' && (
                 <button
                   className="primary"
-                  onClick={() => {
-                    const g = useBattleStore.getState().game
-                    const tIds = useBattleStore.getState().treasureTargetIds
-                    const player = g!.getPlayer()!
-                    g!.playerJueJi(player, null, tIds[0])
-                    useBattleStore.setState({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureCardIds: [], treasureTargetIds: [], gameState: g!.getState(), playerHand: player.getHand() })
-                  }}
+                  onClick={() => playerJueJiSelf(null)}
                 >
                   受1血
                 </button>
@@ -258,36 +264,106 @@ export function BattleOverlays() {
         </div>
       )}
 
-      {/* 五谷丰登 选牌浮层 */}
-      {phase === 'selectWugu' && wuguCandidates && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 100,
-        }}>
+      {/* 五谷丰登 选牌浮层 — 默认无阴影; 已被选走的牌加阴影 + 显示 picker 名; 全选完自动关闭 */}
+      {wuguCandidates && (phase === 'selectWugu' || wuguPicks.length > 0) && (() => {
+        const pickedMap = new Map(wuguPicks.map(p => [p.cardId, p.heroName]))
+        const canPick = phase === 'selectWugu'
+        return (
           <div style={{
-            background: 'var(--bg-medium)', border: '2px solid #ffd54f',
-            borderRadius: '12px', padding: '24px', minWidth: '420px', maxWidth: '640px',
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 100,
           }}>
-            <h2 style={{ color: '#ffd54f', fontSize: '22px', marginBottom: '12px', textAlign: 'center' }}>
-              🌾 五谷丰登
-            </h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '13px', textAlign: 'center' }}>
-              从候选牌中选1张 (你优先选)
-            </p>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '16px' }}>
-              {wuguCandidates.map(card => (
-                <div key={card.id} onClick={() => selectWuguCard(card.id)} style={{ cursor: 'pointer' }}>
-                  <HandCard card={card} disabled={false} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <button onClick={cancelWuguPick}>放弃</button>
+            <div style={{
+              background: 'var(--bg-medium)', border: '2px solid #ffd54f',
+              borderRadius: '12px', padding: '24px', minWidth: '420px', maxWidth: '640px',
+            }}>
+              <h2 style={{ color: '#ffd54f', fontSize: '22px', marginBottom: '12px', textAlign: 'center' }}>
+                🌾 五谷丰登
+              </h2>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '13px', textAlign: 'center' }}>
+                {canPick ? '从候选牌中选1张 (你优先选)' : `等待其他角色选牌 (${wuguPicks.length}/${wuguTotalPickers})`}
+              </p>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '16px' }}>
+                {wuguCandidates.map(card => {
+                  const pickerName = pickedMap.get(card.id)
+                  const isPicked = !!pickerName
+                  return (
+                    <div
+                      key={card.id}
+                      onClick={() => canPick && !isPicked && selectWuguCard(card.id)}
+                      style={{
+                        cursor: canPick && !isPicked ? 'pointer' : 'default',
+                        position: 'relative',
+                        boxShadow: isPicked ? '0 6px 18px rgba(0,0,0,0.6)' : 'none',
+                        opacity: isPicked ? 0.7 : 1,
+                        transition: 'box-shadow 0.2s, opacity 0.2s',
+                      }}
+                    >
+                      <HandCard card={card} disabled={true} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
+                      {isPicked && (
+                        <span style={{
+                          position: 'absolute', bottom: '-22px', left: '50%', transform: 'translateX(-50%)',
+                          background: '#ffd54f', color: '#000', fontSize: '11px', fontWeight: 'bold',
+                          padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap',
+                        }}>{pickerName} 已选</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <button onClick={cancelWuguPick} disabled={!canPick} style={{ opacity: canPick ? 1 : 0.4 }}>
+                  {canPick ? '放弃' : '选牌中...'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
+
+      {/* 舍身 分配 — 无遮罩浮动面板 (多选牌);
+          点战场上的角色卡把选中的牌飞给他, 全部分完自动关闭 */}
+      {phase === 'sheShenDistribute' && sheShenPrompt && (() => {
+        return (
+          <div style={{
+            position: 'fixed', top: '42%', left: '50%', transform: 'translate(-50%, -50%)',
+            zIndex: 80,
+            background: 'var(--bg-medium)', border: '2px solid #ffd54f',
+            borderRadius: '12px', padding: '16px 20px', minWidth: '420px', maxWidth: '720px',
+          }}>
+            <h2 style={{ color: '#ffd54f', fontSize: '18px', marginBottom: '8px', textAlign: 'center' }}>
+              🪷 舍身 — 多选牌后点击角色分配
+            </h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '12px', textAlign: 'center' }}>
+              {sheShenSelectedCardIds.length > 0 ? `已选 ${sheShenSelectedCardIds.length} 张, 点击战场上的角色` : '点击下方牌选中'}
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {sheShenPrompt.cards.map(card => {
+                const assignedHeroId = Object.keys(sheShenDistribution).find(hid => sheShenDistribution[hid].includes(card.id))
+                const isAssigned = !!assignedHeroId
+                const isSelected = sheShenSelectedCardIds.includes(card.id)
+                return (
+                  <div
+                    key={card.id}
+                    onClick={() => !isAssigned && toggleSheShenCard(card.id)}
+                    style={{
+                      cursor: isAssigned ? 'default' : 'pointer',
+                      position: 'relative',
+                      outline: isSelected ? '2px solid #ffd54f' : 'none',
+                      borderRadius: '4px',
+                      opacity: isAssigned ? 0.55 : 1,
+                    }}
+                    title={isAssigned ? '已分配' : '点击选中'}
+                  >
+                    <HandCard card={card} disabled={true} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 探囊取物 选目标牌浮层 */}
       {phase === 'selectTanNangCard' && tanNangTargetInfo && (
@@ -311,16 +387,16 @@ export function BattleOverlays() {
                   {tanNangTargetInfo.hand.map((card, idx) => (
                     <div key={card.id} onClick={() => selectTanNangCard(card.id)} style={{
                       cursor: 'pointer',
-                      width: '72px', height: '110px',
+                      width: '61px', height: '82px',
                       background: 'var(--bg-dark)',
                       border: '1px solid #8b6914',
-                      borderRadius: '6px',
+                      borderRadius: '4px',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                       textAlign: 'center',
                       userSelect: 'none',
                     }}>
-                      <div style={{ color: 'var(--text-light)', fontSize: '28px', fontWeight: 'bold' }}>{idx + 1}</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '10px', marginTop: '4px' }}>手牌</div>
+                      <div style={{ color: 'var(--text-light)', fontSize: '22px', fontWeight: 'bold' }}>{idx + 1}</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '9px', marginTop: '2px' }}>手牌</div>
                     </div>
                   ))}
                 </div>
@@ -385,15 +461,15 @@ export function BattleOverlays() {
                   {fudiTargetInfo.hand.map((card, idx) => (
                     <div key={card.id} onClick={() => selectFudiCard(card.id)} style={{
                       cursor: 'pointer',
-                      width: '72px', height: '110px',
+                      width: '61px', height: '82px',
                       background: 'var(--bg-dark)',
                       border: '1px solid #e57373',
-                      borderRadius: '6px',
+                      borderRadius: '4px',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                       textAlign: 'center',
                       userSelect: 'none',
                     }}>
-                      <div style={{ color: 'var(--text-light)', fontSize: '28px', fontWeight: 'bold' }}>{idx + 1}</div>
+                      <div style={{ color: 'var(--text-light)', fontSize: '22px', fontWeight: 'bold' }}>{idx + 1}</div>
                       <div style={{ color: 'var(--text-muted)', fontSize: '10px', marginTop: '4px' }}>手牌</div>
                     </div>
                   ))}
@@ -459,16 +535,16 @@ export function BattleOverlays() {
                   {faJiaTargetInfo.hand.map((card, idx) => (
                     <div key={card.id} onClick={() => selectFaJiaCard(card.id)} style={{
                       cursor: 'pointer',
-                      width: '72px', height: '110px',
+                      width: '61px', height: '82px',
                       background: 'var(--bg-dark)',
                       border: '1px solid #8b6914',
-                      borderRadius: '6px',
+                      borderRadius: '4px',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                       textAlign: 'center',
                       userSelect: 'none',
                     }}>
-                      <div style={{ color: 'var(--text-light)', fontSize: '28px', fontWeight: 'bold' }}>{idx + 1}</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '10px', marginTop: '4px' }}>手牌</div>
+                      <div style={{ color: 'var(--text-light)', fontSize: '22px', fontWeight: 'bold' }}>{idx + 1}</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '9px', marginTop: '2px' }}>手牌</div>
                     </div>
                   ))}
                 </div>

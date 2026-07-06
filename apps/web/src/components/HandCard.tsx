@@ -18,6 +18,7 @@ interface Props {
   aoJianActive: boolean
   hasHongZhuang: boolean
   isResponse?: boolean
+  responseType?: 'kill' | 'nullify' | 'dodge' | null
   isJudgeReplace?: boolean
   isPending?: boolean
   isLifted?: boolean
@@ -59,7 +60,7 @@ const TYPE_LABEL: Record<string, string> = {
 const suitFontColor = (suit: string) => (suit === 'heart' || suit === 'diamond') ? '#c62828' : '#212121'
 const suitWaterColor = (suit: string) => (suit === 'heart' || suit === 'diamond') ? 'rgba(198,40,40,0.10)' : 'rgba(33,33,33,0.10)'
 
-function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, isHandCardSelect, isLuYeQiangKillCard, hasValidSchemeTarget = true, huiChunAvailable, shadowed = false, hasLeiInJudge = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
+function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, responseType, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, isHandCardSelect, isLuYeQiangKillCard, hasValidSchemeTarget = true, huiChunAvailable, shadowed = false, hasLeiInJudge = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
   const cardRef = useRef<HTMLDivElement>(null)
   const clickPos = (): { x: number; y: number } | undefined => {
     const el = cardRef.current
@@ -80,16 +81,27 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
   const isWuXie = card.name === '无懈可击'
   const isDodge = card.name === '闪'
   const isLei = card.name === '手捧雷'
-  const canRespond = isResponse && onRespondWithCard && (canUseAsKill || isWuXie || isDodge)
+  // 响应阶段: 按 responseType 精确匹配 — dodge→闪, nullify→无懈可击, kill→杀(傲剑下可当杀)
+  const canRespond = isResponse && onRespondWithCard && (
+    responseType === 'dodge' ? isDodge
+      : responseType === 'nullify' ? isWuXie
+        : responseType === 'kill' ? canUseAsKill
+          : (canUseAsKill || isWuXie || isDodge)
+  )
 
   // 选牌模式(弃牌/侠胆/曼舞/天香/补刀/超脱/treasure/...)整张牌都不加阴影, 玩家正在做选择
   // 傲剑下红色牌当杀: canUseAsKill=true 也不再视为"不可用" (药满血/雷已在判定区/无懈可击/...)
+  // 响应阶段: 不能用来响应的牌也加阴影 (例如被杀响应时, 除闪以外的牌都变灰)
   const isShadowedByRule = shadowed || (
-    !isResponse && !isHandCardSelect && (
-      (isDodge && !canUseAsKill) ||
-      (isWuXie && !canUseAsKill) ||
-      (isHeal && isFullHp && !canUseAsKill) ||
-      (isLei && hasLeiInJudge && !canUseAsKill)
+    !isHandCardSelect && (
+      isResponse
+        ? !canRespond
+        : (
+          (isDodge && !canUseAsKill) ||
+          (isWuXie && !canUseAsKill) ||
+          (isHeal && isFullHp && !canUseAsKill) ||
+          (isLei && hasLeiInJudge && !canUseAsKill)
+        )
     )
   )
 
@@ -153,15 +165,17 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
       title={cardTitle}
       style={{
         position: 'relative',
-        width: '72px',
-        height: '110px',
-        background: `linear-gradient(135deg, ${theme.bg1} 0%, ${theme.bg2} 50%, ${theme.bg3} 100%)`,
-        border: `1.5px solid ${theme.border}`,
+        width: '61px',
+        height: '82px',
+        background: cardImg
+          ? 'transparent'
+          : `linear-gradient(135deg, ${theme.bg1} 0%, ${theme.bg2} 50%, ${theme.bg3} 100%)`,
+        border: cardImg ? 'none' : `1.5px solid ${theme.border}`,
         borderRadius: '4px',
-        boxShadow: '0 3px 6px rgba(0,0,0,0.5), inset 0 0 8px rgba(139,105,20,0.2)',
+        boxShadow: cardImg ? 'none' : '0 3px 6px rgba(0,0,0,0.5), inset 0 0 8px rgba(139,105,20,0.2)',
         cursor: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode || isHandCardSelect) ? 'pointer' : 'default',
-        opacity: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode || isHandCardSelect) ? (isShadowedByRule && !isResponse && !isHandCardSelect ? 0.5 : 1) : 0.45,
-        filter: (isShadowedByRule && !isResponse && !isHandCardSelect) ? 'grayscale(0.4) brightness(0.85)' : 'none',
+        opacity: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode || isHandCardSelect) ? (isShadowedByRule && !isHandCardSelect ? 0.5 : 1) : 0.45,
+        filter: (isShadowedByRule && !isHandCardSelect) ? 'grayscale(0.4) brightness(0.85)' : 'none',
         transition: 'transform 0.15s, opacity 0.15s, box-shadow 0.15s, filter 0.15s',
         userSelect: 'none',
         overflow: 'hidden',
@@ -170,24 +184,30 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
         fontFamily: "'KaiTi', 'STKaiti', serif",
       }}
     >
-      {/* 双层装饰边框 (实线+虚线) */}
-      <div style={{ position: 'absolute', inset: '2px', border: `1px solid ${theme.corner}`, borderRadius: '3px', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', inset: '3.5px', border: `1px dashed ${theme.corner}`, borderRadius: '2px', opacity: 0.55, pointerEvents: 'none' }} />
-
-      {/* 背景水印: 有图用 PNG (居中), 无图用大字 */}
-      {cardImg ? (
+      {/* 卡牌图片: 整张铺满 */}
+      {cardImg && (
         <img
           src={cardImg}
           alt={card.name}
           draggable={false}
           style={{
-            position: 'absolute', top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '60px', height: '60px', objectFit: 'contain',
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%', objectFit: 'cover',
             pointerEvents: 'none',
           }}
         />
-      ) : (
+      )}
+
+      {/* 双层装饰边框 (实线+虚线) — 仅无图时显示 */}
+      {!cardImg && (
+        <>
+          <div style={{ position: 'absolute', inset: '2px', border: `1px solid ${theme.corner}`, borderRadius: '3px', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', inset: '3.5px', border: `1px dashed ${theme.corner}`, borderRadius: '2px', opacity: 0.55, pointerEvents: 'none' }} />
+        </>
+      )}
+
+      {/* 背景水印大字 — 仅无图时显示 */}
+      {!cardImg && (
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
@@ -198,15 +218,14 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
       )}
 
       {/* 角落花色+数字 (左上) */}
-      <div style={{ position: 'absolute', top: '3px', left: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: suitFontColor(card.suit) }}>
-        <span style={{ fontSize: '8px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
-        <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{num}</span>
-      </div>
-
-      {/* 角落花色+数字 (右下, 正向) */}
-      <div style={{ position: 'absolute', bottom: '3px', right: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: suitFontColor(card.suit) }}>
-        <span style={{ fontSize: '8px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
-        <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{num}</span>
+      <div style={{
+        position: 'absolute', top: '7px', left: '3px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1,
+        color: suitFontColor(card.suit),
+        gap: '2px',
+      }}>
+        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
+        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{num}</span>
       </div>
 
       {/* 类型标签 (顶部居中) — 仅无图时显示 */}
@@ -253,13 +272,6 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
           border: '1px solid #ffeb3b',
           boxShadow: '0 0 6px rgba(211,47,47,0.6)',
         }}>【杀】</div>
-      )}
-      {isResponse && canUseAsKill && (
-        <div style={{
-          position: 'absolute', top: '-5px', left: '-3px',
-          background: '#ff9800', color: '#fff', fontSize: '7px',
-          padding: '0 3px', borderRadius: '2px', fontWeight: 'bold',
-        }}>响应</div>
       )}
       {canHuiChun && (
         <div style={{

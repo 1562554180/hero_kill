@@ -13,10 +13,12 @@ export function BattleField() {
     manWuPrompt,
     treasureTargetIds,
     xiaDanActive,
-    game,
+    sheShenSelectedCardIds,
+    derived,
     confirmTarget, toggleTarget, toggleKillMultiTarget,
     selectLuYeQiangTarget, selectTanNangTarget, selectFudiTarget,
     pickTreasureTarget, selectManWuTarget,
+    assignSheShenCard,
   } = useBattleStore(useShallow(s => ({
     gameState: s.gameState, phase: s.phase, pendingCardId: s.pendingCardId, pendingCardType: s.pendingCardType, playerHand: s.playerHand,
     selectedTargetId: s.selectedTargetId, selectedTargets: s.selectedTargets,
@@ -25,10 +27,12 @@ export function BattleField() {
     manWuPrompt: s.manWuPrompt,
     treasureTargetIds: s.treasureTargetIds,
     xiaDanActive: s.xiaDanActive,
-    game: s.game,
+    sheShenSelectedCardIds: s.sheShenSelectedCardIds,
+    derived: s.derived,
     confirmTarget: s.confirmTarget, toggleTarget: s.toggleTarget, toggleKillMultiTarget: s.toggleKillMultiTarget,
     selectLuYeQiangTarget: s.selectLuYeQiangTarget, selectTanNangTarget: s.selectTanNangTarget, selectFudiTarget: s.selectFudiTarget,
     pickTreasureTarget: s.pickTreasureTarget, selectManWuTarget: s.selectManWuTarget,
+    assignSheShenCard: s.assignSheShenCard,
   })))
 
   const dyingTargetId = useBattleStore(s => s.dyingRescuePrompt?.targetId ?? null)
@@ -76,13 +80,11 @@ export function BattleField() {
     return playerHand.find(c => c.id === pendingCardId) ?? null
   })()
   const isValidTarget = (heroId: string): boolean => {
-    if (!game) return true
-    const attacker = game.getPlayer()
-    const target = game.getPlayerById(heroId)
-    if (!attacker || !target) return true
+    // 阶段 3 步骤 C: 改为纯函数, 全部读 derived 快照, 零 engine 调用.
+    // 探囊/釜底/借刀/jueJi 的控局免疫 + canBeSchemeTarget 已在 computeDerived 中过滤.
     const inPendingSelect = phase === 'playing' && pendingCardId !== null
     if (inPendingSelect && pendingCardType === 'kill') {
-      return game.isInAttackRange(attacker, target)
+      return derived?.validKillTargetIds.includes(heroId) ?? true
     }
     if (inPendingSelect && pendingCardType === 'scheme' && pendingSchemeName === '借刀杀人' && jieDaoCandidates.length === 0) {
       if (jieDaoHolders.length === 0) return false
@@ -92,41 +94,39 @@ export function BattleField() {
       return jieDaoCandidates.some(c => c.id === heroId)
     }
     if (inPendingSelect && pendingCardType === 'scheme' && pendingSchemeName === '探囊取物') {
-      if (!game.canTanNang(attacker, target)) return false
-      if (game.isKongJuImmuneTo(target, '探囊取物')) return false
-      return true
+      return derived?.validTanNangTargetIds.includes(heroId) ?? true
     }
     if (inPendingSelect && pendingCardType === 'scheme' && pendingSchemeCard) {
-      if (!game.canBeSchemeTarget(target, pendingSchemeCard)) return false
-      if (pendingSchemeName && game.isKongJuImmuneTo(target, pendingSchemeName)) return false
-      return true
+      const ids = derived?.validSchemeTargetIdsByCardId[pendingSchemeCard.id]
+      return ids ? ids.includes(heroId) : true
     }
     if (phase === 'selectTarget' && pendingCardType === 'kill') {
-      return game.isInAttackRange(attacker, target)
+      return derived?.validKillTargetIds.includes(heroId) ?? true
     }
     if (phase === 'selectTarget' && pendingCardType === 'scheme' && pendingSchemeName === '探囊取物') {
-      if (!game.canTanNang(attacker, target)) return false
-      if (game.isKongJuImmuneTo(target, '探囊取物')) return false
-      return true
+      return derived?.validTanNangTargetIds.includes(heroId) ?? true
     }
     if (phase === 'selectTarget' && pendingCardType === 'scheme' && pendingSchemeCard) {
-      if (!game.canBeSchemeTarget(target, pendingSchemeCard)) return false
-      if (pendingSchemeName && game.isKongJuImmuneTo(target, pendingSchemeName)) return false
-      return true
+      const ids = derived?.validSchemeTargetIdsByCardId[pendingSchemeCard.id]
+      return ids ? ids.includes(heroId) : true
     }
     if (phase === 'treasureSelectTarget') {
       const tSkill = useBattleStore.getState().treasureSkill
-      if (tSkill === 'jue-ji') return game.isInAttackRange(attacker, target)
+      if (tSkill === 'jue-ji') return derived?.validJueJiTargetIds.includes(heroId) ?? true
+      // 疗伤/治愈: 只能选不满血的角色
+      if (tSkill === 'liao-shang' || tSkill === 'zhi-yu') {
+        const target = gameState?.heroes.find(h => h.hero.id === heroId)
+        return !!target && target.currentHp > 0 && target.currentHp < target.maxHp
+      }
     }
     if (phase === 'selectFudiTarget') {
-      const hasAny = target.getHandSize() > 0 || game.collectEquipmentCards(target).length > 0 || target.getJudgeCards().length > 0
-      return hasAny
+      return derived?.validFudiTargetIds.includes(heroId) ?? true
     }
     return true
   }
-  const dimInvalidTargets = !!(game && (
+  const dimInvalidTargets = !!(derived && (
     (phase === 'selectTarget' && (pendingCardType === 'kill' || (pendingCardType === 'scheme' && pendingSchemeName === '探囊取物'))) ||
-    (phase === 'treasureSelectTarget' && useBattleStore.getState().treasureSkill === 'jue-ji') ||
+    (phase === 'treasureSelectTarget' && (useBattleStore.getState().treasureSkill === 'jue-ji' || useBattleStore.getState().treasureSkill === 'liao-shang' || useBattleStore.getState().treasureSkill === 'zhi-yu')) ||
     (phase === 'selectFudiTarget')
   ))
 
@@ -151,12 +151,17 @@ export function BattleField() {
             (phase === 'treasureSelectTarget') ||
             (phase === 'treasureSelectTargets') ||
             (phase === 'selectFudiTarget' && isValidTarget(h.hero.id)) ||
+            (phase === 'sheShenDistribute' && h.currentHp > 0) ||
             (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id))
           )
         }
         isSelected={selectedTargetId === h.hero.id || selectedTargets.includes(h.hero.id)}
         dimmed={(!!dimInvalid && !isValidTarget(h.hero.id)) || (shouldDimInvalidTargets && !isValidTarget(h.hero.id))}
         onClick={() => {
+          if (phase === 'sheShenDistribute') {
+            if (sheShenSelectedCardIds.length > 0 && h.currentHp > 0) assignSheShenCard(h.hero.id)
+            return
+          }
           if (isPendingTargeting) {
             if (isValidTarget(h.hero.id)) confirmTarget(h.hero.id)
             return

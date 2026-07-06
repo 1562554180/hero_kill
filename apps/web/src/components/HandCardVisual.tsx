@@ -42,35 +42,43 @@ function HandCardVisualInner({ card }: Props) {
   return (
     <div style={{
       position: 'relative',
-      width: '72px',
-      height: '110px',
-      background: `linear-gradient(135deg, ${theme.bg1} 0%, ${theme.bg2} 50%, ${theme.bg3} 100%)`,
-      border: `1.5px solid ${theme.border}`,
+      width: '61px',
+      height: '82px',
+      background: cardImg
+        ? 'transparent'
+        : `linear-gradient(135deg, ${theme.bg1} 0%, ${theme.bg2} 50%, ${theme.bg3} 100%)`,
+      border: cardImg ? 'none' : `1.5px solid ${theme.border}`,
       borderRadius: '4px',
-      boxShadow: '0 3px 6px rgba(0,0,0,0.5), inset 0 0 8px rgba(139,105,20,0.2)',
+      boxShadow: cardImg ? 'none' : '0 3px 6px rgba(0,0,0,0.5), inset 0 0 8px rgba(139,105,20,0.2)',
       userSelect: 'none',
       overflow: 'hidden',
       fontFamily: "'KaiTi', 'STKaiti', serif",
       opacity: 1,
     }}>
-      {/* 双层装饰边框 */}
-      <div style={{ position: 'absolute', inset: '2px', border: `1px solid ${theme.corner}`, borderRadius: '3px', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', inset: '3.5px', border: `1px dashed ${theme.corner}`, borderRadius: '2px', opacity: 0.55, pointerEvents: 'none' }} />
-
-      {/* 背景水印: 有图用 PNG, 无图用大字 */}
-      {cardImg ? (
+      {/* 卡牌图片: 整张铺满 */}
+      {cardImg && (
         <img
           src={cardImg}
           alt={card.name}
           draggable={false}
           style={{
-            position: 'absolute', top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '60px', height: '60px', objectFit: 'contain',
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%', objectFit: 'cover',
             pointerEvents: 'none',
           }}
         />
-      ) : (
+      )}
+
+      {/* 双层装饰边框 — 仅无图时显示 */}
+      {!cardImg && (
+        <>
+          <div style={{ position: 'absolute', inset: '2px', border: `1px solid ${theme.corner}`, borderRadius: '3px', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', inset: '3.5px', border: `1px dashed ${theme.corner}`, borderRadius: '2px', opacity: 0.55, pointerEvents: 'none' }} />
+        </>
+      )}
+
+      {/* 背景水印大字 — 仅无图时显示 */}
+      {!cardImg && (
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
@@ -81,15 +89,14 @@ function HandCardVisualInner({ card }: Props) {
       )}
 
       {/* 角落花色+数字 (左上) */}
-      <div style={{ position: 'absolute', top: '3px', left: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: suitFontColor(card.suit) }}>
-        <span style={{ fontSize: '8px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
-        <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{num}</span>
-      </div>
-
-      {/* 角落花色+数字 (右下, 正向) */}
-      <div style={{ position: 'absolute', bottom: '3px', right: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, color: suitFontColor(card.suit) }}>
-        <span style={{ fontSize: '8px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
-        <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{num}</span>
+      <div style={{
+        position: 'absolute', top: '7px', left: '3px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1,
+        color: suitFontColor(card.suit),
+        gap: '2px',
+      }}>
+        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{suitSymbol[card.suit]}</span>
+        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{num}</span>
       </div>
 
       {/* 类型标签 (顶部居中) — 仅无图时显示 */}

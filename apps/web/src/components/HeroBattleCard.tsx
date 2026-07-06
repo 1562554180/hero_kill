@@ -35,14 +35,19 @@ interface Props {
   isDead?: boolean
 }
 
-const SLOT_SIZE = '18px'
+const SLOT_SIZE = '15px'
 
 function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang, isDying = false, isDead = false }: Props) {
-  const game = useBattleStore(s => s.game)
   const phase = useBattleStore(s => s.phase)
   const treasureSkill = useBattleStore(s => s.treasureSkill)
   const pickTreasureCard = useBattleStore(s => s.pickTreasureCard)
   const yuRenCardIds = useBattleStore(s => s.yuRenCardIds)
+  // 仅订阅本英雄的 enemyHands/heroJudgeStatus, 避免其他英雄的 derived 变化触发本卡重渲染
+  const heroId = hero.hero.id
+  const enemyHandDebug = useBattleStore(s => s.derived?.enemyHandsByHeroId[heroId] ?? null)
+  const judgeStatus = useBattleStore(s => s.derived?.heroJudgeStatus[heroId] ?? null)
+  const equippedCards = useBattleStore(s => s.equippedCards)
+  const playerJueJiSelf = useBattleStore(s => s.playerJueJiSelf)
   const { hero: config, currentHp, maxHp, role, instance } = hero
   const hpPercent = maxHp > 0 ? (currentHp / maxHp) * 100 : 0
   const isDanger = hpPercent <= 30
@@ -61,15 +66,11 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
     prevHpRef.current = currentHp
   }, [currentHp])
 
-  // 调试: 非玩家角色的手牌数悬停显示具体手牌
+  // 调试: 非玩家角色的手牌数悬停显示具体手牌 (阶段 D: 改读 derived.enemyHandsByHeroId)
   const debugHandTitle = (() => {
-    if (!DEBUG_SHOW_AI_HAND || !game) return undefined
-    const player = game.getPlayer()
-    if (player.getId() === hero.hero.id) return undefined
-    const p = game.getPlayerById(hero.hero.id)
-    const cards = p?.getHand() ?? []
-    if (cards.length === 0) return `${hero.hero.name}: 无手牌`
-    return `${hero.hero.name} 手牌 (${cards.length}): ${formatHandForDebug(cards)}`
+    if (!DEBUG_SHOW_AI_HAND || !enemyHandDebug) return undefined
+    if (enemyHandDebug.length === 0) return `${hero.hero.name}: 无手牌`
+    return `${hero.hero.name} 手牌 (${enemyHandDebug.length}): ${formatHandForDebug(enemyHandDebug)}`
   })()
 
   const borderColor = isSelected
@@ -89,10 +90,17 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
   const subTreasures = instance.treasures?.sub ?? []
   const slotConfig = getTreasureSlots(instance.starLevel ?? 1)
 
+  // 悬停提示: 非 player 卡片展示英雄本身的技能
+  const hoverTitle = role === 'player' ? undefined : (() => {
+    const skills = (hero.hero.skills ?? []).map(s => `${s.name}: ${s.description}`)
+    return [hero.hero.name, ...skills].join('\n')
+  })()
+
   return (
     <div
       className={[isDying && 'hero-card-pulse', flash && 'hero-card-flash'].filter(Boolean).join(' ') || undefined}
       data-hero-id={hero.hero.id}
+      title={hoverTitle}
       onClick={isSelectable ? onClick : undefined}
       style={{
         background: bgColor,
@@ -101,8 +109,8 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
         borderColor: (isDying || flash) ? '#ff3333' : borderColor,
         borderRadius: '6px',
         padding: '4px',
-        width: '130px',
-        height: '210px',
+        width: '100px',
+        height: '170px',
         maxHeight: '100%',
         flexShrink: 0,
         boxSizing: 'border-box',
@@ -124,11 +132,10 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
       }}
     >
       {/* 判定区动画图标 (右上角): 手捧雷(引线闪)+ 画地为牢(锁开合) */}
-      {game && hero.judgeCards.length > 0 && (() => {
-        const p = game.getPlayerById(hero.hero.id)
-        const judgeCards = p?.getJudgeCards() ?? []
-        const hasThunder = judgeCards.some(c => c.name === '手捧雷')
-        const hasImprisoned = judgeCards.some(c => c.name === '画地为牢')
+      {(() => {
+        const status = judgeStatus
+        const hasThunder = status?.hasThunder ?? false
+        const hasImprisoned = status?.hasImprisoned ?? false
         if (!hasThunder && !hasImprisoned) return null
         return (
           <div style={{
@@ -175,24 +182,11 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
         )
       })()}
 
-      {/* 人物展示区: 占满顶部区域 (flex: 1) — SVG 武将像/PNG 立绘 + 右上 AI 徽章 */}
+      {/* 人物展示区: 占满顶部区域 (flex: 1) — SVG 武将像/PNG 立绘 */}
       <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center', alignItems: 'stretch' }}>
         <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'stretch' }}>
           <HeroPortrait hero={hero} fill />
         </div>
-        {(role === 'ally' || role === 'enemy') && (
-          <span style={{
-            position: 'absolute', top: '2px', left: '2px',
-            fontSize: '7px',
-            color: role === 'ally' ? '#a5d6a7' : '#ef9a9a',
-            background: role === 'ally' ? 'rgba(46,125,50,0.85)' : 'rgba(198,40,40,0.85)',
-            padding: '0 3px',
-            borderRadius: '2px',
-            fontWeight: 'bold',
-            border: `1px solid ${role === 'ally' ? 'rgba(46,125,50,0.9)' : 'rgba(198,40,40,0.9)'}`,
-            zIndex: 2,
-          }}>AI</span>
-        )}
       </div>
 
       {/* HP区: 当前血量(淡金底白字) + 血量格子(深红/灰, 中间分割线) — 两端对齐 */}
@@ -249,9 +243,9 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
         </span>
       </div>
 
-      {/* 装备区: 武器/防具/+1马/-1马 — 固定4个竖向细长方格 */}
+      {/* 装备区: 武器/防具/+1马/-1马 — 固定4个竖向细长方格 (阶段 D: 改读 store.equippedCards) */}
       {(() => {
-        const p = game?.getPlayerById(hero.hero.id)
+        const heroEquip = equippedCards[hero.hero.id] ?? {}
         const slots: { slot: 'weapon' | 'armor' | 'attackMount' | 'defenseMount' }[] = [
           { slot: 'weapon' },
           { slot: 'armor' },
@@ -262,7 +256,7 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
         const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
         const isJueJiWeaponPick = treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon'
         return (
-          <div style={{ display: 'flex', alignItems: 'stretch', gap: '2px', height: '40px' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: '2px', height: '30px' }}>
             {slots.map(s => {
               const id = hero.equipment[s.slot]
               if (!id) {
@@ -278,7 +272,7 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
                   }}>{placeholder}</span>
                 )
               }
-              const card = p?.getEquippedCard(s.slot)
+              const card = heroEquip[s.slot]
               const name = card?.name ?? '???'
               const desc = (card as any)?.description ?? ''
               const icon = (card as any)?.icon ?? '⚙'
@@ -304,12 +298,7 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
               const handleClick = canActivate
                 ? () => onEquipAsKill?.(card!.id)
                 : isJueJiThis
-                  ? () => {
-                      const { game: g, treasureTargetIds } = useBattleStore.getState()
-                      const player = g!.getPlayer()!
-                      g!.playerJueJi(player, card!.id, treasureTargetIds[0])
-                      useBattleStore.setState({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureCardIds: [], treasureTargetIds: [], gameState: g!.getState(), playerHand: player.getHand() })
-                    }
+                  ? () => playerJueJiSelf(card!.id)
                   : isPickingEquip ? () => card && pickTreasureCard(card.id) : undefined
               const isHighlighted = canActivate || isJueJiThis || isPickingEquip
               const hoverText = canActivate
@@ -332,24 +321,26 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
                   style={{
                     flex: 1, alignSelf: 'stretch',
                     color: isYuRenSelected || canActivate || isJueJiThis || isPickingEquip ? color : '#1b5e20',
-                    background: isYuRenSelected
-                      ? 'rgba(198,40,40,0.35)'
-                      : canActivate
-                        ? 'rgba(229,115,115,0.35)'
-                        : isJueJiThis
-                          ? 'rgba(255,87,34,0.35)'
-                          : isPickingEquip
-                            ? isYuRen ? 'rgba(184,134,11,0.35)' : 'rgba(255,152,0,0.35)'
-                            : 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%)',
-                    border: `1.5px solid ${isYuRenSelected ? selectedColor : canActivate ? '#e57373' : isJueJiThis ? '#ff5722' : isPickingEquip ? (isYuRen ? '#b8860b' : '#ff9800') : '#2e7d32'}`,
+                    ...(cardImg ? {} : {
+                      background: isYuRenSelected
+                        ? 'rgba(198,40,40,0.35)'
+                        : canActivate
+                          ? 'rgba(229,115,115,0.35)'
+                          : isJueJiThis
+                            ? 'rgba(255,87,34,0.35)'
+                            : isPickingEquip
+                              ? isYuRen ? 'rgba(184,134,11,0.35)' : 'rgba(255,152,0,0.35)'
+                              : 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 50%, #a5d6a7 100%)',
+                      border: `1.5px solid ${isYuRenSelected ? selectedColor : canActivate ? '#e57373' : isJueJiThis ? '#ff5722' : isPickingEquip ? (isYuRen ? '#b8860b' : '#ff9800') : '#2e7d32'}`,
+                      boxShadow: isYuRenSelected
+                        ? '0 0 5px rgba(198,40,40,0.85), inset 0 0 3px rgba(198,40,40,0.4)'
+                        : canActivate ? '0 0 3px rgba(229,115,115,0.6)' : isJueJiThis ? '0 0 3px rgba(255,87,34,0.6)' : isPickingEquip ? (isYuRen ? '0 0 3px rgba(255,215,0,0.6)' : '0 0 3px rgba(255,152,0,0.6)') : '0 1px 2px rgba(0,0,0,0.4), inset 0 0 4px rgba(46,125,50,0.2)',
+                    }),
                     borderRadius: '3px',
                     fontSize: '9px',
                     lineHeight: '1',
                     cursor: handleClick ? 'pointer' : 'help',
                     fontWeight: isHighlighted || isYuRenSelected ? 'bold' : 'normal',
-                    boxShadow: isYuRenSelected
-                      ? '0 0 5px rgba(198,40,40,0.85), inset 0 0 3px rgba(198,40,40,0.4)'
-                      : canActivate ? '0 0 3px rgba(229,115,115,0.6)' : isJueJiThis ? '0 0 3px rgba(255,87,34,0.6)' : isPickingEquip ? (isYuRen ? '0 0 3px rgba(255,215,0,0.6)' : '0 0 3px rgba(255,152,0,0.6)') : '0 1px 2px rgba(0,0,0,0.4), inset 0 0 4px rgba(46,125,50,0.2)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     overflow: 'hidden',
                     position: 'relative',
@@ -361,9 +352,8 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
                       alt={name}
                       draggable={false}
                       style={{
-                        position: 'absolute', top: '50%', left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        width: '85%', height: '85%', objectFit: 'contain',
+                        width: '100%', height: '100%', objectFit: 'cover',
+                        display: 'block',
                         pointerEvents: 'none',
                       }}
                     />

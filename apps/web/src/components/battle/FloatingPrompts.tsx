@@ -19,7 +19,8 @@ const treasureBtnStyle = {
 export function FloatingPrompts() {
   const {
     gameState, phase, playerHand, equippedCards, pendingCardId, pendingCardType,
-    selectedTargetId, selectedTargets, game,
+    selectedTargetId, selectedTargets,
+    derived,
     responsePrompt,
     killMultiMax,
     treasureSkill, treasureCardIds, treasureTargetIds, qiYiCardMap,
@@ -30,6 +31,7 @@ export function FloatingPrompts() {
     menShenCandidates, jueBieCandidates,
     zhenShaPrompt, buDaoPrompt, sanBanFuPrompt,
     fuChouTriggerPrompt, fuChouChoosePrompt, fuChouPickSelected,
+    sheShenTriggerPrompt,
     dyingRescuePrompt, dyingRescueSelected,
     chaoTuoPrompt, houZhuPrompt,
     ciKePrompt, yuRuYiPrompt, dieHunPrompt,
@@ -53,6 +55,7 @@ export function FloatingPrompts() {
     selectBuDaoCard,
     confirmSanBanFu, cancelSanBanFu,
     confirmFuChouTrigger, cancelFuChouTrigger,
+    confirmSheShenTrigger,
     confirmFuChouChoose,
     toggleFuChouPick, confirmFuChouPick,
     toggleDyingRescueCard, confirmDyingRescue, cancelDyingRescue,
@@ -63,9 +66,10 @@ export function FloatingPrompts() {
     pickTreasureCard, confirmTreasureTargets, cancelTreasureSkill, confirmYuRenCards, pickQiYiCard, confirmQiYiCards,
     toggleDiscardCard, confirmDiscardCards, cancelDiscardCards,
     discardCount, selectedDiscardCards,
+    playerJueJiSelf,
   } = useBattleStore(useShallow(s => ({
     gameState: s.gameState, phase: s.phase, playerHand: s.playerHand, equippedCards: s.equippedCards, pendingCardId: s.pendingCardId, pendingCardType: s.pendingCardType,
-    selectedTargetId: s.selectedTargetId, selectedTargets: s.selectedTargets, game: s.game,
+    selectedTargetId: s.selectedTargetId, selectedTargets: s.selectedTargets, derived: s.derived,
     responsePrompt: s.responsePrompt,
     killMultiMax: s.killMultiMax,
     treasureSkill: s.treasureSkill, treasureCardIds: s.treasureCardIds, treasureTargetIds: s.treasureTargetIds, qiYiCardMap: s.qiYiCardMap,
@@ -76,6 +80,7 @@ export function FloatingPrompts() {
     menShenCandidates: s.menShenCandidates, jueBieCandidates: s.jueBieCandidates,
     zhenShaPrompt: s.zhenShaPrompt, buDaoPrompt: s.buDaoPrompt, sanBanFuPrompt: s.sanBanFuPrompt,
     fuChouTriggerPrompt: s.fuChouTriggerPrompt, fuChouChoosePrompt: s.fuChouChoosePrompt, fuChouPickSelected: s.fuChouPickSelected,
+    sheShenTriggerPrompt: s.sheShenTriggerPrompt,
     dyingRescuePrompt: s.dyingRescuePrompt, dyingRescueSelected: s.dyingRescueSelected,
     chaoTuoPrompt: s.chaoTuoPrompt, houZhuPrompt: s.houZhuPrompt,
     ciKePrompt: s.ciKePrompt, yuRuYiPrompt: s.yuRuYiPrompt, dieHunPrompt: s.dieHunPrompt,
@@ -99,6 +104,7 @@ export function FloatingPrompts() {
     selectBuDaoCard: s.selectBuDaoCard,
     confirmSanBanFu: s.confirmSanBanFu, cancelSanBanFu: s.cancelSanBanFu,
     confirmFuChouTrigger: s.confirmFuChouTrigger, cancelFuChouTrigger: s.cancelFuChouTrigger,
+    confirmSheShenTrigger: s.confirmSheShenTrigger,
     confirmFuChouChoose: s.confirmFuChouChoose,
     toggleFuChouPick: s.toggleFuChouPick, confirmFuChouPick: s.confirmFuChouPick,
     toggleDyingRescueCard: s.toggleDyingRescueCard, confirmDyingRescue: s.confirmDyingRescue, cancelDyingRescue: s.cancelDyingRescue,
@@ -109,11 +115,12 @@ export function FloatingPrompts() {
     pickTreasureCard: s.pickTreasureCard, confirmTreasureTargets: s.confirmTreasureTargets, cancelTreasureSkill: s.cancelTreasureSkill, confirmYuRenCards: s.confirmYuRenCards, pickQiYiCard: s.pickQiYiCard, confirmQiYiCards: s.confirmQiYiCards,
     toggleDiscardCard: s.toggleDiscardCard, confirmDiscardCards: s.confirmDiscardCards, cancelDiscardCards: s.cancelDiscardCards,
     discardCount: s.discardCount, selectedDiscardCards: s.selectedDiscardCards,
+    playerJueJiSelf: s.playerJueJiSelf,
   })))
 
   const player = useMemo(() => gameState?.heroes.find(h => h.role === 'player'), [gameState])
   const dyingTargetId = useBattleStore(s => s.dyingRescuePrompt?.targetId ?? null)
-  const aoJianActive = game?.isAoJianActive(player?.hero?.id ?? '') ?? false
+  const aoJianActive = derived?.aoJianActive ?? false
 
   const hasFloatingPrompt = useMemo(() =>
     (phase === 'playing' && !!pendingCardId && !!pendingCardType)
@@ -122,6 +129,8 @@ export function FloatingPrompts() {
     || phase === 'awaitingResponse'
     || xiaDanActive
     || treasureSkill === 'yu-ren'
+    || treasureSkill === 'liao-shang'
+    || treasureSkill === 'zhi-yu'
     || treasureSkill === 'feng-huo'
     || (treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon')
     || phase === 'xiaDanPickCard'
@@ -137,6 +146,7 @@ export function FloatingPrompts() {
     || !!sanBanFuPrompt
     || !!fuChouTriggerPrompt
     || !!fuChouChoosePrompt
+    || !!sheShenTriggerPrompt
     || (phase === 'buDaoKill' && !!buDaoPrompt)
     || phase === 'chaoTuoPick'
     || phase === 'houZhuTarget'
@@ -145,7 +155,7 @@ export function FloatingPrompts() {
     || phase === 'selectMultiTargets'
     || phase === 'selectKillMultiTargets'
     || (phase === 'qiYiPrompt' && !!qiYiDecision)
-  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, buDaoPrompt, dyingRescuePrompt, qiYiDecision])
+  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, sheShenTriggerPrompt, buDaoPrompt, dyingRescuePrompt, qiYiDecision])
 
   const killMultiCardId = useBattleStore(s => s.killMultiCardId)
   const [wolfFangPromptRect, setWolfFangPromptRect] = useState<{ left: number; top: number; width: number } | null>(null)
@@ -169,7 +179,7 @@ export function FloatingPrompts() {
   }, [phase, killMultiCardId])
 
   const isPlayerTurn = phase === 'playing' || phase === 'selectTarget' || phase === 'selectDualCards' || phase === 'selectLuYeQiangTarget'
-  const canPlayKill = game?.canPlayKill ?? false
+  const canPlayKill = derived?.canPlayKill ?? false
   const isFullHp = player ? player.currentHp >= player.maxHp : true
 
   return (
@@ -377,6 +387,44 @@ export function FloatingPrompts() {
                 </div>
               )}
 
+              {/* 6b. 疗伤选牌 */}
+              {treasureSkill === 'liao-shang' && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #ffd54f',
+                  color: '#ffd54f', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(255,213,79,0.4)',
+                }}>
+                  <span style={{ flex: 1 }}>💊 疗伤选牌 — 点击1张手牌弃置, 再选1名不满血的角色回复1血</span>
+                  <button style={treasureBtnStyle} onClick={cancelTreasureSkill}>取消</button>
+                </div>
+              )}
+
+              {/* 6c. 治愈选牌 */}
+              {treasureSkill === 'zhi-yu' && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #ffd54f',
+                  color: '#ffd54f', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(255,213,79,0.4)',
+                }}>
+                  <span style={{ flex: 1 }}>💊 治愈选牌 — 点击2张手牌弃置 (已选 {treasureCardIds.length}/2), 再选1名不满血的角色回复1血</span>
+                  <button style={treasureBtnStyle} onClick={cancelTreasureSkill}>取消</button>
+                </div>
+              )}
+
               {/* 7. 烽火选装备 */}
               {treasureSkill === 'feng-huo' && (
                 <div style={{
@@ -412,12 +460,7 @@ export function FloatingPrompts() {
                     <button
                       className="primary"
                       style={treasureBtnStyle}
-                      onClick={() => {
-                        const { game, treasureTargetIds } = useBattleStore.getState()
-                        const player = game!.getPlayer()!
-                        game!.playerJueJi(player, null, treasureTargetIds[0])
-                        useBattleStore.setState({ treasureSkill: null, treasurePrompt: '', phase: 'playing', treasureCardIds: [], treasureTargetIds: [], gameState: game!.getState(), playerHand: player.getHand() })
-                      }}
+                      onClick={() => playerJueJiSelf(null)}
                     >
                       受1血
                     </button>
@@ -468,8 +511,10 @@ export function FloatingPrompts() {
               {yuRuYiPrompt && (
                 <div style={{
                   pointerEvents: 'auto',
-                  padding: '8px 12px',
-                  background: 'rgba(255,235,59,0.12)', borderRadius: '4px',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'rgba(255,235,59,0.12)', borderRadius: '6px',
                   border: '1px solid rgba(255,235,59,0.3)',
                   color: '#fff59d', fontSize: '13px',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
@@ -672,6 +717,28 @@ export function FloatingPrompts() {
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button style={treasureBtnStyle} onClick={cancelFuChouTrigger}>不发动</button>
                     <button className="primary" style={treasureBtnStyle} onClick={confirmFuChouTrigger}>发动</button>
+                  </div>
+                </div>
+              )}
+
+              {/* 21.5 舍身触发 — 受伤后是否发动摸2N张分配 */}
+              {sheShenTriggerPrompt && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(183,69,58,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #ffd54f',
+                  color: '#ffd54f', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(255,213,79,0.4)',
+                }}>
+                  <span style={{ flex: 1 }}>🪷 舍身 — 受到 <b>{sheShenTriggerPrompt.damage}</b> 点伤害, 是否发动摸 {sheShenTriggerPrompt.drawCount} 张并分配?</span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button style={treasureBtnStyle} onClick={() => confirmSheShenTrigger(false)}>不发动</button>
+                    <button className="primary" style={treasureBtnStyle} onClick={() => confirmSheShenTrigger(true)}>发动</button>
                   </div>
                 </div>
               )}

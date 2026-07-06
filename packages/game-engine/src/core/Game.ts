@@ -5,8 +5,28 @@ import { isRedSuit, isBlackSuit, getSubTriggerBonus } from '@hero-legend/shared-
 import { createFullDeck, getHeroById } from '@hero-legend/game-data'
 import { EventBus } from './EventBus.js'
 import { CardDeck } from './CardDeck.js'
+import type { DerivedSnapshot } from './derived-snapshot.js'
 import { Player } from './Player.js'
 import { DrawPhase, JudgePhase, DiscardPhase } from '../phases/index.js'
+import type {
+  PlayerActionCtx, JudgeActionCtx, ChaoTuoCtx, ResponseActionCtx, PinDianCtx, XiaDanPlayerCardCtx,
+  FudiTargetCtx, FudiPickCtx, TanNangTargetCtx, TanNangPickCtx, JieDaoTargetCtx, JieDaoAttackTargetCtx,
+  WuguPickCtx, MultiTargetCtx, DualCardCtx, LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx,
+  FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
+  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
+  ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
+  SheShenCtx, SheShenTriggerCtx
+} from './handler-context.js'
+
+export type {
+  PlayerActionCtx, JudgeActionCtx, ChaoTuoCtx, ResponseActionCtx, PinDianCtx, XiaDanPlayerCardCtx,
+  FudiTargetCtx, FudiPickCtx, TanNangTargetCtx, TanNangPickCtx, JieDaoTargetCtx, JieDaoAttackTargetCtx,
+  WuguPickCtx, MultiTargetCtx, DualCardCtx, LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx,
+  FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
+  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
+  ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
+  SheShenCtx, SheShenTriggerCtx
+} from './handler-context.js'
 
 export interface GameConfig {
   playerHeroId: string
@@ -17,85 +37,89 @@ export interface GameConfig {
   enemyHeroIds: string[]
   /** 敌方实例(优先于 enemyHeroIds 的空stub). 由前端根据关卡难度生成, 含星级+宝具. */
   enemyInstances?: HeroInstance[]
-  playerActionHandler?: (game: Game, player: Player) => Promise<GameAction | null>
+  playerActionHandler?: (ctx: PlayerActionCtx) => Promise<GameAction | null>
   /** 变法/判定交互：返回要替换的手牌ID，null表示不替换 */
-  judgeActionHandler?: (game: Game, player: Player, judgeCard: Card) => Promise<string | null>
+  judgeActionHandler?: (ctx: JudgeActionCtx) => Promise<string | null>
   /** 超脱: 判定时用黑色手牌或装备替换, 返回 cardId (hand或装备均可). null=不替换 */
-  chaoTuoHandler?: (game: Game, player: Player, judgeCard: Card, blackCardIds: { hand: string[]; equipment: Array<{ cardId: string; slot: string }> }) => Promise<string | null>
+  chaoTuoHandler?: (ctx: ChaoTuoCtx) => Promise<string | null>
   /** 响应交互：例如决斗中打杀/南蛮入侵出杀，返回要打的牌ID, null表示不响应 */
-  responseActionHandler?: (game: Game, player: Player, responseType: 'kill' | 'nullify' | 'dodge', context: { sourceHeroId: string, schemeName: string, needCount?: number; targetHeroId?: string }) => Promise<string | null>
+  responseActionHandler?: (ctx: ResponseActionCtx) => Promise<string | null>
   /** 拼点交互：选择1张手牌参与拼点，返回null=取消 */
-  pinDianHandler?: (game: Game, player: Player, against: Player, reason: string) => Promise<string | null>
+  pinDianHandler?: (ctx: PinDianCtx) => Promise<string | null>
   /** 侠胆: 拼点中玩家自己选1张手牌(双方同时选, 不会看到对方的牌), null=取消 */
-  xiaDanPlayerCardHandler?: (game: Game, player: Player, against: Player) => Promise<string | null>
+  xiaDanPlayerCardHandler?: (ctx: XiaDanPlayerCardCtx) => Promise<string | null>
   /** 釜底抽薪：选目标 */
-  fudiTargetHandler?: (game: Game, attacker: Player, candidates: Player[]) => Promise<string | null>
+  fudiTargetHandler?: (ctx: FudiTargetCtx) => Promise<string | null>
   /** 釜底抽薪：选要弃的目标牌（手牌/判定/装备之一） */
-  fudiPickHandler?: (game: Game, attacker: Player, target: Player, options: { hand: Card[]; judge: Card[]; equipment: Card[] }) => Promise<string | null>
+  fudiPickHandler?: (ctx: FudiPickCtx) => Promise<string | null>
   /** 探囊取物：选目标 */
-  tanNangTargetHandler?: (game: Game, attacker: Player, candidates: Player[]) => Promise<string | null>
+  tanNangTargetHandler?: (ctx: TanNangTargetCtx) => Promise<string | null>
   /** 探囊取物：选要拿的目标牌 */
-  tanNangPickHandler?: (game: Game, attacker: Player, target: Player, options: { hand: Card[]; judge: Card[]; equipment: Card[] }) => Promise<string | null>
+  tanNangPickHandler?: (ctx: TanNangPickCtx) => Promise<string | null>
   /** 借刀杀人：选武器持有者 */
-  jieDaoTargetHandler?: (game: Game, attacker: Player, weaponHolders: Player[]) => Promise<string | null>
+  jieDaoTargetHandler?: (ctx: JieDaoTargetCtx) => Promise<string | null>
   /** 借刀杀人：选攻击目标 */
-  jieDaoAttackTargetHandler?: (game: Game, attacker: Player, borrower: Player, candidates: Player[]) => Promise<string | null>
+  jieDaoAttackTargetHandler?: (ctx: JieDaoAttackTargetCtx) => Promise<string | null>
   /** 五谷丰登：选牌 */
-  wuguPickHandler?: (game: Game, picker: Player, candidates: Card[]) => Promise<string | null>
+  wuguPickHandler?: (ctx: WuguPickCtx) => Promise<string | null>
   /** 多目标（狼牙棒/侠胆多杀） */
-  multiTargetHandler?: (game: Game, attacker: Player, candidates: Player[]) => Promise<string[]>
+  multiTargetHandler?: (ctx: MultiTargetCtx) => Promise<string[]>
   /** 选2张手牌（芦叶枪） */
-  dualCardHandler?: (game: Game, attacker: Player) => Promise<string[]>
+  dualCardHandler?: (ctx: DualCardCtx) => Promise<string[]>
   /** 芦叶枪：选杀的目标 */
-  luYeQiangTargetHandler?: (game: Game, attacker: Player, candidates: Player[]) => Promise<string | null>
+  luYeQiangTargetHandler?: (ctx: LuYeQiangTargetCtx) => Promise<string | null>
   /** 龙鳞刀：选对方2张牌弃掉 (返回2个cardId, 或null表示正常掉血) */
-  longLinPickHandler?: (game: Game, attacker: Player, defender: Player, options: { hand: Card[]; judge: Card[]; equipment: Card[] }) => Promise<string[] | null>
+  longLinPickHandler?: (ctx: LongLinPickCtx) => Promise<string[] | null>
   /** 博浪锤：攻击方从手牌选2张弃掉强制命中 (返回2个cardId; null=放弃不触发) */
-  boLangChuiHandler?: (game: Game, attacker: Player, hand: Card[]) => Promise<string[] | null>
+  boLangChuiHandler?: (ctx: BoLangChuiCtx) => Promise<string[] | null>
   /** 法家: 受伤后从伤害来源选一张牌(手牌/装备/判定)获得 (null=不触发/放弃) */
-  faJiaPickHandler?: (game: Game, victim: Player, attacker: Player, options: { hand: Card[]; judge: Card[]; equipment: Card[] }) => Promise<string | null>
+  faJiaPickHandler?: (ctx: FaJiaPickCtx) => Promise<string | null>
   /** 玉如意: 防御方是否使用 (true=触发判定; false=跳过). attackName 用于显示在提示中 */
-  yuRuYiHandler?: (game: Game, defender: Player, attackName: string) => Promise<boolean>
+  yuRuYiHandler?: (ctx: YuRuYiCtx) => Promise<boolean>
   /** 弃牌阶段: 选要弃的手牌, 返回要弃的牌ID数组 */
-  discardPickHandler?: (game: Game, player: Player, handCards: Card[], discardCount: number) => Promise<string[]>
+  discardPickHandler?: (ctx: DiscardPickCtx) => Promise<string[]>
   /** 霸王弓: 选拆哪匹马, 返回 'attackMount' | 'defenseMount' | null */
-  baWangMountHandler?: (game: Game, attacker: Player, defender: Player, mountOptions: { attackMount: Card | null; defenseMount: Card | null }) => Promise<'attackMount' | 'defenseMount' | null>
+  baWangMountHandler?: (ctx: BaWangMountCtx) => Promise<'attackMount' | 'defenseMount' | null>
   /** UI 动画就绪门控: web 端返回的 Promise 在 flyingCards 全部完成后 resolve */
   awaitUIReady?: () => Promise<void>
   /** 强掠: 杀被闪后是否要发动 (true=发动判定; false=不发动) */
-  qiangLueHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
+  qiangLueHandler?: (ctx: QiangLueCtx) => Promise<boolean>
   /** 刺客: 出杀指定目标后是否发动 (true=发动判定; false=不发动) */
-  ciKeHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
+  ciKeHandler?: (ctx: CiKeCtx) => Promise<boolean>
   /** 蝶魂: 群体锦囊目标是否发动 (true=跳过结算并摸1张; false=走正常逻辑) */
-  dieHunHandler?: (game: Game, target: Player, schemeName: string) => Promise<boolean>
+  dieHunHandler?: (ctx: DieHunCtx) => Promise<boolean>
   /** 后主: 使用闪后是否发动 + 选目标. 返回 null=不发动; 否则为目标id */
-  houZhuHandler?: (game: Game, dodger: Player, candidates: Player[]) => Promise<string | null>
+  houZhuHandler?: (ctx: HouZhuCtx) => Promise<string | null>
   /** 天香: 判定开始前是否发动 (返回cardId=弃1张手牌免判; null=不发动, 正常判定) */
-  tianXiangHandler?: (game: Game, player: Player, judgeCard: Card) => Promise<string | null>
+  tianXiangHandler?: (ctx: TianXiangCtx) => Promise<string | null>
   /** 曼舞: 受伤时选择弃哪张红桃/黑桃手牌 (返回cardId; null=取消/不发动) */
-  manWuPickCardHandler?: (game: Game, victim: Player) => Promise<string | null>
+  manWuPickCardHandler?: (ctx: ManWuPickCardCtx) => Promise<string | null>
   /** 曼舞: 受伤时选择转移目标 (返回targetId; null=不发动) */
-  manWuHandler?: (game: Game, victim: Player, attacker: Player, damage: number, candidates: Player[]) => Promise<string | null>
+  manWuHandler?: (ctx: ManWuCtx) => Promise<string | null>
   /** 绝击: AI/玩家 是否发动以及选 (弃武器/null=受1血) + 目标. 返回null=不发动 */
-  jueJiHandler?: (game: Game, attacker: Player, inRangeEnemies: Player[]) => Promise<{ weaponCardId: string | null; targetId: string } | null>
+  jueJiHandler?: (ctx: JueJiCtx) => Promise<{ weaponCardId: string | null; targetId: string } | null>
   /** 门神: 秦琼回合结束选择保护目标 */
-  menShenTargetHandler?: (game: Game, qinQiong: Player, candidates: Player[]) => Promise<string | null>
+  menShenTargetHandler?: (ctx: MenShenTargetCtx) => Promise<string | null>
   /** 三板斧: 程咬金出杀时是否发动 */
-  sanBanFuHandler?: (game: Game, attacker: Player, defender: Player) => Promise<boolean>
+  sanBanFuHandler?: (ctx: SanBanFuCtx) => Promise<boolean>
   /** 鸩杀: 吕雉是否对濒死目标使用【药】 */
-  zhenShaHandler?: (game: Game, lvZhi: Player, dyingTarget: Player) => Promise<boolean>
+  zhenShaHandler?: (ctx: ZhenShaCtx) => Promise<boolean>
   /** 诀别: 虞姬濒死时是否指定男性英雄 (null=不指定) */
-  jueBieHandler?: (game: Game, yuJi: Player, candidates: Player[]) => Promise<string | null>
+  jueBieHandler?: (ctx: JueBieCtx) => Promise<string | null>
   /** 补刀: 关羽是否对目标补杀 (null=不补) */
-  buDaoHandler?: (game: Game, guanYu: Player, victim: Player) => Promise<string | null>
+  buDaoHandler?: (ctx: BuDaoCtx) => Promise<string | null>
   /** 复仇: 受伤后是否发动判定 (true=发动; false=不发动) */
-  fuChouTriggerHandler?: (game: Game, victim: Player, attacker: Player) => Promise<boolean>
+  fuChouTriggerHandler?: (ctx: FuChouTriggerCtx) => Promise<boolean>
   /** 复仇: 判定成功后, 来源选 (弃2张手牌 / 掉1血). 返回 'discard' | 'damage'; 手牌<2时引擎直接掉血不询问 */
-  fuChouChooseHandler?: (game: Game, attacker: Player, handCards: Card[]) => Promise<'discard' | 'damage'>
+  fuChouChooseHandler?: (ctx: FuChouChooseCtx) => Promise<'discard' | 'damage'>
   /** 复仇: 来源选弃2张手牌时, 选哪2张 (返回2个cardId, 至少2个; 不足时引擎补齐) */
-  fuChouPickHandler?: (game: Game, attacker: Player, handCards: Card[]) => Promise<string[]>
+  fuChouPickHandler?: (ctx: FuChouPickCtx) => Promise<string[]>
   /** 濒死救援: 救者是否用药救濒死目标 (返回要弃的药cardIds数组; null/[]=不救). AI由引擎自行决策 */
-  dyingRescueHandler?: (game: Game, savior: Player, dyingTarget: Player, yaoHandCards: Card[]) => Promise<string[] | null>
+  dyingRescueHandler?: (ctx: DyingRescueCtx) => Promise<string[] | null>
+  /** 舍身: 受伤摸2N张后, 玩家选择如何分配 (返回 { [heroId]: cardId[] }; 不传 heroId 的牌默认留在 victim 手里; null=放弃分配全留自己) */
+  sheShenDistributeHandler?: (ctx: SheShenCtx) => Promise<Record<string, string[]> | null>
+  /** 舍身: 受伤后是否发动 (玩家专用; AI 默认发动) */
+  sheShenTriggerHandler?: (ctx: SheShenTriggerCtx) => Promise<boolean>
 }
 
 export class Game {
@@ -166,11 +190,141 @@ export class Game {
     return this.aoJianActive.has(playerId)
   }
 
+  /**
+   * 计算当前引擎状态的 derived snapshot (可序列化派生数据).
+   * 阶段 3 步骤 B: 在状态变更 emit 时附带, 让主线程子组件 render 期不再调 engine 方法.
+   * 必须只读当前 this 状态, 不修改任何状态.
+   */
+  computeDerived(): DerivedSnapshot {
+    const player = this.players.find(p => p.getRole() === 'player')
+    if (!player) {
+      return {
+        canPlayKill: false,
+        aoJianActive: false,
+        hasLeiInJudge: false,
+        jueJiUsedCount: 0,
+        playerHasEquipment: false,
+        validKillTargetIds: [],
+        validTanNangTargetIds: [],
+        validFudiTargetIds: [],
+        validJueJiTargetIds: [],
+        hasJieDaoHolder: false,
+        validSchemeTargetIdsByCardId: {},
+        validKillCardIds: [],
+        heroJudgeStatus: {},
+        enemyHandsByHeroId: {},
+      }
+    }
+    const pid = player.getId()
+
+    const validKillTargetIds: string[] = []
+    const validTanNangTargetIds: string[] = []
+    const validFudiTargetIds: string[] = []
+    const validJueJiTargetIds: string[] = []
+    let hasJieDaoHolder = false
+
+    for (const other of this.players) {
+      if (other.getId() === pid) continue
+      if (!other.isAlive()) continue
+      // 攻击范围 (杀 + 绝击)
+      if (this.isInAttackRange(player, other)) {
+        validKillTargetIds.push(other.getId())
+        validJueJiTargetIds.push(other.getId())
+      }
+      // 探囊取物: 范围 + 有牌 + 非控局免疫
+      if (this.canTanNang(player, other) && !this.isKongJuImmuneTo(other, '探囊取物')) {
+        validTanNangTargetIds.push(other.getId())
+      }
+      // 釜底抽薪: 有手牌/装备/判定牌任一 (控局免疫判定在 isValidTarget 中由 pendingSchemeName 单独处理,
+      // 这里给"有牌可弃"的基础事实)
+      const hasCards = other.getHandSize() > 0 || this.collectEquipmentCards(other).length > 0 || other.getJudgeCards().length > 0
+      if (hasCards) {
+        validFudiTargetIds.push(other.getId())
+      }
+      // 借刀杀人 step1: 持武器的非玩家
+      if (other.getEquippedCard('weapon')) {
+        hasJieDaoHolder = true
+      }
+    }
+
+    const hasLeiInJudge = player.getJudgeCards().some(c => c.name === '手捧雷')
+    const playerHasEquipment = ['weapon', 'armor', 'attackMount', 'defenseMount']
+      .some(slot => !!player.getEquippedCard(slot as EquipmentSlot))
+    const jueJiUsedCount = player.getSkillUseCount('jue-ji')
+
+    // 通用锦囊 (除探囊/釜底/借刀外) 按手牌每张 scheme 预算合法目标集合.
+    // 语义: canBeSchemeTarget (洞察黑桃判定) + isKongJuImmuneTo(控局免疫) 双过滤.
+    const validSchemeTargetIdsByCardId: Record<string, string[]> = {}
+    for (const card of player.getHand()) {
+      if (card.type !== 'scheme') continue
+      // 探囊/釜底/借刀有专用集合或 store 字段, 这里跳过避免重复
+      if (card.name === '探囊取物' || card.name === '釜底抽薪' || card.name === '借刀杀人') continue
+      const ids: string[] = []
+      for (const other of this.players) {
+        if (other.getId() === pid) continue
+        if (!other.isAlive()) continue
+        if (!this.canBeSchemeTarget(other, card)) continue
+        if (this.isKongJuImmuneTo(other, card.name)) continue
+        ids.push(other.getId())
+      }
+      validSchemeTargetIdsByCardId[card.id] = ids
+    }
+
+    // 阶段 3 步骤 D: 玩家手牌中所有"可当杀使用"的 cardId (替代 game.canPlayerUseAsKill)
+    const validKillCardIds: string[] = player.getHand()
+      .map(c => c.id)
+      .filter(id => this.canPlayerUseAsKill(id))
+
+    // 每个角色判定区状态 (HeroBattleCard 右上角判定动画用)
+    const heroJudgeStatus: Record<string, { hasThunder: boolean; hasImprisoned: boolean }> = {}
+    for (const p of this.players) {
+      const judges = p.getJudgeCards()
+      heroJudgeStatus[p.getId()] = {
+        hasThunder: judges.some(c => c.name === '手捧雷'),
+        hasImprisoned: judges.some(c => c.name === '画地为牢'),
+      }
+    }
+
+    // 非玩家角色的手牌 (DEBUG_SHOW_AI_HAND 用)
+    const enemyHandsByHeroId: Record<string, Card[]> = {}
+    for (const other of this.players) {
+      if (other.getId() === pid) continue
+      enemyHandsByHeroId[other.getId()] = [...other.getHand()]
+    }
+
+    return {
+      canPlayKill: this.canPlayKill,
+      aoJianActive: this.aoJianActive.has(pid),
+      hasLeiInJudge,
+      jueJiUsedCount,
+      playerHasEquipment,
+      validKillTargetIds,
+      validTanNangTargetIds,
+      validFudiTargetIds,
+      validJueJiTargetIds,
+      hasJieDaoHolder,
+      validSchemeTargetIdsByCardId,
+      validKillCardIds,
+      heroJudgeStatus,
+      enemyHandsByHeroId,
+    }
+  }
+
   /** 调 UI handler 前的动画就绪闸门 — 等 web 端 flyingCards 清空 */
   private async awaitUI(): Promise<void> {
     if (this.config.awaitUIReady) {
       await this.config.awaitUIReady()
     }
+  }
+
+  /**
+   * 发事件后等 UI 动画就绪 — 用于会触发飞行卡/飘字的关键事件
+   * (card:play / card:discard / card:gain / equipment:* / damage:*),
+   * 让 UI 动画与引擎推进完全同步, 避免 AI 连续动作时动画堆积。
+   */
+  private async emitAndSync(event: Omit<GameEvent, 'timestamp'>): Promise<void> {
+    this.eventBus.emit(event)
+    await this.awaitUI()
   }
 
   isEffectivelyRed(card: Card, player: Player): boolean {
@@ -219,6 +373,30 @@ export class Game {
     this.eventBus = new EventBus()
     this.cardDeck = new CardDeck(createFullDeck())
     this.players = []
+
+    // 阶段 3 步骤 B: 在影响 derived 数据的关键状态变更事件 emit 时自动附带 derived snapshot.
+    // 这样不必修改 50+ 个 emit 调用点, 同时 battleStore 订阅 handler 可统一从 event.data.derived 取值.
+    // 只对影响派生数据的事件类型附加 (纯 log/skill:trigger 等不加, 节省开销).
+    const derivedEventTypes = new Set<GameEvent['type']>([
+      'game:start', 'turn:start', 'turn:end',
+      'phase:start', 'phase:end',
+      'card:play', 'card:draw', 'card:discard', 'card:gain',
+      'damage:deal', 'damage:receive', 'heal', 'die',
+      'equipment:equip', 'equipment:unequip',
+      'scheme:nullify',
+      'judge',  // 阶段 3 步骤 D: heroJudgeStatus 在判定牌放置/替换/结算时也要重算
+    ])
+    const bus = this.eventBus
+    const origEmit = bus.emit.bind(bus)
+    bus.emit = (event: Omit<GameEvent, 'timestamp'>): void => {
+      if (derivedEventTypes.has(event.type)) {
+        const derived = this.computeDerived()
+        const data = { ...(event.data ?? {}), derived }
+        origEmit({ type: event.type, sourceHeroId: event.sourceHeroId, targetHeroId: event.targetHeroId, data })
+        return
+      }
+      origEmit(event)
+    }
 
     const playerHero = getHeroById(config.playerHeroId)!
     this.players.push(new Player(playerHero, config.playerInstance, 'player'))
@@ -370,7 +548,7 @@ export class Game {
         this.emitSkillTrigger(victim, '伤之仇', '反弹被转移')
       } else {
         this.emitSkillTrigger(victim, '伤之仇', '反击1点伤害')
-        await this.applyDamage(victim, attacker, 1)
+        await this.applyDamage(victim, attacker, 1, undefined, { skipFuChouOnly: true })
       }
     }
     // 伤之贪: 30%几率摸1张牌
@@ -424,7 +602,7 @@ export class Game {
 
     let trigger = true
     if (target.getRole() === 'player') {
-      trigger = this.config.dieHunHandler ? await this.config.dieHunHandler(this, target, schemeName) : false
+      trigger = this.config.dieHunHandler ? await this.config.dieHunHandler({ targetId: target.getId(), schemeName }) : false
     }
     if (!trigger) return false
     const drawn = this.cardDeck.draw(1)
@@ -442,7 +620,7 @@ export class Game {
 
     let targetId: string | null = null
     if (dodger.getRole() === 'player' && this.config.houZhuHandler) {
-      targetId = await this.config.houZhuHandler(this, dodger, candidates)
+      targetId = await this.config.houZhuHandler({ dodgerId: dodger.getId(), candidateIds: candidates.map(p => p.getId()) })
     } else {
       // AI: 50% 概率触发, 随机选目标
       if (Math.random() < 0.5) {
@@ -492,7 +670,7 @@ export class Game {
       if (player.hasSkillOrTreasure('bian-fa') && player.useSkill('bian-fa') && player.getHandSize() > 0) {
         let replaceCardId: string | null = null
         if (player.getRole() === 'player' && this.config.judgeActionHandler) {
-          replaceCardId = await this.config.judgeActionHandler(this, player, card)
+          replaceCardId = await this.config.judgeActionHandler({ playerId: player.getId(), judgeCard: card })
         } else {
           // AI: 50%概率替换（简化逻辑）
           replaceCardId = Math.random() < 0.5 ? player.getHand()[0].id : null
@@ -520,7 +698,7 @@ export class Game {
         if (blackHandIds.length > 0 || blackEquipment.length > 0) {
           let replaceCardId: string | null = null
           if (player.getRole() === 'player' && this.config.chaoTuoHandler) {
-            replaceCardId = await this.config.chaoTuoHandler(this, player, card, { hand: blackHandIds, equipment: blackEquipment })
+            replaceCardId = await this.config.chaoTuoHandler({ playerId: player.getId(), judgeCard: card, blackCardIds: { hand: blackHandIds, equipment: blackEquipment } })
           } else {
             // AI: 50%概率替换
             if (Math.random() < 0.5) {
@@ -542,7 +720,7 @@ export class Game {
                 if (eq && eq.id === replaceCardId) {
                   replacement = player.unequip(slot) ?? undefined
                   if (replacement) {
-                    this.eventBus.emit({ type: 'equipment:unequip', sourceHeroId: player.getId(), data: { cardId: replacement.id, slot } })
+                    await this.emitAndSync({ type: 'equipment:unequip', sourceHeroId: player.getId(), data: { cardId: replacement.id, slot } })
                   }
                   break
                 }
@@ -618,7 +796,7 @@ export class Game {
     }
   }
 
-  private cleanupDeadPlayer(event: GameEvent): void {
+  private async cleanupDeadPlayer(event: GameEvent): Promise<void> {
     const victimId = event.sourceHeroId
     if (!victimId) return
     const victim = this.getPlayerById(victimId)
@@ -632,7 +810,7 @@ export class Game {
       const eq = victim.getEquippedCard(slot)
       if (eq) {
         victim.unequip(slot)
-        this.eventBus.emit({ type: 'equipment:unequip', sourceHeroId: victimId, data: { cardId: eq.id, slot } })
+        await this.emitAndSync({ type: 'equipment:unequip', sourceHeroId: victimId, data: { cardId: eq.id, slot } })
         allCards.push(eq)
       }
     }
@@ -648,14 +826,14 @@ export class Game {
         const target = this.getPlayerById(this.jueBieTarget)
         if (target && target.isAlive() && !target.isFemale()) {
           target.drawCards(allCards)
-          this.eventBus.emit({ type: 'card:gain', sourceHeroId: target.getId(), data: { count: allCards.length, reason: '诀别', from: victim.getId(), cards: allCards.map(c => c.id) } })
+          await this.emitAndSync({ type: 'card:gain', sourceHeroId: target.getId(), data: { count: allCards.length, reason: '诀别', from: victim.getId(), cards: allCards.map(c => c.id) } })
           this.emitSkillTrigger(victim, '诀别', `所有牌归入${target.getName()}`)
           this.jueBieTarget = null
           return
         }
       }
       this.cardDeck.discard(allCards)
-      this.eventBus.emit({ type: 'card:discard', sourceHeroId: victimId, data: { count: allCards.length, reason: 'death', cards: allCards.map(c => c.id) } })
+      await this.emitAndSync({ type: 'card:discard', sourceHeroId: victimId, data: { count: allCards.length, reason: 'death', cards: allCards.map(c => c.id) } })
     }
     this.jueBieTarget = null
   }
@@ -742,7 +920,7 @@ export class Game {
       this.eventBus.emit({ type: 'phase:start', sourceHeroId: player.getId(), data: { phase: 'play' } })
       if (player.getRole() === 'player' && this.config.playerActionHandler) {
         await this.awaitUI()
-        await this.config.playerActionHandler(this, player)
+        await this.config.playerActionHandler({ playerId: player.getId() })
       } else {
         await this.autoPlayPhase(player)
       }
@@ -788,7 +966,7 @@ export class Game {
     if (candidates.length === 0) return
     let chosenId: string | null = null
     if (qinQiong.getRole() === 'player' && this.config.menShenTargetHandler) {
-      chosenId = await this.config.menShenTargetHandler(this, qinQiong, candidates)
+      chosenId = await this.config.menShenTargetHandler({ qinQiongId: qinQiong.getId(), candidateIds: candidates.map(p => p.getId()) })
     } else {
       // AI: 选血量最低的敌人优先
       const enemies = candidates.filter(p => p.getRole() !== qinQiong.getRole())
@@ -828,7 +1006,7 @@ export class Game {
     }
     let chosenId: string | null = null
     if (yuJi.getRole() === 'player' && this.config.jueBieHandler) {
-      chosenId = await this.config.jueBieHandler(this, yuJi, candidates)
+      chosenId = await this.config.jueBieHandler({ yuJiId: yuJi.getId(), candidateIds: candidates.map(p => p.getId()) })
     } else {
       // AI: 选血量最高的友军男性
       const allies = candidates.filter(p => p.getRole() === yuJi.getRole())
@@ -850,7 +1028,7 @@ export class Game {
     if (!lvZhi.getHand().some(c => c.name === '药')) return
     let trigger = false
     if (lvZhi.getRole() === 'player' && this.config.zhenShaHandler) {
-      trigger = await this.config.zhenShaHandler(this, lvZhi, dyingTarget)
+      trigger = await this.config.zhenShaHandler({ lvZhiId: lvZhi.getId(), dyingTargetId: dyingTarget.getId() })
     } else {
       // AI: 濒死目标是敌人就发动
       trigger = lvZhi.getRole() !== dyingTarget.getRole()
@@ -942,7 +1120,7 @@ export class Game {
       if (inRangeEnemies.length > 0 && player.getCurrentHp() > 1 && player.getSkillUseCount('jue-ji') === 0) {
         let choice: { weaponCardId: string | null; targetId: string } | null = null
         if (this.config.jueJiHandler) {
-          choice = await this.config.jueJiHandler(this, player, inRangeEnemies)
+          choice = await this.config.jueJiHandler({ attackerId: player.getId(), inRangeEnemyIds: inRangeEnemies.map(p => p.getId()) })
         } else {
           // AI 默认: 优先弃武器 (装备区或手牌, 无损失), 无武器才掉血
           const equipped = player.getEquippedCard('weapon')
@@ -1066,7 +1244,7 @@ export class Game {
       usedAoJian = true
     }
 
-    this.eventBus.emit({
+    await this.emitAndSync({
       type: 'card:play',
       sourceHeroId: attacker.getId(),
       targetHeroId: defender.getId(),
@@ -1096,7 +1274,7 @@ export class Game {
     if (attacker.hasSkillOrTreasure('ci-ke')) {
       let trigger = false
       if (attacker.getRole() === 'player' && this.config.ciKeHandler) {
-        trigger = await this.config.ciKeHandler(this, attacker, defender)
+        trigger = await this.config.ciKeHandler({ attackerId: attacker.getId(), defenderId: defender.getId() })
       } else if (attacker.getRole() !== 'player') {
         // AI: 总是发动刺客 (判定期望收益最高)
         trigger = true
@@ -1147,7 +1325,7 @@ export class Game {
         if (dodgeCount >= dodgeNeeded) break
         const dodgeCard = await this.promptResponseDodge(defender, attacker.getId(), '杀')
         if (dodgeCard) {
-          this.eventBus.emit({
+          await this.emitAndSync({
             type: 'card:play',
             sourceHeroId: defender.getId(),
             targetHeroId: attacker.getId(),
@@ -1193,10 +1371,11 @@ export class Game {
         if (totalCards > 0) {
           if (attacker.getRole() === 'player' && this.config.longLinPickHandler) {
             await this.awaitUI()
-            longLinPickedIds = await this.config.longLinPickHandler(
-              this, attacker, defender,
-              { hand: defender.getHand(), judge: defender.getJudgeCards(), equipment: this.collectEquipmentCards(defender) },
-            )
+            longLinPickedIds = await this.config.longLinPickHandler({
+              attackerId: attacker.getId(),
+              defenderId: defender.getId(),
+              options: { hand: defender.getHand(), judge: defender.getJudgeCards(), equipment: this.collectEquipmentCards(defender) },
+            })
           } else if (attacker.getRole() !== 'player') {
             // AI: 默认选择弃牌，随机选最多2张
             const allIds: string[] = [
@@ -1212,7 +1391,7 @@ export class Game {
 
       if (longLinPickedIds && longLinPickedIds.length > 0) {
         for (const cid of longLinPickedIds) {
-          this.discardCardFromTarget(defender, cid, '龙鳞刀')
+          await this.discardCardFromTarget(defender, cid, '龙鳞刀')
         }
         this.emitSkillTrigger(attacker, '龙鳞刀', `弃${defender.getName()}${longLinPickedIds.length}张牌`)
         // 龙鳞刀: 弃牌代替掉血, 不算造成伤害 → 不触发强化等攻击后辅印
@@ -1251,7 +1430,7 @@ export class Game {
 
           if (hasBoth && attacker.getRole() === 'player' && (this as any).config.baWangMountHandler) {
             // 两匹马都有且是玩家: 让玩家选择
-            mountSlot = await (this as any).config.baWangMountHandler(this, attacker, defender, { attackMount, defenseMount })
+            mountSlot = await (this as any).config.baWangMountHandler({ attackerId: attacker.getId(), defenderId: defender.getId(), mountOptions: { attackMount, defenseMount } })
           } else if (attackMount) {
             mountSlot = 'attackMount'
           } else if (defenseMount) {
@@ -1262,7 +1441,7 @@ export class Game {
             const mount = defender.unequip(mountSlot)
             if (mount) {
               this.cardDeck.discard([mount])
-              this.eventBus.emit({ type: 'equipment:unequip', sourceHeroId: defender.getId(), data: { cardId: mount.id, slot: mountSlot } })
+              await this.emitAndSync({ type: 'equipment:unequip', sourceHeroId: defender.getId(), data: { cardId: mount.id, slot: mountSlot } })
               this.emitSkillTrigger(attacker, '霸王弓', `拆${defender.getName()}${mount.name}`)
             }
           }
@@ -1285,7 +1464,7 @@ export class Game {
       if (attacker.hasSkillOrTreasure('qiang-lue') && attacker.isAlive() && defender.isAlive()) {
         let trigger = false
         if (attacker.getRole() === 'player' && this.config.qiangLueHandler) {
-          trigger = await this.config.qiangLueHandler(this, attacker, defender)
+          trigger = await this.config.qiangLueHandler({ attackerId: attacker.getId(), defenderId: defender.getId() })
         } else if (attacker.getRole() !== 'player') {
           // AI: 有手牌可抽才发动
           trigger = defender.getHandSize() + this.collectEquipmentCards(defender).length + defender.getJudgeCards().length > 0
@@ -1309,7 +1488,7 @@ export class Game {
         if (attackerHand.length >= 2) {
           let toDiscard: string[] | null = null
           if (attacker.getRole() === 'player' && this.config.boLangChuiHandler) {
-            toDiscard = await this.config.boLangChuiHandler(this, attacker, attackerHand)
+            toDiscard = await this.config.boLangChuiHandler({ attackerId: attacker.getId(), hand: attackerHand })
           } else if (attacker.getRole() !== 'player') {
             // AI: 弃最没用的2张 (非杀非闪优先, 简化取前2张)
             toDiscard = attackerHand.slice(0, 2).map(c => c.id)
@@ -1358,7 +1537,7 @@ export class Game {
   }
 
   /** 受伤后的被动技能触发 */
-  private async onDamageReceived(victim: Player, attacker: Player, sourceCard?: Card, sourceAction?: string): Promise<void> {
+  private async onDamageReceived(victim: Player, attacker: Player, sourceCard?: Card, sourceAction?: string, damage: number = 1, skipFuChou: boolean = false): Promise<void> {
     // 濒死救援: HP≤0 时先进入濒死阶段 (鸩杀→救援→诀别). 若未救活则不再走下面的技能触发
     if (victim.getCurrentHp() <= 0 && victim.isAlive()) {
       const saved = await this.rescueDyingPlayer(victim)
@@ -1380,11 +1559,64 @@ export class Game {
       }
     }
 
-    // 舍身: 掉血摸两张
+    // 舍身: 每掉1血摸2张, 可分给其他存活角色 (玩家先选是否发动, 再弹分配 UI; AI 默认发动, 全给同阵营队友)
     if (victim.hasSkillOrTreasure('she-shen')) {
-      const drawn = this.cardDeck.draw(2)
-      victim.drawCards(drawn)
-      this.emitSkillTrigger(victim, '舍身', '受伤摸两张')
+      // 1. 玩家先确认是否发动 (AI 直接发动)
+      let triggered = true
+      if (victim.getRole() === 'player' && this.config.sheShenTriggerHandler) {
+        triggered = await this.config.sheShenTriggerHandler({ victimId: victim.getId(), damage })
+      }
+      if (!triggered) {
+        this.emitSkillTrigger(victim, '舍身', '选择不发动')
+      } else {
+        const drawn = this.cardDeck.draw(2 * damage)
+        if (victim.getRole() === 'player' && this.config.sheShenDistributeHandler) {
+          const distribution = await this.config.sheShenDistributeHandler({
+            victimId: victim.getId(),
+            cards: drawn,
+          })
+          if (distribution) {
+            // distribution: { [heroId]: cardId[] } — 把牌分给指定角色
+            for (const [heroId, cardIds] of Object.entries(distribution)) {
+              const target = this.getPlayerById(heroId)
+              if (!target) continue
+              const cardsToGive = drawn.filter(c => (cardIds as string[]).includes(c.id))
+              if (cardsToGive.length === 0) continue
+              target.drawCards(cardsToGive)
+              if (target.getId() !== victim.getId()) {
+                this.emitSkillTrigger(victim, '舍身', `给${target.getName()} ${cardsToGive.length}张`)
+              }
+            }
+            this.emitSkillTrigger(victim, '舍身', `受伤摸${drawn.length}张并分配`)
+          } else {
+            // 玩家放弃分配: 全留自己
+            victim.drawCards(drawn)
+            this.emitSkillTrigger(victim, '舍身', `受伤摸${drawn.length}张`)
+          }
+        } else {
+          // AI: 全部分给同阵营其他存活角色 (ally 视玩家为同阵营; 无队友时留给自己)
+          const isSameCamp = (p: Player): boolean => {
+            if (p.getId() === victim.getId()) return false
+            if (p.getRole() === victim.getRole()) return true
+            // 玩家(player) 与 友军(ally) 互为同阵营
+            if (victim.getRole() === 'ally' && p.getRole() === 'player') return true
+            if (victim.getRole() === 'player' && p.getRole() === 'ally') return true
+            return false
+          }
+          const sameCamp = this.getAlivePlayersCounterClockwiseFrom(victim).filter(isSameCamp)
+          if (sameCamp.length === 0) {
+            victim.drawCards(drawn)
+          } else {
+            // 平均分配 (余数依次给前面的队友)
+            drawn.forEach((card, i) => {
+              const target = sameCamp[i % sameCamp.length]
+              target.drawCards([card])
+              this.emitSkillTrigger(victim, '舍身', `给${target.getName()} 1张`)
+            })
+          }
+          this.emitSkillTrigger(victim, '舍身', `受伤摸${drawn.length}张并分配给队友`)
+        }
+      }
     }
 
     // 法家: 从伤害来源获得一张牌(手牌/装备/判定)
@@ -1393,13 +1625,14 @@ export class Game {
       if (attackerCards > 0) {
         let pickedId: string | null = null
         if (victim.getRole() === 'player' && this.config.faJiaPickHandler) {
-          pickedId = await this.config.faJiaPickHandler(
-            this, victim, attacker,
-            { hand: attacker.getHand(), judge: attacker.getJudgeCards(), equipment: this.collectEquipmentCards(attacker) },
-          )
+          pickedId = await this.config.faJiaPickHandler({
+            victimId: victim.getId(),
+            attackerId: attacker.getId(),
+            options: { hand: attacker.getHand(), judge: attacker.getJudgeCards(), equipment: this.collectEquipmentCards(attacker) },
+          })
         }
         if (pickedId) {
-          this.takeCardFromTarget(victim, attacker, pickedId, '法家')
+          await this.takeCardFromTarget(victim, attacker, pickedId, '法家')
         } else {
           // AI或放弃时随机拿一张
           this.stealRandomCard(attacker, victim)
@@ -1426,7 +1659,10 @@ export class Game {
     }
 
     // 复仇: 受伤后可发动, 判定成功后来源弃2牌或掉1血
-    if (victim.hasSkillOrTreasure('fu-chou') && attacker.isAlive()) {
+    // AI 受害者: 对友方造成的伤害不发动; 玩家受方仍由玩家选择是否发动
+    // skipFuChou: 复仇反弹/绝击/伤之仇等场景下不再次触发复仇 (避免死循环)
+    const fuChouSkipForAlly = victim.getRole() !== 'player' && attacker.getRole() === 'ally'
+    if (victim.hasSkillOrTreasure('fu-chou') && attacker.isAlive() && !fuChouSkipForAlly && !skipFuChou) {
       await this.promptFuChou(victim, attacker)
     }
 
@@ -1493,7 +1729,7 @@ export class Game {
         else if (current.hasSkillOrTreasure('ao-jian')) skillName = '傲剑'
       }
 
-      this.eventBus.emit({
+      await this.emitAndSync({
         type: 'card:play',
         sourceHeroId: current.getId(),
         data: { cardId: killCard.id, cardName: '杀', usedAsSkill: skillName || undefined, card: killCard },
@@ -1519,7 +1755,7 @@ export class Game {
     }
     if (!this.config.responseActionHandler) return null
     await this.awaitUI()
-    const cardId = await this.config.responseActionHandler(this, player, 'kill', { sourceHeroId, schemeName, needCount })
+    const cardId = await this.config.responseActionHandler({ playerId: player.getId(), responseType: 'kill', context: { sourceHeroId, schemeName, needCount } })
     if (!cardId) return null
     // 先查手牌, 再查装备区 (傲剑可用红色装备当杀)
     let card = player.getHand().find(c => c.id === cardId)
@@ -1542,7 +1778,7 @@ export class Game {
     if (player.getRole() === 'player') {
       if (!this.config.responseActionHandler) return null
       await this.awaitUI()
-      const cardId = await this.config.responseActionHandler(this, player, 'dodge', { sourceHeroId: attackerId, schemeName, targetHeroId: player.getId() })
+      const cardId = await this.config.responseActionHandler({ playerId: player.getId(), responseType: 'dodge', context: { sourceHeroId: attackerId, schemeName, targetHeroId: player.getId() } })
       if (!cardId) return null  // 玩家主动选择掉血
       const card = player.getHand().find(c => c.id === cardId)
       if (!card || !this.canUseAsDodge(card, player)) return null
@@ -1563,7 +1799,7 @@ export class Game {
     if (player.getRole() === 'player') {
       if (!this.config.responseActionHandler) return null
       await this.awaitUI()
-      const cardId = await this.config.responseActionHandler(this, player, handlerType, { sourceHeroId: sourceId, schemeName, targetHeroId: player.getId() })
+      const cardId = await this.config.responseActionHandler({ playerId: player.getId(), responseType: handlerType, context: { sourceHeroId: sourceId, schemeName, targetHeroId: player.getId(), needCount: 1 } })
       if (!cardId) return null
       const card = player.getHand().find(c => c.id === cardId)
       if (!card) return null
@@ -1601,7 +1837,7 @@ export class Game {
     // 询问是否使用玉如意 (玩家可选, AI 默认使用)
     let useYuRuYi = true
     if (defender.getRole() === 'player') {
-      useYuRuYi = this.config.yuRuYiHandler ? await this.config.yuRuYiHandler(this, defender, attackName) : false
+      useYuRuYi = this.config.yuRuYiHandler ? await this.config.yuRuYiHandler({ defenderId: defender.getId(), attackName }) : false
     }
     // AI: 默认使用
     const srcName = hasYuRuYiArmor && !hasGuoSe ? '玉如意' : '国色'
@@ -1635,7 +1871,7 @@ export class Game {
     if (!player.useSkill('tian-xiang')) return false  // 已用本回合
     let cardId: string | null = null
     if (player.getRole() === 'player' && this.config.tianXiangHandler) {
-      cardId = await this.config.tianXiangHandler(this, player, judgeCard)
+      cardId = await this.config.tianXiangHandler({ playerId: player.getId(), judgeCard })
     } else if (player.getRole() !== 'player') {
       // AI: 有手牌就发动 (优先弃基本牌, 避免损失有价值的装备/锦囊)
       cardId = hand.find(c => c.type === 'basic')?.id ?? hand[0]?.id ?? null
@@ -1681,12 +1917,12 @@ export class Game {
       // 玩家: 先选转移目标
       if (this.config.manWuHandler) {
         const candidates = this.getAlivePlayers().filter(p => p.getId() !== victim.getId())
-        targetId = await this.config.manWuHandler(this, victim, attacker, damage, candidates)
+        targetId = await this.config.manWuHandler({ victimId: victim.getId(), attackerId: attacker.getId(), damage, candidateIds: candidates.map(p => p.getId()) })
       }
       if (!targetId) return false
       // 再选红桃手牌弃掉
       if (this.config.manWuPickCardHandler) {
-        cardId = await this.config.manWuPickCardHandler(this, victim)
+        cardId = await this.config.manWuPickCardHandler({ victimId: victim.getId() })
       }
       if (!cardId) return false
     } else {
@@ -1731,7 +1967,7 @@ export class Game {
     let triggered = false
     if (victim.getRole() === 'player') {
       if (this.config.fuChouTriggerHandler) {
-        triggered = await this.config.fuChouTriggerHandler(this, victim, attacker)
+        triggered = await this.config.fuChouTriggerHandler({ victimId: victim.getId(), attackerId: attacker.getId() })
       }
     } else {
       triggered = true
@@ -1764,7 +2000,7 @@ export class Game {
       if (!this.config.fuChouChooseHandler) {
         choice = 'damage'
       } else {
-        choice = await this.config.fuChouChooseHandler(this, attacker, hand)
+        choice = await this.config.fuChouChooseHandler({ attackerId: attacker.getId(), handCards: hand })
       }
     } else {
       // AI: 优先弃2张手牌保命
@@ -1781,7 +2017,7 @@ export class Game {
     let pickedIds: string[]
     if (attacker.getRole() === 'player') {
       if (this.config.fuChouPickHandler) {
-        pickedIds = await this.config.fuChouPickHandler(this, attacker, hand)
+        pickedIds = await this.config.fuChouPickHandler({ attackerId: attacker.getId(), handCards: hand })
       } else {
         pickedIds = hand.slice(0, 2).map(c => c.id)
       }
@@ -1804,8 +2040,8 @@ export class Game {
       this.emitSkillTrigger(victim, '复仇', '反弹被转移')
       return
     }
-    // 走统一伤害处理 (含濒死救援). skipOnDamageReceived避免attacker死后再次触发复仇死循环
-    await this.applyDamage(victim, attacker, 1, undefined, { skipOnDamageReceived: true })
+    // 走统一伤害处理 (含濒死救援). skipFuChouOnly 避免attacker死后再次触发复仇死循环, 但舍身/法家/集权等仍正常触发
+    await this.applyDamage(victim, attacker, 1, undefined, { skipFuChouOnly: true })
   }
 
   private async dealDuelDamage(loser: Player, source: Player): Promise<void> {
@@ -1867,7 +2103,7 @@ export class Game {
 
       this.removeHandCard(candidate, wxCard.id)
       this.cardDeck.discard([wxCard])
-      this.eventBus.emit({
+      await this.emitAndSync({
         type: 'card:play', sourceHeroId: candidate.getId(),
         data: { cardId: wxCard.id, cardName: '无懈可击', card: wxCard },
       })
@@ -1899,10 +2135,11 @@ export class Game {
     if (candidate.getRole() === 'player') {
       if (!this.config.responseActionHandler) return null
       await this.awaitUI()
-      const cardId = await this.config.responseActionHandler(
-        this, candidate, 'nullify',
-        { sourceHeroId: schemePlayer.getId(), schemeName: schemeCard.name, targetHeroId: undefined },
-      )
+      const cardId = await this.config.responseActionHandler({
+        playerId: candidate.getId(),
+        responseType: 'nullify',
+        context: { sourceHeroId: schemePlayer.getId(), schemeName: schemeCard.name, targetHeroId: undefined },
+      })
       if (!cardId) return null
       const card = candidate.getHand().find(c => c.id === cardId)
       if (!card || card.name !== '无懈可击') return null
@@ -2018,7 +2255,7 @@ export class Game {
 
       let cardIds: string[] = []
       if (savior.getRole() === 'player' && this.config.dyingRescueHandler) {
-        cardIds = (await this.config.dyingRescueHandler(this, savior, dyingTarget, allRescueCards)) ?? []
+        cardIds = (await this.config.dyingRescueHandler({ saviorId: savior.getId(), dyingTargetId: dyingTarget.getId(), yaoHandCards: allRescueCards })) ?? []
       } else if (yaoHandCards.length > 0) {
         // AI 友方: 自动弃1张药救 (优先用药, 回春卡当备选)
         cardIds = [yaoHandCards[0].id]
@@ -2104,6 +2341,8 @@ export class Game {
     sourceCard?: Card,
     options?: {
       skipOnDamageReceived?: boolean
+      /** 只跳过复仇 (避免死循环), 仍触发舍身/法家/集权等其他受伤技能. 用于复仇反弹/绝击/伤之仇等场景 */
+      skipFuChouOnly?: boolean
       afterOnDamageReceived?: () => Promise<void>
       sourceAction?: 'kill' | 'dodge' | 'scheme' | 'judge' | 'mount' | string
     }
@@ -2127,7 +2366,7 @@ export class Game {
     if (!defender.isAlive()) {
       const saved = await this.rescueDyingPlayer(defender)
       if (!saved) {
-        this.eventBus.emit({
+        await this.emitAndSync({
           type: 'die',
           sourceHeroId: defender.getId(),
           data: { killedBy: attacker.getId() },
@@ -2142,11 +2381,11 @@ export class Game {
     }
 
     if (!options?.skipOnDamageReceived) {
-      await this.onDamageReceived(defender, attacker, sourceCard, options?.sourceAction)
+      await this.onDamageReceived(defender, attacker, sourceCard, options?.sourceAction, actual, !!options?.skipFuChouOnly)
     }
 
     if (!defender.isAlive() && !this.emittedDie.has(defender.getId())) {
-      this.eventBus.emit({
+      await this.emitAndSync({
         type: 'die',
         sourceHeroId: defender.getId(),
         data: { killedBy: attacker.getId() },
@@ -2214,7 +2453,7 @@ export class Game {
     if (player.hasSkillOrTreasure('san-ban-fu') && player.getSkillUseCount('san-ban-fu') === 0) {
       let useSanBanFu = true
       if (player.getRole() === 'player' && this.config.sanBanFuHandler) {
-        useSanBanFu = await this.config.sanBanFuHandler(this, player, target)
+        useSanBanFu = await this.config.sanBanFuHandler({ attackerId: player.getId(), defenderId: target.getId() })
       }
       if (useSanBanFu && player.useSkill('san-ban-fu')) {
         await this.executeSanBanFuKill(player, target, killCard)
@@ -2243,7 +2482,7 @@ export class Game {
   private async executeSanBanFuKill(attacker: Player, defender: Player, killCard: Card): Promise<void> {
     if (!attacker.isAlive() || !defender.isAlive()) return
     this.removeCardFromPlayer(attacker, killCard)
-    this.eventBus.emit({
+    await this.emitAndSync({
       type: 'card:play',
       sourceHeroId: attacker.getId(),
       targetHeroId: defender.getId(),
@@ -2257,7 +2496,7 @@ export class Game {
     for (let i = 0; i < 2; i++) {
       const dodgeCard = await this.promptResponseDodge(defender, attacker.getId(), '三板斧')
       if (!dodgeCard) break
-      this.eventBus.emit({
+      await this.emitAndSync({
         type: 'card:play',
         sourceHeroId: defender.getId(),
         targetHeroId: attacker.getId(),
@@ -2286,14 +2525,14 @@ export class Game {
       if (attacker.isAlive() && attacker.getHand().length > 0) {
         let discardId: string | null = null
         if (attacker.getRole() === 'player' && this.config.discardPickHandler) {
-          const picks = await this.config.discardPickHandler(this, attacker, attacker.getHand(), 1)
+          const picks = await this.config.discardPickHandler({ playerId: attacker.getId(), handCards: attacker.getHand(), discardCount: 1 })
           discardId = picks?.[0] ?? null
         }
         if (!discardId) discardId = attacker.getHand()[0].id
         const discarded = this.removeHandCard(attacker, discardId)
         if (discarded) {
           this.cardDeck.discard([discarded])
-          this.eventBus.emit({ type: 'card:discard', sourceHeroId: attacker.getId(), data: { cards: [discarded.id], reason: '三板斧' } })
+          await this.emitAndSync({ type: 'card:discard', sourceHeroId: attacker.getId(), data: { cards: [discarded.id], reason: '三板斧' } })
         }
       }
     } else if (dodgeCount === 1) {
@@ -2329,7 +2568,7 @@ export class Game {
       // 玩家: 询问是否补刀 + 选卡; AI: 自动
       let killCardId: string | null = null
       if (guanYu.getRole() === 'player' && this.config.buDaoHandler) {
-        killCardId = await this.config.buDaoHandler(this, guanYu, victim)
+        killCardId = await this.config.buDaoHandler({ guanYuId: guanYu.getId(), victimId: victim.getId() })
       } else if (guanYu.getRole() !== 'player') {
         // AI: 自动找一张可当杀的卡 (手牌优先, 傲剑时也允许装备区红牌)
         let c = guanYu.getHand().find(card => this.canUseAsKill(card, guanYu))
@@ -2412,7 +2651,7 @@ export class Game {
     const targetHeroIds = aoeNames.includes(effectiveCard.name)
       ? this.players.filter(p => p.getId() !== player.getId() && p.isAlive()).map(p => p.getId())
       : undefined
-    this.eventBus.emit({
+    await this.emitAndSync({
       type: 'card:play',
       sourceHeroId: player.getId(),
       targetHeroId: targetId,
@@ -2501,7 +2740,7 @@ export class Game {
           return
         }
         await this.awaitUI()
-        const chosenId = await this.config.tanNangTargetHandler(this, player, candidates)
+        const chosenId = await this.config.tanNangTargetHandler({ attackerId: player.getId(), candidateIds: candidates.map(p => p.getId()) })
         if (!chosenId) return
         target = this.players.find(p => p.getId() === chosenId)
       }
@@ -2523,10 +2762,11 @@ export class Game {
       let pickedId: string | null = null
       if (player.getRole() === 'player' && this.config.tanNangPickHandler) {
         await this.awaitUI()
-        pickedId = await this.config.tanNangPickHandler(
-          this, player, target,
-          { hand: target.getHand(), judge: target.getJudgeCards(), equipment: this.collectEquipmentCards(target) },
-        )
+        pickedId = await this.config.tanNangPickHandler({
+          attackerId: player.getId(),
+          targetId: target.getId(),
+          options: { hand: target.getHand(), judge: target.getJudgeCards(), equipment: this.collectEquipmentCards(target) },
+        })
       }
       // 必拿: 若handler没选或选空, 取手牌第一张
       if (!pickedId) {
@@ -2537,7 +2777,7 @@ export class Game {
           else if (target.getJudgeCards().length > 0) pickedId = target.getJudgeCards()[0].id
         }
       }
-      if (pickedId) this.takeCardFromTarget(player, target, pickedId, '探囊取物')
+      if (pickedId) await this.takeCardFromTarget(player, target, pickedId, '探囊取物')
     } else if (card.name === '釜底抽薪') {
       await this.executeFudiChouXin(player, targetId, card)
       // 妙计: 釜底抽薪视为锦囊 → 摸1张
@@ -2584,7 +2824,7 @@ export class Game {
         if (await this.checkDieHun(target, '烽火狼烟')) continue
         const killCard = await this.promptAoeResponse(target, player.getId(), '烽火狼烟', 'kill')
         if (killCard) {
-          this.eventBus.emit({
+          await this.emitAndSync({
             type: 'card:play',
             sourceHeroId: target.getId(),
             targetHeroId: player.getId(),
@@ -2625,7 +2865,7 @@ export class Game {
         if (await this.tryYuRuYiDodge(target, '万箭齐发')) continue
         const dodgeCard = await this.promptAoeResponse(target, player.getId(), '万箭齐发', 'dodge')
         if (dodgeCard) {
-          this.eventBus.emit({
+          await this.emitAndSync({
             type: 'card:play',
             sourceHeroId: target.getId(),
             targetHeroId: player.getId(),
@@ -2885,7 +3125,7 @@ export class Game {
     const targetHeroIds = this.players
       .filter(p => p.getId() !== player.getId() && p.isAlive())
       .map(p => p.getId())
-    this.eventBus.emit({
+    await this.emitAndSync({
       type: 'card:play',
       sourceHeroId: player.getId(),
       data: { cardId: card.id, cardName: '烽火狼烟', usedAsSkill: '烽火', card, targetHeroIds },
@@ -2923,7 +3163,7 @@ export class Game {
         (p.getHandSize() > 0 || this.collectEquipmentCards(p).length > 0 || p.getJudgeCards().length > 0)
       )
       if (candidates.length === 0) return
-      const chosenId = await this.config.fudiTargetHandler(this, player, candidates)
+      const chosenId = await this.config.fudiTargetHandler({ attackerId: player.getId(), candidateIds: candidates.map(p => p.getId()) })
       if (!chosenId) return
       target = this.players.find(p => p.getId() === chosenId)
     }
@@ -2944,10 +3184,11 @@ export class Game {
     }
     let pickedId: string | null = null
     if (player.getRole() === 'player' && this.config.fudiPickHandler) {
-      pickedId = await this.config.fudiPickHandler(
-        this, player, target,
-        { hand: target.getHand(), judge: target.getJudgeCards(), equipment: this.collectEquipmentCards(target) },
-      )
+      pickedId = await this.config.fudiPickHandler({
+        attackerId: player.getId(),
+        targetId: target.getId(),
+        options: { hand: target.getHand(), judge: target.getJudgeCards(), equipment: this.collectEquipmentCards(target) },
+      })
     }
     if (!pickedId) {
       if (target.getHandSize() > 0) pickedId = target.getHand()[0].id
@@ -2957,7 +3198,7 @@ export class Game {
         else if (target.getJudgeCards().length > 0) pickedId = target.getJudgeCards()[0].id
       }
     }
-    if (pickedId) this.discardCardFromTarget(target, pickedId, '釜底抽薪')
+    if (pickedId) await this.discardCardFromTarget(target, pickedId, '釜底抽薪')
   }
 
   private async executeFengHuoLangYan(player: Player): Promise<void> {
@@ -2975,7 +3216,7 @@ export class Game {
       if (await this.checkDieHun(target, '烽火狼烟')) continue
       const killCard = this.findKillCard(target)
       if (killCard) {
-        this.eventBus.emit({
+        await this.emitAndSync({
           type: 'card:play',
           sourceHeroId: target.getId(),
           targetHeroId: player.getId(),
@@ -3064,13 +3305,13 @@ export class Game {
     if (fromEquipSlot) {
       if (card.name === '乾坤袋') qianKunDaiLost = true
       player.unequip(fromEquipSlot)
-      this.eventBus.emit({ type: 'equipment:unequip', sourceHeroId: player.getId(), data: { cardId, slot: fromEquipSlot } })
+      await this.emitAndSync({ type: 'equipment:unequip', sourceHeroId: player.getId(), data: { cardId, slot: fromEquipSlot } })
     } else {
       this.removeHandCard(player, card.id)
     }
     this.cardDeck.discard([card])
     this.emitSkillTrigger(player, '释权', `将${card.name}当釜底抽薪使用`)
-    this.eventBus.emit({
+    await this.emitAndSync({
       type: 'card:play',
       sourceHeroId: player.getId(),
       data: { cardId: card.id, cardName: '釜底抽薪', usedAsSkill: '释权', card },
@@ -3117,14 +3358,14 @@ export class Game {
         this.emitSkillTrigger(player, '绝击', `弃置手牌${handCard.name}`)
       }
     } else {
-      await this.applyDamage(player, player, 1, undefined, { skipOnDamageReceived: true })
+      await this.applyDamage(player, player, 1, undefined, { skipFuChouOnly: true })
       if (!player.isAlive()) return
     }
     // 曼舞: 目标有曼舞可转移绝击伤害
     if (await this.promptManWu(target, player, 1)) {
       // 伤害已转移
     } else {
-      await this.applyDamage(player, target, 1, undefined, { skipOnDamageReceived: true })
+      await this.applyDamage(player, target, 1, undefined, { skipFuChouOnly: true })
       this.emitSkillTrigger(player, '绝击', `${target.getName()}受1伤害`)
     }
   }
@@ -3185,7 +3426,7 @@ export class Game {
     // 双方同时选牌 (玩家: xiaDanPlayerCardHandler; 目标: pinDianHandler 或 AI 按角色选牌策略)
     const targetPickPromise = (async (): Promise<Card | null> => {
       if (this.config.pinDianHandler) {
-        const cid = await this.config.pinDianHandler(this, target, player, '侠胆')
+        const cid = await this.config.pinDianHandler({ playerId: target.getId(), againstId: player.getId(), reason: '侠胆' })
         if (cid) return target.getHand().find(c => c.id === cid) ?? null
       }
       // AI: 敌方选最大牌(求胜, 不让玩家拼点成功), 友方选最小牌(让玩家赢)
@@ -3195,7 +3436,7 @@ export class Game {
 
     const playerPickPromise = (async (): Promise<Card | null> => {
       if (this.config.xiaDanPlayerCardHandler) {
-        const cid = await this.config.xiaDanPlayerCardHandler(this, player, target)
+        const cid = await this.config.xiaDanPlayerCardHandler({ playerId: player.getId(), againstId: target.getId() })
         if (cid) return player.getHand().find(c => c.id === cid) ?? null
       }
       return null
@@ -3278,7 +3519,7 @@ export class Game {
    * 从目标处拿1张牌 (探囊取物): 选手牌/装备/判定
    * 牌到手牌后, 玩家可以正常使用
    */
-  private takeCardFromTarget(player: Player, target: Player, cardId: string, reason: string): void {
+  private async takeCardFromTarget(player: Player, target: Player, cardId: string, reason: string): Promise<void> {
     let card: Card | undefined = this.removeHandCard(target,cardId)
     let wasQianKunDai = false
     if (!card) {
@@ -3288,7 +3529,7 @@ export class Game {
         if (eq && eq.id === cardId) {
           if (eq.name === '乾坤袋') wasQianKunDai = true
           card = target.unequip(slot) ?? undefined
-          if (card) this.eventBus.emit({ type: 'equipment:unequip', sourceHeroId: target.getId(), data: { cardId, slot } })
+          if (card) await this.emitAndSync({ type: 'equipment:unequip', sourceHeroId: target.getId(), data: { cardId, slot } })
           break
         }
       }
@@ -3299,7 +3540,7 @@ export class Game {
     }
     if (!card) return
     player.drawCards([card])
-    this.eventBus.emit({
+    await this.emitAndSync({
       type: 'card:gain', sourceHeroId: player.getId(),
       data: { cardId: card.id, cardName: card.name, from: target.getId(), reason },
     })
@@ -3315,7 +3556,7 @@ export class Game {
   }
 
   /** 让目标弃1张牌 (釜底抽薪) */
-  private discardCardFromTarget(target: Player, cardId: string, reason: string): void {
+  private async discardCardFromTarget(target: Player, cardId: string, reason: string): Promise<void> {
     let card: Card | undefined = this.removeHandCard(target,cardId)
     let wasQianKunDai = false
     if (!card) {
@@ -3324,7 +3565,7 @@ export class Game {
         if (eq && eq.id === cardId) {
           if (eq.name === '乾坤袋') wasQianKunDai = true
           card = target.unequip(slot) ?? undefined
-          if (card) this.eventBus.emit({ type: 'equipment:unequip', sourceHeroId: target.getId(), data: { cardId, slot } })
+          if (card) await this.emitAndSync({ type: 'equipment:unequip', sourceHeroId: target.getId(), data: { cardId, slot } })
           break
         }
       }
@@ -3334,7 +3575,7 @@ export class Game {
     }
     if (!card) return
     this.cardDeck.discard([card])
-    this.eventBus.emit({
+    await this.emitAndSync({
       type: 'card:discard', sourceHeroId: target.getId(),
       data: { cards: [card.id], reason },
     })
@@ -3395,7 +3636,7 @@ export class Game {
           data: { playerId: p.getId(), playerName: p.getName(), cards: remaining.map(c => ({ id: c.id, name: c.name, suit: c.suit, number: c.number })) },
         })
         await this.awaitUI()
-        pickedId = await this.config.wuguPickHandler(this, p, remaining)
+        pickedId = await this.config.wuguPickHandler({ pickerId: p.getId(), candidates: remaining })
       }
       if (!pickedId) {
         await new Promise(resolve => setTimeout(resolve, 400))
@@ -3405,7 +3646,7 @@ export class Game {
       if (idx < 0) return
       const [picked] = remaining.splice(idx, 1)
       p.drawCards([picked])
-      this.eventBus.emit({
+      await this.emitAndSync({
         type: 'card:gain', sourceHeroId: p.getId(),
         data: { cardId: picked.id, cardName: picked.name, from: 'wugu' },
       })
@@ -3436,7 +3677,7 @@ export class Game {
     if (!card || card.type !== 'scheme' || card.name !== '借刀杀人') return
     this.removeHandCard(player, card.id)
     this.cardDeck.discard([card])
-    this.eventBus.emit({
+    await this.emitAndSync({
       type: 'card:play', sourceHeroId: player.getId(),
       data: { cardId: card.id, cardName: card.name, card },
     })
@@ -3469,7 +3710,7 @@ export class Game {
       let hid: string | null = null
       if (this.config.jieDaoTargetHandler) {
         await this.awaitUI()
-        hid = await this.config.jieDaoTargetHandler(this, player, weaponHolders)
+        hid = await this.config.jieDaoTargetHandler({ attackerId: player.getId(), weaponHolderIds: weaponHolders.map(p => p.getId()) })
       } else {
         hid = weaponHolders[0].getId()
       }
@@ -3489,7 +3730,7 @@ export class Game {
     let attackTargetId: string | null = null
     if (this.config.jieDaoAttackTargetHandler) {
       await this.awaitUI()
-      attackTargetId = await this.config.jieDaoAttackTargetHandler(this, player, holder, candidates)
+      attackTargetId = await this.config.jieDaoAttackTargetHandler({ attackerId: player.getId(), borrowerId: holder.getId(), candidateIds: candidates.map(p => p.getId()) })
     } else {
       attackTargetId = candidates[0].getId()
     }
@@ -3527,7 +3768,7 @@ export class Game {
     if (this.config.multiTargetHandler) {
       const enemies = this.getEnemies(player)
       await this.awaitUI()
-      const targetIds = await this.config.multiTargetHandler(this, player, enemies)
+      const targetIds = await this.config.multiTargetHandler({ attackerId: player.getId(), candidateIds: enemies.map(p => p.getId()) })
       for (const tid of targetIds) {
         const target = this.players.find(p => p.getId() === tid)
         if (target && target.isAlive() && this.isInAttackRange(player, target)) {
@@ -3574,7 +3815,7 @@ export class Game {
     // 杀次数已用尽 (虎符/天狼 仍可无限)
     if (!this.hasUnlimitedKill(player) && this.killsUsedThisTurn >= this.killsMaxThisTurn) return
     await this.awaitUI()
-    const cardIds = await this.config.dualCardHandler(this, player)
+    const cardIds = await this.config.dualCardHandler({ attackerId: player.getId() })
     if (cardIds.length !== 2) return
     const cards = cardIds.map(id => player.getHand().find(c => c.id === id)).filter((c): c is Card => !!c)
     if (cards.length !== 2) return
@@ -3587,7 +3828,7 @@ export class Game {
     let targetId: string | null = null
     if (this.config.luYeQiangTargetHandler) {
       await this.awaitUI()
-      targetId = await this.config.luYeQiangTargetHandler(this, player, inRange)
+      targetId = await this.config.luYeQiangTargetHandler({ attackerId: player.getId(), candidateIds: inRange.map(p => p.getId()) })
     }
     const target = targetId ? this.players.find(p => p.getId() === targetId) : null
     if (target && target.isAlive()) {

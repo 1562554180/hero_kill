@@ -7,6 +7,38 @@ import { generateEnemyInstances } from '@hero-legend/game-data'
 
 const API = '/api'
 
+const NAME_TO_ID: Record<string, string> = {
+  '扁鹊': 'bian-que', '曹操': 'cao-cao', '陈胜': 'chen-sheng', '程咬金': 'cheng-yao-jin',
+  '勾践': 'gou-jian', '关羽': 'guan-yu', '韩信': 'han-xin', '荆轲': 'jing-ke',
+  '李逵': 'li-kui', '李世民': 'li-shi-min', '李师师': 'li-shi-shi', '李煜': 'li-yu',
+  '刘邦': 'liu-bang', '吕雉': 'lv-zhi', '慕容': 'mu-rong', '秦琼': 'qin-qiong',
+  '商鞅': 'shang-yang', '宋江': 'song-jiang', '澹台名': 'tan-tai-ming', '铁木真': 'tie-mu-zhen',
+  '武松': 'wu-song', '武则天': 'wu-ze-tian', '项羽': 'xiang-yu', '小乔': 'xiao-qiao',
+  '杨延昭': 'yang-yan-zhao', '嬴政': 'ying-zheng', '虞姬': 'yu-ji',
+  '岳飞': 'yue-fei', '赵匡胤': 'zhao-kuang-yin', '朱元璋': 'zhu-yuan-zhang', '诸葛亮': 'zhuge-liang',
+  '吴三桂': 'wu-san-gui', '宇文化及': 'yu-wen-hua-ji', '孟获': 'meng-huo',
+  '萧太后': 'xiao-tai-hou', '兰陵王': 'lan-ling-wang',
+}
+
+const portraitModules = import.meta.glob('../images/avatars/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
+const HERO_AVATARS_BY_NAME: Record<string, string> = {}
+for (const [path, url] of Object.entries(portraitModules)) {
+  const filename = path.replace('../images/avatars/', '').replace('.jpg', '')
+  HERO_AVATARS_BY_NAME[filename] = url
+}
+const HERO_AVATARS_BY_ID: Record<string, string> = {}
+for (const [cnName, heroId] of Object.entries(NAME_TO_ID)) {
+  if (HERO_AVATARS_BY_NAME[cnName]) HERO_AVATARS_BY_ID[heroId] = HERO_AVATARS_BY_NAME[cnName]
+}
+
+const STAR_NAME_COLOR: Record<number, string> = {
+  5: '#ffd700',
+  4: '#a78bfa',
+  3: '#60a5fa',
+  2: '#86efac',
+  1: '#9ca3af',
+}
+
 export function BattlePage() {
   const { stageId } = useParams()
   const navigate = useNavigate()
@@ -15,10 +47,15 @@ export function BattlePage() {
   const [save, setSave] = useState<any>(null)
   const [starting, setStarting] = useState(false)
   const [selectedHeroIdx, setSelectedHeroIdx] = useState(0)
+  const [heroConfirmed, setHeroConfirmed] = useState(false)
   const [selectedAllyIdx, setSelectedAllyIdx] = useState(-1)  // -1 = 不带友军
   const [allHeroes, setAllHeroes] = useState<any[]>([])
 
   const { phase, result, startBattle } = useBattleStore()
+  // 阶段 3 步骤 E: 战斗页卸载时释放 Worker, 防 Worker 泄漏
+  useEffect(() => {
+    return () => { useBattleStore.getState().cleanupBattle() }
+  }, [])
 
   const userId = localStorage.getItem('hero-legend-userId') || ''
 
@@ -121,7 +158,6 @@ export function BattlePage() {
       setSelectedAllyIdx(-1)
       // 完整重置所有状态, 防止上一场战斗残留导致新战斗回合卡住
       useBattleStore.setState({
-        game: null,
         gameState: null,
         phase: 'idle',
         playerHand: [],
@@ -189,72 +225,108 @@ export function BattlePage() {
           </p>
           {save.heroes?.length > 0 && (
             <div style={{ marginTop: '8px' }}>
-              <p style={{ color: 'var(--text-light)', fontSize: '13px', marginBottom: '6px' }}>
-                选择出战英雄{availableHeroes.length === 0 && ' (无可用英雄!)'}:
-              </p>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {save.heroes.map((hero: any, idx: number) => {
-                  const heroDef = allHeroes.find((h: any) => h.id === hero.heroId)
-                  const selected = idx === selectedHeroIdx
-                  const isForbidden = forbiddenHeroIds.has(hero.heroId)
-                  return (
-                    <div
-                      key={`${hero.heroId}-${idx}`}
-                      onClick={() => { if (!isForbidden) setSelectedHeroIdx(idx) }}
-                      title={isForbidden ? '该英雄是本关敌人, 不可选择' : ''}
-                      style={{
-                        padding: '8px 14px',
-                        borderRadius: '6px',
-                        cursor: isForbidden ? 'not-allowed' : 'pointer',
-                        border: selected ? '2px solid var(--text-gold)' : '2px solid var(--bg-dark)',
-                        background: selected ? 'var(--bg-dark)' : 'var(--bg-medium)',
-                        color: selected ? 'var(--text-gold)' : 'var(--text-light)',
-                        transition: 'all 0.15s',
-                        opacity: isForbidden ? 0.4 : 1,
-                        position: 'relative',
-                      }}
-                    >
-                      <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{heroDef?.name ?? hero.heroId}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {'★'.repeat(hero.starLevel)} Lv.{hero.level}
-                      </div>
-                      {isForbidden && (
-                        <div style={{
-                          position: 'absolute', top: '-6px', right: '-4px',
-                          background: '#e57373', color: '#fff', fontSize: '10px',
-                          padding: '0 4px', borderRadius: '3px', fontWeight: 'bold',
-                        }}>
-                          敌方
+              {!heroConfirmed ? (
+                <>
+                  <p style={{ color: 'var(--text-light)', fontSize: '13px', marginBottom: '6px' }}>
+                    选择出战英雄{availableHeroes.length === 0 && ' (无可用英雄!)'}:
+                  </p>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))',
+                    gap: '8px', alignContent: 'start',
+                  }}>
+                    {save.heroes.map((hero: any, idx: number) => {
+                      const heroDef = allHeroes.find((h: any) => h.id === hero.heroId)
+                      const selected = idx === selectedHeroIdx
+                      const isForbidden = forbiddenHeroIds.has(hero.heroId)
+                      const name = heroDef?.name ?? hero.heroId
+                      const avatar = HERO_AVATARS_BY_NAME[name] ?? HERO_AVATARS_BY_ID[hero.heroId]
+                      const nameColor = STAR_NAME_COLOR[hero.starLevel] ?? 'var(--text-light)'
+                      return (
+                        <div
+                          key={`${hero.heroId}-${idx}`}
+                          onClick={() => { if (!isForbidden) { setSelectedHeroIdx(idx); setSelectedAllyIdx(-1) } }}
+                          title={isForbidden ? '该英雄是本关敌人, 不可选择' : name}
+                          style={{
+                            background: selected ? 'var(--bg-light)' : 'var(--bg-medium)',
+                            border: `1px solid ${selected ? 'var(--border-gold)' : 'var(--border-wood)'}`,
+                            borderRadius: '6px', padding: '4px', cursor: isForbidden ? 'not-allowed' : 'pointer',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                            opacity: isForbidden ? 0.4 : 1, position: 'relative',
+                          }}
+                        >
+                          {avatar && (
+                            <img src={avatar} alt={name} style={{
+                              width: '100%', aspectRatio: '1', borderRadius: '4px',
+                              objectFit: 'cover', display: 'block',
+                              border: '1px solid var(--border-wood)', background: 'var(--bg-dark)',
+                            }} />
+                          )}
+                          <span style={{ color: nameColor, fontWeight: 'bold', fontSize: '12px', textAlign: 'center', lineHeight: 1.1 }}>
+                            {name}
+                          </span>
+                          {isForbidden && (
+                            <div style={{
+                              position: 'absolute', top: '-6px', right: '-4px',
+                              background: '#e57373', color: '#fff', fontSize: '10px',
+                              padding: '0 4px', borderRadius: '3px', fontWeight: 'bold',
+                            }}>
+                              敌方
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+                      )
+                    })}
+                  </div>
+                  <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                    <button
+                      className="primary"
+                      disabled={availableHeroes.length === 0}
+                      onClick={() => setHeroConfirmed(true)}
+                      style={{ fontSize: '14px', padding: '8px 24px' }}
+                    >确认出战英雄</button>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>出战英雄:</span>
+                  <span style={{ color: 'var(--text-gold)', fontWeight: 'bold' }}>
+                    {allHeroes.find((h: any) => h.id === save.heroes[selectedHeroIdx]?.heroId)?.name ?? '???'}
+                  </span>
+                  <button onClick={() => { setHeroConfirmed(false); setSelectedAllyIdx(-1) }} style={{ fontSize: '12px', padding: '4px 14px' }}>← 重新选</button>
+                </div>
+              )}
             </div>
           )}
 
-          {/* 友军选择 (可选, 最多1个) */}
-          {availableHeroes.length > 1 && (
+          {/* 友军选择 (可选, 最多1个) — 玩家英雄确认后才显示 */}
+          {heroConfirmed && availableHeroes.length > 1 && (
             <div style={{ marginTop: '12px' }}>
               <p style={{ color: 'var(--text-light)', fontSize: '13px', marginBottom: '6px' }}>
                 选择友军 (可选, 不会出战):
               </p>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))',
+                gap: '8px', alignContent: 'start',
+              }}>
                 <div
                   onClick={() => setSelectedAllyIdx(-1)}
+                  title="无友军"
                   style={{
-                    padding: '8px 14px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    border: selectedAllyIdx === -1 ? '2px solid var(--text-gold)' : '2px solid var(--bg-dark)',
-                    background: selectedAllyIdx === -1 ? 'var(--bg-dark)' : 'var(--bg-medium)',
-                    color: selectedAllyIdx === -1 ? 'var(--text-gold)' : 'var(--text-muted)',
-                    transition: 'all 0.15s',
+                    background: selectedAllyIdx === -1 ? 'var(--bg-light)' : 'var(--bg-medium)',
+                    border: `1px solid ${selectedAllyIdx === -1 ? 'var(--border-gold)' : 'var(--border-wood)'}`,
+                    borderRadius: '6px', padding: '4px', cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
                   }}
                 >
-                  <div style={{ fontSize: '14px', fontWeight: 'bold' }}>无友军</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>单独出战</div>
+                  <div style={{
+                    width: '100%', aspectRatio: '1', borderRadius: '4px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: '1px dashed var(--border-wood)', background: 'var(--bg-dark)',
+                    color: 'var(--text-muted)', fontSize: '11px',
+                  }}>无</div>
+                  <span style={{ color: selectedAllyIdx === -1 ? 'var(--text-gold)' : 'var(--text-muted)', fontWeight: 'bold', fontSize: '12px' }}>无友军</span>
                 </div>
                 {save.heroes.map((hero: any, idx: number) => {
                   // 不能选自己, 不能选敌人
@@ -262,24 +334,31 @@ export function BattlePage() {
                   if (forbiddenHeroIds.has(hero.heroId)) return null
                   const heroDef = allHeroes.find((h: any) => h.id === hero.heroId)
                   const selected = idx === selectedAllyIdx
+                  const name = heroDef?.name ?? hero.heroId
+                  const avatar = HERO_AVATARS_BY_NAME[name] ?? HERO_AVATARS_BY_ID[hero.heroId]
+                  const nameColor = STAR_NAME_COLOR[hero.starLevel] ?? 'var(--text-light)'
                   return (
                     <div
                       key={`ally-${hero.heroId}-${idx}`}
                       onClick={() => setSelectedAllyIdx(idx)}
+                      title={name}
                       style={{
-                        padding: '8px 14px',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        border: selected ? '2px solid #90caf9' : '2px solid var(--bg-dark)',
-                        background: selected ? 'var(--bg-dark)' : 'var(--bg-medium)',
-                        color: selected ? '#90caf9' : 'var(--text-light)',
-                        transition: 'all 0.15s',
+                        background: selected ? 'var(--bg-light)' : 'var(--bg-medium)',
+                        border: `1px solid ${selected ? '#90caf9' : 'var(--border-wood)'}`,
+                        borderRadius: '6px', padding: '4px', cursor: 'pointer',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
                       }}
                     >
-                      <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{heroDef?.name ?? hero.heroId}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {'★'.repeat(hero.starLevel)} Lv.{hero.level}
-                      </div>
+                      {avatar && (
+                        <img src={avatar} alt={name} style={{
+                          width: '100%', aspectRatio: '1', borderRadius: '4px',
+                          objectFit: 'cover', display: 'block',
+                          border: '1px solid var(--border-wood)', background: 'var(--bg-dark)',
+                        }} />
+                      )}
+                      <span style={{ color: nameColor, fontWeight: 'bold', fontSize: '12px', textAlign: 'center', lineHeight: 1.1 }}>
+                        {name}
+                      </span>
                     </div>
                   )
                 })}

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { BattleHero } from '@hero-legend/shared-types'
 
 // 中文件名 → heroId 映射
@@ -935,7 +936,7 @@ function ArchetypeDecor({ archetype }: { archetype: Archetype }) {
   }
 }
 
-export function HeroPortrait({ hero, size = 100, fill = false }: Props) {
+export const HeroPortrait = memo(function HeroPortrait({ hero, size = 100, fill = false }: Props) {
   const role = hero.role ?? 'enemy'
   const theme = ROLE_THEME[role] ?? ROLE_THEME['enemy']
   const faction = hero.hero.faction
@@ -966,10 +967,10 @@ export function HeroPortrait({ hero, size = 100, fill = false }: Props) {
 
         {/* 阵营徽章 (左上角) */}
         <div style={{
-          position: 'absolute', top: '4%', left: '4%',
+          position: 'absolute', top: '2%', left: '2%',
           background: 'rgba(0,0,0,0.65)', color: '#ffd54f',
           padding: '1px 5px', borderRadius: '2px',
-          fontSize: Math.max(7, (fill ? 12 : size) * 0.06), fontWeight: 'bold',
+          fontSize: '12px', fontWeight: 'bold',
           letterSpacing: '1.5px', fontFamily: "'KaiTi','STKaiti',serif",
         }}>{faction}</div>
 
@@ -1048,4 +1049,4 @@ export function HeroPortrait({ hero, size = 100, fill = false }: Props) {
       </text>
     </svg>
   )
-}
+})

@@ -26,6 +26,92 @@ for (const [path, url] of Object.entries(portraitModules)) {
   if (heroId) HERO_PORTRAITS[heroId] = url
 }
 
+// 头像小图 (images/avatars/*.jpg) — 用于英雄石内嵌圆形头像窗
+const avatarModules = import.meta.glob('../../images/avatars/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
+const HERO_AVATARS: Record<string, string> = {}
+for (const [path, url] of Object.entries(avatarModules)) {
+  const filename = path.replace('../../images/avatars/', '').replace('.jpg', '')
+  const heroId = NAME_TO_ID[filename]
+  if (heroId) HERO_AVATARS[heroId] = url
+}
+
+// 英雄石视觉: 多面切割晶体宝石 + 居中圆形头像窗, 配色按星级
+// 1★灰 / 2★绿 / 3★蓝 / 4★紫 / 5★金
+function HeroStoneIcon({ heroId, starLevel, size = 56 }: { heroId: string; starLevel: number; size?: number }) {
+  const avatar = HERO_AVATARS[heroId]
+  const palette = STONE_PALETTE[Math.min(starLevel, 5)] ?? STONE_PALETTE[1]
+  const gid = `stone-${heroId}-${starLevel}`
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: 'block', flexShrink: 0 }}>
+      <defs>
+        <linearGradient id={`${gid}-face`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={palette.faceLight} />
+          <stop offset="50%" stopColor={palette.face} />
+          <stop offset="100%" stopColor={palette.faceDark} />
+        </linearGradient>
+        <linearGradient id={`${gid}-side`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={palette.faceDark} />
+          <stop offset="100%" stopColor={palette.shadow} />
+        </linearGradient>
+        <radialGradient id={`${gid}-top`} cx="40%" cy="30%" r="50%">
+          <stop offset="0%" stopColor="rgba(255,255,255,0.7)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        </radialGradient>
+        <clipPath id={`${gid}-clip`}>
+          <circle cx="50" cy="46" r="24" />
+        </clipPath>
+      </defs>
+      {/* 主体: 宽胖八边形, 直线切角 (棱角分明) */}
+      <polygon
+        points="50,6 78,12 92,38 92,62 78,86 22,86 8,62 8,38 22,12"
+        fill={`url(#${gid}-face)`}
+        stroke={palette.edge}
+        strokeWidth="1.5"
+        strokeLinejoin="miter"
+      />
+      {/* 切面分割线 (从中心放射) */}
+      <g stroke={palette.edge} strokeWidth="0.6" opacity="0.5" fill="none">
+        <line x1="50" y1="6" x2="50" y2="46" />
+        <line x1="22" y1="12" x2="50" y2="46" />
+        <line x1="78" y1="12" x2="50" y2="46" />
+        <line x1="8" y1="38" x2="50" y2="46" />
+        <line x1="92" y1="38" x2="50" y2="46" />
+        <line x1="8" y1="62" x2="50" y2="46" />
+        <line x1="92" y1="62" x2="50" y2="46" />
+      </g>
+      {/* 顶部高光 (上半斜面) */}
+      <polygon
+        points="50,6 78,12 92,38 50,46 8,38 22,12"
+        fill={`url(#${gid}-top)`}
+        opacity="0.75"
+      />
+      {/* 圆形头像窗 (内嵌, 加大) */}
+      {avatar ? (
+        <>
+          <image
+            href={avatar}
+            x="26" y="22" width="48" height="48"
+            clipPath={`url(#${gid}-clip)`}
+            preserveAspectRatio="xMidYMid slice"
+          />
+          <circle cx="50" cy="46" r="24" fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="1.5" />
+          <circle cx="50" cy="46" r="24" fill="none" stroke={palette.edge} strokeWidth="0.8" opacity="0.7" />
+        </>
+      ) : (
+        <circle cx="50" cy="46" r="24" fill="rgba(0,0,0,0.35)" stroke={palette.edge} strokeWidth="1" />
+      )}
+    </svg>
+  )
+}
+
+const STONE_PALETTE: Record<number, { face: string; faceLight: string; faceDark: string; shadow: string; edge: string }> = {
+  1: { face: '#9e9e9e', faceLight: '#e0e0e0', faceDark: '#616161', shadow: '#2b2b2b', edge: '#3a3a3a' },
+  2: { face: '#66bb6a', faceLight: '#a5d6a7', faceDark: '#2e7d32', shadow: '#143a14', edge: '#1b5e20' },
+  3: { face: '#42a5f5', faceLight: '#90caf9', faceDark: '#1565c0', shadow: '#0a2a52', edge: '#0d47a1' },
+  4: { face: '#ab47bc', faceLight: '#ce93d8', faceDark: '#6a1b9a', shadow: '#2a0d3f', edge: '#4a148c' },
+  5: { face: '#ffd54f', faceLight: '#fff59d', faceDark: '#f9a825', shadow: '#5a3d00', edge: '#bf6f00' },
+}
+
 type Tab = 'stones' | 'tickets' | 'treasures' | 'materials'
 
 const TICKET_LABEL: Record<string, string> = {
@@ -202,51 +288,49 @@ export function BackpackPage() {
                 没有待用的英雄石 — 去招贤馆抽卡吧
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: '8px' }}>
                 {stoneGroups.map(g => {
-                  const hero = heroMap.get(g.heroId)
-                  const isHigh = g.starLevel >= 4
-                  const portrait = HERO_PORTRAITS[g.heroId]
                   return (
-                    <div key={`${g.starLevel}-${g.heroId}`} style={{
-                      background: isHigh ? 'linear-gradient(135deg, #ff6b6b22, #c6282822)' : 'var(--bg-dark)',
-                      border: `1px solid ${isHigh ? '#ff6b6b' : 'var(--border-wood)'}`,
-                      borderRadius: '6px', padding: '10px',
-                    }}>
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '4px' }}>
-                        {portrait && (
-                          <img
-                            src={portrait}
-                            alt={hero?.name ?? g.heroId}
-                            style={{
-                              width: '48px', height: '48px', borderRadius: '4px',
-                              objectFit: 'cover', flexShrink: 0,
-                              border: '1px solid var(--border-wood)',
-                              background: 'var(--bg-dark)',
-                            }}
-                          />
-                        )}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '6px' }}>
-                            <span style={{ color: 'var(--text-light)', fontWeight: 'bold' }}>
-                              {hero?.name ?? g.heroId}{g.stoneIds.length > 1 && <span style={{ color: 'var(--text-gold)', marginLeft: '6px' }}>× {g.stoneIds.length}</span>}
-                            </span>
-                            <span style={{ color: 'var(--text-gold)', fontSize: '12px' }}>
-                              {'★'.repeat(g.starLevel)}
-                            </span>
-                          </div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
-                            {hero?.faction ?? '?'} | 英雄石
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        disabled={busy}
-                        onClick={() => useStone(g.stoneId)}
-                        style={{ width: '100%', fontSize: '12px', padding: '6px' }}
-                      >
-                        使用 (生成英雄)
-                      </button>
+                    <div
+                      key={`${g.starLevel}-${g.heroId}`}
+                      onDoubleClick={() => !busy && useStone(g.stoneId)}
+                      title={busy ? undefined : '双击使用 (生成英雄)'}
+                      style={{
+                        position: 'relative',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        padding: '6px',
+                        cursor: busy ? 'not-allowed' : 'pointer',
+                        opacity: busy ? 0.5 : 1,
+                        borderRadius: '6px',
+                        transition: 'background 0.15s',
+                        userSelect: 'none',
+                      }}
+                      onMouseEnter={e => { if (!busy) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <HeroStoneIcon heroId={g.heroId} starLevel={g.starLevel} size={96} />
+                      {g.stoneIds.length > 1 && (
+                        <span style={{
+                          position: 'absolute',
+                          right: '4px',
+                          bottom: '4px',
+                          background: 'rgba(0,0,0,0.75)',
+                          color: 'var(--text-gold)',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          padding: '1px 6px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255,213,79,0.4)',
+                          pointerEvents: 'none',
+                          minWidth: '18px',
+                          textAlign: 'center',
+                          lineHeight: 1.2,
+                        }}>
+                          ×{g.stoneIds.length}
+                        </span>
+                      )}
                     </div>
                   )
                 })}
@@ -279,7 +363,7 @@ export function BackpackPage() {
             </div>
           ) : (
             <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(24px, 1fr))', gap: '4px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(48px, 1fr))', columnGap: '4px', rowGap: '16px' }}>
               {treasures.slice(treasurePage * TREASURE_PAGE_SIZE, (treasurePage + 1) * TREASURE_PAGE_SIZE).map(t => {
                 const n = t.count ?? 1
                 const equipped = equippedMap.get(t.id)
@@ -300,12 +384,12 @@ export function BackpackPage() {
                 const isEquipped = !!equipped
                 const borderColor = isEquipped ? '#ff6b6b' : (STAR_BORDER[t.starLevel] ?? 'var(--border-wood)')
                 return (
-                  <div key={t.id} className="treasure-cell" style={{ position: 'relative' }}>
+                  <div key={t.id} className="treasure-cell" style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                     <div style={{
-                      width: '100%', aspectRatio: '1',
+                      width: '24px', height: '24px',
                       backgroundColor: '#1a1a1a',
                       backgroundImage: icon ? `url(${icon})` : 'none',
-                      backgroundPosition: '1px -1px',
+                      backgroundPosition: '0px -1px',
                       backgroundSize: 'contain',
                       backgroundRepeat: 'no-repeat',
                       borderRadius: '3px',
@@ -327,8 +411,8 @@ export function BackpackPage() {
                         <span style={{
                           position: 'absolute', right: '0', bottom: '0',
                           background: 'rgba(0,0,0,0.85)', color: 'var(--text-gold)',
-                          fontSize: '9px', fontWeight: 'bold', padding: '0 3px',
-                          lineHeight: '11px',
+                          fontSize: '11px', fontWeight: 'bold', padding: '0 4px',
+                          lineHeight: '14px',
                           borderRadius: '3px 0 0 0',
                         }}>×{n}</span>
                       )}

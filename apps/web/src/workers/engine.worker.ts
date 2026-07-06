@@ -308,11 +308,13 @@ async function handleAction(name: EngineMethodName, args: EngineMethodArgsMap[En
     case 'activateAoJian': {
       const [pid] = args as EngineMethodArgsMap['activateAoJian']
       g.activateAoJian(pid)
+      postMsg({ kind: 'event', event: { type: 'phase:end', timestamp: Date.now(), data: { phase: 'aoJianToggle' } }, snapshot: buildSnapshot(g) })
       return
     }
     case 'deactivateAoJian': {
       const [pid] = args as EngineMethodArgsMap['deactivateAoJian']
       g.deactivateAoJian(pid)
+      postMsg({ kind: 'event', event: { type: 'phase:end', timestamp: Date.now(), data: { phase: 'aoJianToggle' } }, snapshot: buildSnapshot(g) })
       return
     }
     case 'isAoJianActive': {

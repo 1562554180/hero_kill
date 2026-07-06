@@ -6,12 +6,17 @@ import { HeroBattleCard } from '../HeroBattleCard'
 export function PlayerHeroCard() {
   const {
     gameState, phase, pendingCardId, pendingCardType, playerHand,
-    selectedTargetId, jieDaoCandidates, jieDaoHolders, game,
-    confirmTarget, playKill, respondWithCard,
+    selectedTargetId, jieDaoCandidates, jieDaoHolders,
+    sheShenSelectedCardIds,
+    derived,
+    confirmTarget, playKill, respondWithCard, assignSheShenCard,
   } = useBattleStore(useShallow(s => ({
     gameState: s.gameState, phase: s.phase, pendingCardId: s.pendingCardId, pendingCardType: s.pendingCardType, playerHand: s.playerHand,
-    selectedTargetId: s.selectedTargetId, jieDaoCandidates: s.jieDaoCandidates, jieDaoHolders: s.jieDaoHolders, game: s.game,
+    selectedTargetId: s.selectedTargetId, jieDaoCandidates: s.jieDaoCandidates, jieDaoHolders: s.jieDaoHolders,
+    sheShenSelectedCardIds: s.sheShenSelectedCardIds,
+    derived: s.derived,
     confirmTarget: s.confirmTarget, playKill: s.playKill, respondWithCard: s.respondWithCard,
+    assignSheShenCard: s.assignSheShenCard,
   })))
 
   const player = useMemo(() => gameState?.heroes.find(h => h.role === 'player'), [gameState])
@@ -20,8 +25,8 @@ export function PlayerHeroCard() {
   if (!player) return null
 
   const isPlayerTurn = phase === 'playing' || phase === 'selectTarget' || phase === 'selectDualCards' || phase === 'selectLuYeQiangTarget'
-  const aoJianActive = game?.isAoJianActive(player.hero.id) ?? false
-  const canPlayKill = game?.canPlayKill ?? false
+  const aoJianActive = derived?.aoJianActive ?? false
+  const canPlayKill = derived?.canPlayKill ?? false
   const playerHero = player.instance
   const allSkills = player.hero.skills ?? []
   const allTreasures = [
@@ -33,6 +38,13 @@ export function PlayerHeroCard() {
   const hasHongZhuang = hasSkillOrTreasure('hong-zhuang')
 
   const isPendingTargeting = phase === 'playing' && pendingCardId !== null && (pendingCardType === 'kill' || pendingCardType === 'scheme')
+
+  // 疗伤/治愈: 玩家自己也可以是被治疗目标 (需不满血)
+  const tSkill = useBattleStore(s => s.treasureSkill)
+  const isHealTargetable = phase === 'treasureSelectTarget'
+    && (tSkill === 'liao-shang' || tSkill === 'zhi-yu')
+    && player.currentHp > 0
+    && player.currentHp < player.maxHp
 
   // 玩家卡只关心 jieDao step1 (持武器者可被借刀)
   const pendingSchemeName = (() => {
@@ -57,9 +69,18 @@ export function PlayerHeroCard() {
       isCurrentTurn={isPlayerTurn}
       isDying={isDying}
       isDead={isDead}
-      isSelectable={isPendingTargeting && jieDaoCandidates.length > 0 && isPlayerValidTarget}
+      isSelectable={(isPendingTargeting && jieDaoCandidates.length > 0 && isPlayerValidTarget) || (phase === 'sheShenDistribute' && player.currentHp > 0) || isHealTargetable}
+      dimmed={isHealTargetable === false && phase === 'treasureSelectTarget' && (tSkill === 'liao-shang' || tSkill === 'zhi-yu') && player.currentHp > 0}
       isSelected={selectedTargetId === player.hero.id}
       onClick={() => {
+        if (phase === 'sheShenDistribute') {
+          if (sheShenSelectedCardIds.length > 0 && player.currentHp > 0) assignSheShenCard(player.hero.id)
+          return
+        }
+        if (isHealTargetable) {
+          useBattleStore.getState().pickTreasureTarget(player.hero.id)
+          return
+        }
         if (isPendingTargeting && isPlayerValidTarget) confirmTarget(player.hero.id)
       }}
       aoJianActive={aoJianActive}

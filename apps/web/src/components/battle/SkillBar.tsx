@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { useBattleStore } from '../../stores/battleStore'
 import { useShallow } from 'zustand/react/shallow'
-import type { Card } from '@hero-legend/shared-types'
 
 const treasureBtnStyle = {
   fontSize: '12px',
@@ -17,105 +16,37 @@ export function SkillBar() {
   const s = useBattleStore(useShallow(st => ({
     phase: st.phase,
     treasureSkill: st.treasureSkill,
-    treasureTargetIds: st.treasureTargetIds,
     playerHand: st.playerHand,
-    game: st.game,
     gameState: st.gameState,
     pendingCardId: st.pendingCardId,
     pendingCardType: st.pendingCardType,
-    selectedTargetId: st.selectedTargetId,
     equippedCards: st.equippedCards,
     xiaDanActive: st.xiaDanActive,
     xiaDanUsedThisTurn: st.xiaDanUsedThisTurn,
     yuRenUsedThisTurn: st.yuRenUsedThisTurn,
     yuRenCardIds: st.yuRenCardIds,
-    ciKePrompt: st.ciKePrompt,
-    yuRuYiPrompt: st.yuRuYiPrompt,
-    dieHunPrompt: st.dieHunPrompt,
-    manWuPrompt: st.manWuPrompt,
-    manWuRedHeartCards: st.manWuRedHeartCards,
-    tianXiangJudgeCard: st.tianXiangJudgeCard,
-    tianXiangEquipment: st.tianXiangEquipment,
-    zhenShaPrompt: st.zhenShaPrompt,
-    sanBanFuPrompt: st.sanBanFuPrompt,
-    buDaoPrompt: st.buDaoPrompt,
-    fuChouTriggerPrompt: st.fuChouTriggerPrompt,
-    fuChouChoosePrompt: st.fuChouChoosePrompt,
-    dyingRescuePrompt: st.dyingRescuePrompt,
-    qiYiDecision: st.qiYiDecision,
+    derived: st.derived,
+    aoJianActive: st.aoJianActive,
     toggleAoJian: st.toggleAoJian,
     useTreasureSkill: st.useTreasureSkill,
     endPlayPhase: st.endPlayPhase,
   })))
 
   const {
-    phase, treasureSkill, treasureTargetIds, playerHand, game, gameState,
-    pendingCardId, pendingCardType, selectedTargetId, equippedCards,
+    phase, treasureSkill, playerHand, gameState,
+    pendingCardId, pendingCardType, equippedCards,
     xiaDanActive, xiaDanUsedThisTurn, yuRenUsedThisTurn, yuRenCardIds,
-    ciKePrompt, yuRuYiPrompt, dieHunPrompt, manWuPrompt, manWuRedHeartCards,
-    tianXiangJudgeCard, tianXiangEquipment, zhenShaPrompt, sanBanFuPrompt,
-    buDaoPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, dyingRescuePrompt,
-    qiYiDecision, toggleAoJian, useTreasureSkill, endPlayPhase,
+    derived, aoJianActive, toggleAoJian, useTreasureSkill, endPlayPhase,
   } = s
 
   const player = useMemo(() => gameState?.heroes.find(h => h.role === 'player'), [gameState])
   const playerHero = player?.instance
 
-  const isPlayerTurn = phase === 'playing' || phase === 'selectTarget' || phase === 'selectDualCards' || phase === 'selectLuYeQiangTarget'
+  const isPlayerTurn = phase === 'playing' || phase === 'selectTarget' || phase === 'selectDualCards' || phase === 'selectLuYeQiangTarget' || phase === 'treasureSelectEquipment' || phase === 'sheShenTrigger' || phase === 'awaitingResponse'
 
-  const hasFloatingPrompt = useMemo(() =>
-    (phase === 'playing' && !!pendingCardId && !!pendingCardType)
-    || phase === 'selectFuChouDiscard'
-    || phase === 'judgeReplace'
-    || phase === 'awaitingResponse'
-    || xiaDanActive
-    || treasureSkill === 'yu-ren'
-    || treasureSkill === 'feng-huo'
-    || (treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon')
-    || phase === 'xiaDanPickCard'
-    || !!ciKePrompt
-    || !!yuRuYiPrompt
-    || !!dieHunPrompt
-    || manWuRedHeartCards.length > 0
-    || !!manWuPrompt
-    || (phase === 'tianXiang' && (tianXiangEquipment.length > 0 || !!tianXiangJudgeCard))
-    || phase === 'menShenTarget'
-    || phase === 'jueBieTarget'
-    || !!zhenShaPrompt
-    || !!sanBanFuPrompt
-    || !!fuChouTriggerPrompt
-    || !!fuChouChoosePrompt
-    || (phase === 'buDaoKill' && !!buDaoPrompt)
-    || phase === 'chaoTuoPick'
-    || phase === 'houZhuTarget'
-    || (phase === 'dyingRescue' && !!dyingRescuePrompt)
-    || phase === 'selectDualCards'
-    || phase === 'selectMultiTargets'
-    || phase === 'selectKillMultiTargets'
-    || (phase === 'qiYiPrompt' && !!qiYiDecision)
-  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, buDaoPrompt, dyingRescuePrompt, qiYiDecision])
-
-  const hasPlayerBarMask = useMemo(() =>
-    phase === 'selectFudiCard'
-    || phase === 'selectFudiTarget'
-    || phase === 'selectTanNangCard'
-    || phase === 'selectTanNangTarget'
-    || phase === 'selectWugu'
-    || phase === 'selectFaJiaCard'
-    || phase === 'selectLuYeQiangTarget'
-    || phase === 'qiYiPrompt'
-  , [phase])
-
-  const shouldMaskSkillBar = phase !== 'awaitingResponse' && (!isPlayerTurn || hasFloatingPrompt || hasPlayerBarMask)
-
-  const aoJianActive = game?.isAoJianActive(player?.hero?.id ?? '') ?? false
-  const canPlayKill = game?.canPlayKill ?? false
+  const canPlayKill = derived?.canPlayKill ?? false
 
   const allSkills = player?.hero.skills ?? []
-  const hasLeiInJudge = player?.judgeCards?.some(cid => {
-    const c = game?.getPlayerById(player.hero.id)?.getJudgeCards()?.find((x: Card) => x.id === cid)
-    return c?.name === '手捧雷'
-  }) ?? false
   const allTreasures = [
     ...(playerHero?.treasures?.main ?? []),
     ...(playerHero?.treasures?.sub ?? []),
@@ -139,29 +70,17 @@ export function SkillBar() {
     return equipped?.name
   })()
 
-  const jueJiUsedThisTurn = (() => {
-    const p = game?.getPlayer()
-    return p ? p.getSkillUseCount('jue-ji') : 0
-  })()
-
-  if (!(isPlayerTurn || hasFloatingPrompt || hasPlayerBarMask)) return null
+  const jueJiUsedThisTurn = derived?.jueJiUsedCount ?? 0
 
   return (
     <div style={{ position: 'relative', borderTop: '1px solid var(--border-wood)', paddingTop: '6px' }}>
-      {shouldMaskSkillBar && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 5,
-          background: 'rgba(0,0,0,0.1)',
-          cursor: 'not-allowed',
-          borderRadius: '4px',
-        }} />
-      )}
       <div style={{
         display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center',
-        opacity: shouldMaskSkillBar ? 0.55 : 1,
-        pointerEvents: shouldMaskSkillBar ? 'none' : 'auto',
+        pointerEvents: 'auto',
       }}>
-        <span style={{ color: 'var(--text-gold)', fontSize: '12px', fontWeight: 'bold' }}>你的回合</span>
+        {isPlayerTurn && (
+          <span style={{ color: 'var(--text-gold)', fontSize: '12px', fontWeight: 'bold' }}>你的回合</span>
+        )}
 
         {allSkills.filter(sk => sk.type === 'active').map(skill => (
           <button
@@ -249,7 +168,7 @@ export function SkillBar() {
           </button>
         )}
         {hasFengHuo && (() => {
-          const playerHasEquip = game ? ['weapon', 'armor', 'attackMount', 'defenseMount'].some(slot => !!game.getPlayer()?.getEquippedCard(slot as any)) : false
+          const playerHasEquip = derived?.playerHasEquipment ?? false
           const isActive = treasureSkill === 'feng-huo'
           const isDisabled = !playerHasEquip
           return (

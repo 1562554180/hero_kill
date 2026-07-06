@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useBattleStore } from '../stores/battleStore'
 import { useShallow } from 'zustand/react/shallow'
 
@@ -13,10 +13,13 @@ import { PlayerHand } from './battle/PlayerHand'
 import { PlayerHeroCard } from './battle/PlayerHeroCard'
 import { BattleField } from './battle/BattleField'
 
+const EMPTY_LOG: string[] = []
+
 export function BattleBoard() {
+  const [logOpen, setLogOpen] = useState(false)
   const { gameState, actionLog } = useBattleStore(useShallow(s => ({
     gameState: s.gameState,
-    actionLog: s.actionLog,
+    actionLog: logOpen ? s.actionLog : EMPTY_LOG,
   })))
 
   // gameState 存在时玩家必存在 (引擎保证), 仅作早返守卫
@@ -26,9 +29,24 @@ export function BattleBoard() {
 
   return (
     <div style={{ display: 'flex', gap: '8px', height: '100%', padding: '8px 12px', boxSizing: 'border-box' }}>
-      {/* 左侧: 战报 */}
-      <div style={{ flex: '0 0 220px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <BattleLog logs={actionLog} />
+      {/* 左侧: 战报 (默认收起, 点击展开/隐藏) */}
+      <div style={{ flex: logOpen ? '0 0 220px' : '0 0 auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <button
+          onClick={() => setLogOpen(v => !v)}
+          style={{
+            padding: '4px 10px', fontSize: '12px', cursor: 'pointer',
+            background: 'var(--bg-medium)', color: 'var(--text-gold)',
+            border: '1px solid var(--border-wood)', borderRadius: '4px',
+            alignSelf: 'flex-start',
+          }}
+        >
+          {logOpen ? '◀ 隐藏战报' : '战报 ▶'}
+        </button>
+        {logOpen && (
+          <div style={{ flex: 1, minHeight: 0, marginTop: '6px', display: 'flex', flexDirection: 'column' }}>
+            <BattleLog logs={actionLog} />
+          </div>
+        )}
       </div>
 
       {/* 右侧: 战场 + 玩家区 */}
