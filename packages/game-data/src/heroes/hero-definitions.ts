@@ -168,6 +168,13 @@ export const heroes: Hero[] = [
     ],
   },
   {
+    id: 'lian-po', name: '廉颇', faction: '臣', starLevel: 3, baseHp: 4,
+    description: '信平君，赵国名将，负荆请罪',
+    skills: [
+      { id: 'fu-jing', name: '负荆', type: 'active', description: '出牌阶段，你可以主动掉1点血，然后摸2张牌（每回合限一次）。1血时发动先进入濒死，被救活后照常摸牌', maxUsesPerTurn: 1 },
+    ],
+  },
+  {
     id: 'jing-ke', name: '荆轲', faction: '民', starLevel: 3, baseHp: 3,
     description: '易水壮士，图穷匕见',
     skills: [
@@ -212,6 +219,15 @@ export const heroes: Hero[] = [
     description: '黑旋风，性如烈火',
     skills: [
       { id: 'fu-chou', name: '复仇', type: 'passive', description: '你受到伤害后，你可以对伤害来源造成1点伤害', triggerEvent: 'damage:receive' },
+    ],
+  },
+  {
+    id: 'shi-qian', name: '时迁', faction: '民', starLevel: 3, baseHp: 3,
+    description: '鼓上蚤，梁山第一百零七位。飞贼出身，善攀援潜伏盗窃。盗雁翎甲赚徐宁上山，破呼延灼连环马。',
+    skills: [
+      { id: 'qing-min', name: '轻敏', type: 'passive', description: '你不能成为【探囊取物】的目标', triggerEvent: 'card:play' },
+      { id: 'fei-zei', name: '飞贼', type: 'passive', description: '你使用【探囊取物】不受距离限制', triggerEvent: 'card:play' },
+      { id: 'shen-tou', name: '神偷', type: 'active', description: '你所有梅花花色的手牌都可以当作【探囊取物】使用' },
     ],
   },
   {

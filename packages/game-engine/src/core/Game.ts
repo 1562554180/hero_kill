@@ -2641,7 +2641,10 @@ export class Game {
 
   async playerPlayScheme(player: Player, cardId: string, targetId?: string): Promise<void> {
     const card = player.getHand().find(c => c.id === cardId)
-    if (!card || card.type !== 'scheme') return
+    if (!card) return
+    // 神偷: 梅花手牌可作为探囊取物 (允许非 scheme 卡)
+    const isShenTou = player.hasSkillOrTreasure('shen-tou') && card.suit === 'club' && card.name !== '探囊取物'
+    if (card.type !== 'scheme' && !isShenTou) return
 
     // 魅惑: 方块牌可当画地为牢
     let effectiveCard: Card = card
@@ -2649,6 +2652,11 @@ export class Game {
     if (player.hasSkillOrTreasure('mei-huo') && card.suit === 'diamond' && card.name !== '画地为牢' && card.name !== '手捧雷') {
       effectiveCard = { ...card, name: '画地为牢', delayed: true } as Card
       usedAsSkill = '魅惑'
+    }
+    // 神偷: 梅花手牌可当探囊取物
+    if (player.hasSkillOrTreasure('shen-tou') && card.suit === 'club' && card.name !== '探囊取物') {
+      effectiveCard = { ...card, name: '探囊取物' } as Card
+      usedAsSkill = '神偷'
     }
 
     this.removeHandCard(player,card.id)
@@ -2665,7 +2673,8 @@ export class Game {
       data: { cardId: card.id, cardName: effectiveCard.name, usedAsSkill: usedAsSkill || undefined, card, targetHeroIds },
     })
     this.lastPlayedCardName = effectiveCard.name
-    if (usedAsSkill) this.emitSkillTrigger(player, '魅惑', `${card.name}当画地为牢`)
+    if (usedAsSkill === '魅惑') this.emitSkillTrigger(player, '魅惑', `${card.name}当画地为牢`)
+    if (usedAsSkill === '神偷') this.emitSkillTrigger(player, '神偷', `${card.name}当探囊取物`)
 
     // 延时锦囊：放到目标判定区 (使用时不支持无懈可击, 判定前才响应)
     if ((effectiveCard as any).delayed) {
@@ -3377,6 +3386,18 @@ export class Game {
     }
   }
 
+  /** 负荆: 主动掉1点血, 然后摸2张牌 (每回合限1次). 1血发动先进入濒死, 被救活后照常摸牌 */
+  async playerFuJing(player: Player): Promise<void> {
+    if (!player.hasSkillOrTreasure('fu-jing')) return
+    if (!player.useSkill('fu-jing')) return
+    await this.applyDamage(player, player, 1, undefined, { skipFuChouOnly: true })
+    // 濒死结算完毕: 若仍存活则摸2张
+    if (!player.isAlive()) return
+    const drawn = this.cardDeck.draw(2)
+    player.drawCards(drawn)
+    this.emitSkillTrigger(player, '负荆', `掉1血摸${drawn.length}张`)
+  }
+
   /** 判断目标是否在攻击者的攻击范围内 */
   isInAttackRange(attacker: Player, target: Player): boolean {
     if (attacker.getId() === target.getId()) return false
@@ -3502,9 +3523,14 @@ export class Game {
   /** 探囊取物: 是否可对目标使用 (基础1+进攻马+骑射/单骑, 防御马算入有效距离; 目标至少有一张牌) */
   canTanNang(player: Player, target: Player): boolean {
     if (!target.isAlive() || target.getId() === player.getId()) return false
-    const effectiveDistance = this.getEffectiveDistance(player, target)
-    const range = player.getSchemeRange()
-    if (range <= 0 || effectiveDistance > range) return false
+    // 轻敏: 目标不能成为探囊取物的目标
+    if (target.hasSkillOrTreasure('qing-min')) return false
+    // 飞贼: 使用探囊取物不受距离限制
+    if (!player.hasSkillOrTreasure('fei-zei')) {
+      const effectiveDistance = this.getEffectiveDistance(player, target)
+      const range = player.getSchemeRange()
+      if (range <= 0 || effectiveDistance > range) return false
+    }
     if (target.getHandSize() === 0 && this.collectEquipmentCards(target).length === 0 && target.getJudgeCards().length === 0) {
       return false
     }

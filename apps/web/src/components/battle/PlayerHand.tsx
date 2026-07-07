@@ -54,12 +54,13 @@ export function PlayerHand() {
     allSkills.some(sk => sk.id === id) || allTreasures.some(t => t?.skill.id === id || t?.skill.id === `treasure-${id}`)
   const hasHongZhuang = hasSkillOrTreasure('hong-zhuang')
   const hasHuiChun = hasSkillOrTreasure('hui-chun')
+  const hasShenTou = hasSkillOrTreasure('shen-tou')
   const huiChunAvailable = hasHuiChun && !isPlayerTurn && !isFullHp
   const hasLeiInJudge = derived?.hasLeiInJudge ?? false
 
-  const hasValidSchemeTarget = (cardName: string): boolean => {
+  const hasValidSchemeTarget = (cardName: string, cardSuit?: string): boolean => {
     if (!derived) return true
-    if (cardName === '探囊取物') {
+    if (cardName === '探囊取物' || (hasShenTou && cardSuit === 'club' && cardName !== '探囊取物')) {
       return derived.validTanNangTargetIds.length > 0
     }
     if (cardName === '釜底抽薪') {
@@ -169,7 +170,8 @@ export function PlayerHand() {
                 || manWuRedHeartCards.length > 0 || phase === 'chaoTuoPick'
               }
               isLuYeQiangKillCard={isLuYeQiangKillCard}
-              hasValidSchemeTarget={hasValidSchemeTarget(card.name)}
+              hasValidSchemeTarget={hasValidSchemeTarget(card.name, card.suit)}
+              shenTouActive={hasShenTou}
               huiChunAvailable={huiChunAvailable}
               onPlayKill={playKill}
               onPlayHeal={playHeal}

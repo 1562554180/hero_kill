@@ -31,6 +31,8 @@ interface Props {
   isHandCardSelect?: boolean
   hasValidSchemeTarget?: boolean
   huiChunAvailable?: boolean
+  /** 神偷: 时迁的梅花手牌可作探囊取物 */
+  shenTouActive?: boolean
   shadowed?: boolean
   hasLeiInJudge?: boolean
   onPlayKill: (cardId: string, fromPos?: { x: number; y: number }) => void
@@ -60,7 +62,7 @@ const TYPE_LABEL: Record<string, string> = {
 const suitFontColor = (suit: string) => (suit === 'heart' || suit === 'diamond') ? '#c62828' : '#212121'
 const suitWaterColor = (suit: string) => (suit === 'heart' || suit === 'diamond') ? 'rgba(198,40,40,0.10)' : 'rgba(33,33,33,0.10)'
 
-function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, responseType, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, isHandCardSelect, isLuYeQiangKillCard, hasValidSchemeTarget = true, huiChunAvailable, shadowed = false, hasLeiInJudge = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
+function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, responseType, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, isHandCardSelect, isLuYeQiangKillCard, hasValidSchemeTarget = true, huiChunAvailable, shenTouActive = false, shadowed = false, hasLeiInJudge = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
   const cardRef = useRef<HTMLDivElement>(null)
   const clickPos = (): { x: number; y: number } | undefined => {
     const el = cardRef.current
@@ -107,6 +109,9 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
 
   const canHuiChun = huiChunAvailable && card.suit === 'heart' && !isFullHp && !!onHuiChunHeal
 
+  // 神偷: 时迁的梅花手牌 (非探囊取物本身) 可当探囊取物 — 视为 scheme 打出
+  const canUseAsTanNang = shenTouActive && card.suit === 'club' && card.name !== '探囊取物' && !!onPlayScheme && hasValidSchemeTarget
+
   const canUse = !disabled && !treasureSelectMode && !selectDualMode && !selectDiscardMode && (
     isJudgeReplace ||
     canRespond ||
@@ -115,7 +120,8 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
     isEquip ||
     (isSelfTargeted && !(isLei && hasLeiInJudge) && !!onPlaySchemeSelf) ||
     (isScheme && !isSelfTargeted && card.name !== '无懈可击' && hasValidSchemeTarget && !!onPlayScheme) ||
-    canHuiChun
+    canHuiChun ||
+    canUseAsTanNang
   )
 
   const handleClick = () => {
@@ -137,6 +143,7 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
     else if (isEquip) onEquip(card.id, clickPos())
     else if (isSelfTargeted && onPlaySchemeSelf) onPlaySchemeSelf(card.id, clickPos())
     else if (isScheme && onPlayScheme) onPlayScheme(card.id, clickPos())
+    else if (canUseAsTanNang) onPlayScheme(card.id, clickPos())
   }
 
   const theme = TYPE_THEME[card.type] ?? TYPE_THEME.basic
