@@ -36,7 +36,7 @@ export function Cauldron({ selectedTreasure, phase, onSlotClick }: CauldronProps
         <div
           onClick={onSlotClick}
           style={{
-            width: '120px', height: '120px', borderRadius: '8px',
+            width: '90px', height: '90px', borderRadius: '8px',
             background: selectedTreasure ? 'transparent' : 'rgba(0,0,0,0.5)',
             border: `2px dashed ${selectedTreasure ? SLOT_COLOR_BY_STAR[selectedTreasure.starLevel] : 'rgba(255,255,255,0.3)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
