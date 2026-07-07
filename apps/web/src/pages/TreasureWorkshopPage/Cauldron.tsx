@@ -1,4 +1,5 @@
 import type { Treasure } from '@hero-legend/shared-types'
+import { getSkillIcon } from '../../skillIcons'
 
 interface CauldronProps {
   selectedTreasure: Treasure | null
@@ -44,19 +45,26 @@ export function Cauldron({ selectedTreasure, phase, onSlotClick }: CauldronProps
             '--slot-color': selectedTreasure ? SLOT_COLOR_BY_STAR[selectedTreasure.starLevel] : 'rgba(255, 213, 79, 0.3)',
           } as any}
         >
-          {selectedTreasure && (
-            <div style={{ textAlign: 'center', color: 'var(--text-gold)' }}>
-              <div style={{ fontSize: '24px', marginBottom: '4px' }}>
-                {'★'.repeat(selectedTreasure.starLevel)}
+          {selectedTreasure && (() => {
+            const icon = getSkillIcon(selectedTreasure.name)
+            return (
+              <div style={{ textAlign: 'center', color: 'var(--text-gold)' }}>
+                {icon && (
+                  <div style={{
+                    width: '80px', height: '80px',
+                    background: `url("${icon}") 0px 0px / contain no-repeat`,
+                    margin: '0 auto 4px',
+                  }} />
+                )}
+                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                  {selectedTreasure.name}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Lv.{selectedTreasure.level ?? 0}
+                </div>
               </div>
-              <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
-                {selectedTreasure.name}
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                Lv.{selectedTreasure.level ?? 0}
-              </div>
-            </div>
-          )}
+            )
+          })()}
           {!selectedTreasure && (
             <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>
               请从右侧选辅印
