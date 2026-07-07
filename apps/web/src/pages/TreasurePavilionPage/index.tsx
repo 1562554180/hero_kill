@@ -2,10 +2,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   TREASURE_PAVILION_EXCHANGE_LIST,
-  TREASURE_PAVILION_RATES,
   TREASURE_COMPOSE_COST,
   treasureDefinitions,
 } from '@hero-legend/game-data'
+import { getSkillIcon } from '../../skillIcons'
 
 const API = '/api'
 
@@ -147,22 +147,10 @@ export function TreasurePavilionPage() {
         <div>
           <div style={{
             background: 'var(--bg-medium)', border: '1px solid var(--border-wood)',
-            borderRadius: '8px', padding: '16px', marginBottom: '16px', fontSize: '12px',
-            color: 'var(--text-light)',
+            borderRadius: '8px', padding: '16px', marginBottom: '16px', fontSize: '13px',
+            color: 'var(--text-light)', textAlign: 'center',
           }}>
-            <div style={{ color: 'var(--text-gold)', marginBottom: '8px' }}>概率表</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
-              <div>1★宝具: {TREASURE_PAVILION_RATES.treasureStar1}%</div>
-              <div>2★宝具: {TREASURE_PAVILION_RATES.treasureStar2}%</div>
-              <div>3★宝具: {TREASURE_PAVILION_RATES.treasureStar3}%</div>
-              <div>4★宝具: {TREASURE_PAVILION_RATES.treasureStar4}%</div>
-              <div>5★宝具: {TREASURE_PAVILION_RATES.treasureStar5}%</div>
-              <div>万能碎片: {TREASURE_PAVILION_RATES.universalFragment}%</div>
-              <div>3★宝具碎片: {TREASURE_PAVILION_RATES.pieceStar3}%</div>
-              <div>4★宝具碎片: {TREASURE_PAVILION_RATES.pieceStar4}%</div>
-              <div>5★宝具碎片: {TREASURE_PAVILION_RATES.pieceStar5}%</div>
-            </div>
-            <div style={{ marginTop: '8px', color: '#ff6b6b' }}>十连必出 3★宝具</div>
+            <span style={{ color: '#ff6b6b' }}>十连必出 3★宝具</span>
           </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>
@@ -188,6 +176,7 @@ export function TreasurePavilionPage() {
             const name = defName(item.treasureId)
             const desc = defDesc(item.treasureId)
             const star = item.star
+            const icon = getSkillIcon(name)
             const canAfford = universal >= item.price
             return (
               <div key={item.treasureId} style={{
@@ -195,9 +184,16 @@ export function TreasurePavilionPage() {
                 border: `1px solid ${STAR_BORDER[star]}`,
                 borderRadius: '8px', padding: '12px',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <span style={{ color: 'var(--text-gold)', fontWeight: 'bold' }}>{name}</span>
-                  <span style={{ color: STAR_BORDER[star], fontSize: '12px' }}>{'★'.repeat(star)}</span>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
+                  {icon && (
+                    <img src={icon} alt={name} style={{ width: '40px', height: '40px', flexShrink: 0 }} />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-gold)', fontWeight: 'bold', fontSize: '13px' }}>{name}</span>
+                      <span style={{ color: STAR_BORDER[star], fontSize: '11px' }}>{'★'.repeat(star)}</span>
+                    </div>
+                  </div>
                 </div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '8px', minHeight: '32px' }}>{desc}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -225,6 +221,7 @@ export function TreasurePavilionPage() {
             {pieces.map(p => {
               const name = defName(p.treasureId)
               const star = defStar(p.treasureId)
+              const icon = getSkillIcon(name)
               const progress = Math.min(100, Math.floor(p.amount / TREASURE_COMPOSE_COST * 100))
               const canCompose = p.amount >= TREASURE_COMPOSE_COST
               return (
@@ -233,9 +230,16 @@ export function TreasurePavilionPage() {
                   border: `1px solid ${STAR_BORDER[star]}`,
                   borderRadius: '8px', padding: '12px',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span style={{ color: 'var(--text-gold)', fontWeight: 'bold' }}>{name} 碎片</span>
-                    <span style={{ color: STAR_BORDER[star], fontSize: '12px' }}>{'★'.repeat(star)}</span>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
+                    {icon && (
+                      <img src={icon} alt={name} style={{ width: '40px', height: '40px', flexShrink: 0 }} />
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: 'var(--text-gold)', fontWeight: 'bold', fontSize: '13px' }}>{name} 碎片</span>
+                        <span style={{ color: STAR_BORDER[star], fontSize: '11px' }}>{'★'.repeat(star)}</span>
+                      </div>
+                    </div>
                   </div>
                   <div style={{
                     height: '8px', background: 'var(--bg-dark)', borderRadius: '4px',
@@ -338,10 +342,12 @@ function DrawnCard({ item, entered, revealed }: { item: DrawItem; entered: boole
   let star = 1
   let title = ''
   let subtitle = ''
+  let iconName: string | null = null
   if (item.kind === 'treasure') {
     star = item.star
     title = item.treasure.name
     subtitle = '宝具'
+    iconName = getSkillIcon(title)
   } else if (item.kind === 'universal') {
     star = 5
     title = `万能碎片 ×${item.amount}`
@@ -350,6 +356,7 @@ function DrawnCard({ item, entered, revealed }: { item: DrawItem; entered: boole
     star = defStar(item.defId)
     title = `${defName(item.defId)} 碎片 ×${item.amount}`
     subtitle = '指定碎片'
+    iconName = getSkillIcon(defName(item.defId))
   }
   const isHigh = star >= 4
 
@@ -390,9 +397,12 @@ function DrawnCard({ item, entered, revealed }: { item: DrawItem; entered: boole
           color: '#fff', padding: '8px', boxSizing: 'border-box',
         }}>
           <div style={{ fontSize: '11px', opacity: 0.8 }}>{subtitle}</div>
-          <div style={{ fontSize: '16px', fontWeight: 'bold', marginTop: '4px', textAlign: 'center' }}>{title}</div>
+          {iconName && (
+            <img src={iconName} alt={title} style={{ width: '50%', marginTop: '6px' }} />
+          )}
+          <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '4px', textAlign: 'center' }}>{title}</div>
           <div style={{
-            fontSize: '14px', color: '#ffd54f', marginTop: '8px', letterSpacing: '2px',
+            fontSize: '14px', color: '#ffd54f', marginTop: '6px', letterSpacing: '2px',
           }}>{'★'.repeat(star)}{'☆'.repeat(5 - star)}</div>
         </div>
       </div>
