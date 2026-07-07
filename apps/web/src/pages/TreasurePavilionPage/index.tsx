@@ -343,11 +343,13 @@ function DrawnCard({ item, entered, revealed }: { item: DrawItem; entered: boole
   let title = ''
   let subtitle = ''
   let iconName: string | null = null
+  let isTreasureKind = false
   if (item.kind === 'treasure') {
     star = item.star
     title = item.treasure.name
     subtitle = '宝具'
     iconName = getSkillIcon(title)
+    isTreasureKind = true
   } else if (item.kind === 'universal') {
     star = 5
     title = `万能碎片 ×${item.amount}`
@@ -358,7 +360,17 @@ function DrawnCard({ item, entered, revealed }: { item: DrawItem; entered: boole
     subtitle = '指定碎片'
     iconName = getSkillIcon(defName(item.defId))
   }
-  const isHigh = star >= 4
+  const borderColor = STAR_BORDER[star] ?? '#ffd54f'
+  const gradientByStar: Record<number, string> = {
+    5: 'linear-gradient(135deg, #ff6b6b, #c62828)',
+    4: 'linear-gradient(135deg, #a78bfa, #6d28d9)',
+    3: 'linear-gradient(135deg, #60a5fa, #1e40af)',
+    2: 'linear-gradient(135deg, #86efac, #166534)',
+    1: 'linear-gradient(135deg, #9ca3af, #4b5563)',
+  }
+  const faceGradient = isTreasureKind
+    ? (gradientByStar[star] ?? 'linear-gradient(135deg, #5d4037, #3e2723)')
+    : 'linear-gradient(135deg, #5d4037, #3e2723)'
 
   return (
     <div style={{
@@ -378,32 +390,27 @@ function DrawnCard({ item, entered, revealed }: { item: DrawItem; entered: boole
           position: 'absolute', inset: 0,
           backfaceVisibility: 'hidden',
           background: 'linear-gradient(135deg, #5d4037, #3e2723)',
-          border: '2px solid #ffd54f',
+          border: `2px solid ${borderColor}`,
           borderRadius: '8px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#ffd54f', fontSize: '24px', fontWeight: 'bold',
+          color: borderColor, fontSize: '24px', fontWeight: 'bold',
         }}>珍</div>
         <div style={{
           position: 'absolute', inset: 0,
           backfaceVisibility: 'hidden',
           transform: 'rotateY(180deg)',
-          background: isHigh
-            ? 'linear-gradient(135deg, #ff6b6b, #c62828)'
-            : 'linear-gradient(135deg, #5d4037, #3e2723)',
-          border: `2px solid ${isHigh ? '#ff6b6b' : '#ffd54f'}`,
+          background: faceGradient,
+          border: `2px solid ${borderColor}`,
           borderRadius: '8px',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
-          color: '#fff', padding: '8px', boxSizing: 'border-box',
+          color: borderColor, padding: '8px', boxSizing: 'border-box',
         }}>
-          <div style={{ fontSize: '11px', opacity: 0.8 }}>{subtitle}</div>
+          <div style={{ fontSize: '11px', opacity: 0.85, color: '#fff' }}>{subtitle}</div>
           {iconName && (
             <img src={iconName} alt={title} style={{ width: '50%', marginTop: '6px' }} />
           )}
           <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '4px', textAlign: 'center' }}>{title}</div>
-          <div style={{
-            fontSize: '14px', color: '#ffd54f', marginTop: '6px', letterSpacing: '2px',
-          }}>{'★'.repeat(star)}{'☆'.repeat(5 - star)}</div>
         </div>
       </div>
     </div>
