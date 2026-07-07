@@ -128,7 +128,19 @@
       "Read(//d/d/work/hero-legend/packages/game-engine/**)",
       "Bash(python -c ' *)",
       "Bash(sed -n '493,1370p' apps/web/src/components/BattleBoard.tsx)",
-      "Bash(rm apps/web/src/components/battle/.fp-body.tmp)"
+      "Bash(rm apps/web/src/components/battle/.fp-body.tmp)",
+      "Bash(echo \"---EXIT: $?---\")",
+      "Bash(awk -F'[\\(\\):]' '{print $1\":\"$2}')",
+      "Bash(echo \"---ai-engine EXIT: $?---\")",
+      "Bash(echo \"---server EXIT: $?---\")",
+      "Bash(echo \"---exit: $?---\")",
+      "Bash(echo \"exit:$?\")",
+      "Bash(npx vite *)",
+      "Bash(mongosh --quiet --eval 'db.getSisterDB\\(\"hero-legend\"\\).saves.findOne\\({userId:\"user-1780910321685\"}, {userId:1, \"treasures\":1}\\)')",
+      "Bash(taskkill *)",
+      "Bash(cmd.exe *)",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_network_requests",
+      "Bash(mongosh --quiet --eval 'db.getMongo\\(\\).getDBNames\\(\\)')"
     ]
   }
 }
