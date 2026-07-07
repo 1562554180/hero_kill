@@ -369,7 +369,13 @@ export function HeroPage() {
                 const pageItems = candidates.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
                 return candidates.length > 0 ? (
                   <div style={{ marginTop: '8px', background: 'var(--bg-dark)', borderRadius: '4px', padding: '10px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(40px, 1fr))',
+                      gap: '4px',
+                      maxHeight: '280px', overflowY: 'auto',
+                      alignContent: 'start',
+                    }}>
                       {pageItems.map(t => {
                         const n = t.count ?? 1
                         const lvl = t.level ?? 0
@@ -381,47 +387,50 @@ export function HeroPage() {
                         const starBonus = heroStar === 5 ? 0.1 : 0
                         const actualRate = baseRate + lvl * 0.01 + starBonus
                         const ratePercent = Math.round(actualRate * 100)
-                        const basePercent = Math.round(baseRate * 100)
                         const rateColor = actualRate >= 0.5 ? '#7ec850' : actualRate >= 0.3 ? 'var(--text-gold)' : actualRate >= 0.15 ? '#ff9e3a' : '#ff6b6b'
+                        const icon = getSkillIcon(t.skill?.name ?? t.name)
+                        const titleText = `${t.name} ×${n}\n★${t.starLevel} ${t.type === 'main' ? '主印' : '辅印'}\n基础触发: ${Math.round(baseRate * 100)}%${t.type === 'sub' ? `\n强化 Lv.${lvl}/45 次数 ${cnt}/50\n强化后触发: ${ratePercent}%${starBonus > 0 ? ` (含星5 +10%)` : ''}${atMaxLevel ? '\n已满级' : ''}${outOfAttempts ? '\n次数用尽' : ''}` : ''}\n双击镶嵌\n${t.skill.description}`
                         return (
                           <div key={t.id}
+                            title={titleText}
                             onDoubleClick={() => equipTreasure(selectedInstance.instanceId!, activeSlot.slotType, activeSlot.slotIndex, t.id)}
                             style={{
-                              background: 'var(--bg-medium)', border: '1px solid var(--border-wood)',
-                              borderRadius: '4px', padding: '6px 10px', fontSize: '12px',
+                              position: 'relative',
+                              aspectRatio: '1',
+                              background: icon
+                                ? `url("${icon}") 0px 0px / contain no-repeat`
+                                : 'var(--bg-medium)',
+                              border: `1px solid ${STAR_BORDER[t.starLevel] ?? 'var(--border-wood)'}`,
+                              borderRadius: '4px',
                               cursor: 'pointer', userSelect: 'none',
-                              display: 'flex', gap: '8px', alignItems: 'flex-start',
                             }}
                           >
-                            {(() => {
-                              const icon = getSkillIcon(t.skill?.name ?? t.name)
-                              return icon ? (
-                                <img src={icon} alt={t.name} style={{
-                                  width: '36px', height: '36px', flexShrink: 0, borderRadius: '4px',
-                                  objectFit: 'contain', background: '#1a1a1a',
-                                  border: '1px solid var(--border-wood)',
-                                }} />
-                              ) : null
-                            })()}
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)' }}>
-                              {t.name} * {n}
-                            </div>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                              {'★'.repeat(t.starLevel)} | 基础触发: {basePercent}%
-                            </div>
-                            {t.type === 'sub' && (
-                              <div style={{ color: rateColor, fontSize: '11px', fontWeight: 'bold' }}>
-                                强化 Lv.<span style={{ color: 'var(--text-gold)' }}>{lvl}</span>/45 · 次数 {cnt}/50 · 强化后触发: {ratePercent}%
-                                {starBonus > 0 && <span style={{ color: '#7ec850' }}> (含星5 +10%)</span>}
-                                {atMaxLevel && <span style={{ color: '#ff6b6b' }}> 已满级</span>}
-                                {outOfAttempts && <span style={{ color: '#ff6b6b' }}> 次数用尽</span>}
-                              </div>
+                            {!icon && (
+                              <div style={{
+                                position: 'absolute', inset: 0,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)',
+                                fontSize: '10px', fontWeight: 'bold',
+                              }}>{t.name?.[0] ?? '?'}</div>
                             )}
-                            <div style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-                              {t.skill.description}
-                            </div>
-                            </div>
+                            {/* 等级 (右下) */}
+                            {t.type === 'sub' && lvl > 0 && (
+                              <span style={{
+                                position: 'absolute', bottom: '1px', right: '2px',
+                                fontSize: '9px', color: 'var(--text-gold)',
+                                textShadow: '0 1px 2px rgba(0,0,0,0.9)',
+                                fontWeight: 'bold', pointerEvents: 'none',
+                              }}>{lvl}</span>
+                            )}
+                            {/* 成功率指示 (左下小点) */}
+                            {t.type === 'sub' && (
+                              <span style={{
+                                position: 'absolute', bottom: '2px', left: '2px',
+                                width: '5px', height: '5px', borderRadius: '50%',
+                                background: rateColor,
+                                pointerEvents: 'none',
+                              }} />
+                            )}
                           </div>
                         )
                       })}
