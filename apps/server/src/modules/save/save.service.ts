@@ -203,10 +203,17 @@ export class SaveService {
   }
 
   async addMaterial(userId: string, type: string, amount: number): Promise<SaveDoc | null> {
-    await this.saveModel.updateOne(
+    // 先尝试 inc; 若该材料尚不存在 (updateOne 匹配 0), 再 push 新条目
+    const res = await this.saveModel.updateOne(
       { userId, 'materials.type': type },
       { $inc: { 'materials.$.amount': amount }, updatedAt: Date.now() },
     ).exec()
+    if (res.matchedCount === 0) {
+      await this.saveModel.updateOne(
+        { userId },
+        { $push: { materials: { type, amount } as any }, updatedAt: Date.now() },
+      ).exec()
+    }
     return this.getSave(userId)
   }
 
