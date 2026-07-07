@@ -54,10 +54,23 @@ export function rollTreasurePavilionSlot(): PavilionSlotType {
   return entries[0][0]
 }
 
-/** 按星级缓存宝具 id 列表 */
+/**
+ * 抽卡池排除的强力主印 id 列表 — 这些只能通过兑换商城/碎片合成获得, 不在抽卡随机池里.
+ * 含 5★主印: 天狼/舍身/妙计/疗伤, 4★主印: 回春.
+ */
+export const TREASURE_PAVILION_EXCLUDED_IDS = new Set([
+  'treasure-tian-lang',
+  'treasure-she-shen',
+  'treasure-miao-ji',
+  'treasure-liao-shang',
+  'treasure-hui-chun',
+])
+
+/** 按星级缓存宝具 id 列表 (排除抽卡池禁用项) */
 const treasureIdsByStar: Map<number, string[]> = (() => {
   const m = new Map<number, string[]>()
   for (const def of treasureDefinitions) {
+    if (TREASURE_PAVILION_EXCLUDED_IDS.has(def.id)) continue
     const list = m.get(def.starLevel) ?? []
     list.push(def.id)
     m.set(def.starLevel, list)
