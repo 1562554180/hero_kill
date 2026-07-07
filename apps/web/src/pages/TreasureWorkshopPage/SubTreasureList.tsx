@@ -56,8 +56,8 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
       </div>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))',
-        gap: '6px',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(40px, 1fr))',
+        gap: '4px',
         alignContent: 'start',
       }}>
         {pageItems.map(t => {
@@ -81,8 +81,8 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
                 position: 'relative',
                 aspectRatio: '1',
                 background: isSelected ? '#3a2a1a' : 'var(--bg-dark)',
-                border: `2px solid ${borderColor}`,
-                borderRadius: '6px',
+                border: `1px solid ${borderColor}`,
+                borderRadius: '4px',
                 cursor: disabled || isDisabled ? 'not-allowed' : 'pointer',
                 opacity: disabled || isDisabled ? 0.4 : 1,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -93,29 +93,22 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
               {icon ? (
                 <img src={icon} alt={t.name} style={{ width: '90%', height: '90%', objectFit: 'contain' }} />
               ) : (
-                <span style={{ color: 'var(--text-light)', fontSize: '11px', fontWeight: 'bold', textAlign: 'center', padding: '2px' }}>
+                <span style={{ color: 'var(--text-light)', fontSize: '10px', fontWeight: 'bold', textAlign: 'center', padding: '2px' }}>
                   {t.name}
                 </span>
               )}
-              {/* 星级 (左上) */}
-              <span style={{
-                position: 'absolute', top: '2px', left: '3px',
-                fontSize: '10px', color: STAR_BORDER[t.starLevel],
-                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
-                fontWeight: 'bold', pointerEvents: 'none',
-              }}>{t.starLevel}★</span>
               {/* 等级 (右下) */}
               <span style={{
-                position: 'absolute', bottom: '2px', right: '3px',
-                fontSize: '10px', color: isMaxed ? '#ff6b6b' : 'var(--text-gold)',
+                position: 'absolute', bottom: '1px', right: '2px',
+                fontSize: '9px', color: isMaxed ? '#ff6b6b' : 'var(--text-gold)',
                 textShadow: '0 1px 2px rgba(0,0,0,0.8)',
                 fontWeight: 'bold', pointerEvents: 'none',
-              }}>{atMaxLevel ? '满' : `L${lvl}`}</span>
+              }}>{atMaxLevel ? '满' : lvl}</span>
               {/* 成功率指示 (左下小点) */}
               {!atMaxLevel && (
                 <span style={{
-                  position: 'absolute', bottom: '3px', left: '3px',
-                  width: '6px', height: '6px', borderRadius: '50%',
+                  position: 'absolute', bottom: '2px', left: '2px',
+                  width: '5px', height: '5px', borderRadius: '50%',
                   background: rate == null ? '#ff6b6b'
                     : rate >= 80 ? '#7ec850'
                     : rate >= 50 ? 'var(--text-gold)'
