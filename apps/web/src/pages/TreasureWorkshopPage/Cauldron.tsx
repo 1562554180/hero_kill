@@ -50,8 +50,8 @@ export function Cauldron({ selectedTreasure, phase, onSlotClick }: CauldronProps
             return (
               <div style={{
                 position: 'relative',
-                width: '80px', height: '80px',
-                background: icon ? `url("${icon}") 0px 0px / contain no-repeat` : undefined,
+                width: '48px', height: '48px',
+                background: icon ? `url("${icon}") -1px -1px / contain no-repeat` : undefined,
               }}>
                 <span style={{
                   position: 'absolute', bottom: '-2px', right: '0px',
