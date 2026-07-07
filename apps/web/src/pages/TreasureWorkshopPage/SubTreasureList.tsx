@@ -80,7 +80,9 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
               style={{
                 position: 'relative',
                 aspectRatio: '1',
-                background: isSelected ? '#3a2a1a' : 'var(--bg-dark)',
+                background: icon
+                  ? `url("${icon}") center/contain no-repeat`
+                  : (isSelected ? '#3a2a1a' : 'var(--bg-dark)'),
                 border: `1px solid ${borderColor}`,
                 borderRadius: '4px',
                 cursor: disabled || isDisabled ? 'not-allowed' : 'pointer',
@@ -90,9 +92,7 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
                 transition: 'all 150ms',
               }}
             >
-              {icon ? (
-                <img src={icon} alt={t.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              ) : (
+              {!icon && (
                 <span style={{ color: 'var(--text-light)', fontSize: '10px', fontWeight: 'bold', textAlign: 'center', padding: '2px' }}>
                   {t.name}
                 </span>
