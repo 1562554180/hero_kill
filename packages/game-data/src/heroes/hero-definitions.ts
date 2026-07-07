@@ -171,7 +171,7 @@ export const heroes: Hero[] = [
     id: 'lian-po', name: '廉颇', faction: '臣', starLevel: 3, baseHp: 4,
     description: '信平君，赵国名将，负荆请罪',
     skills: [
-      { id: 'fu-jing', name: '负荆', type: 'active', description: '出牌阶段，你可以主动掉1点血，然后摸2张牌（每回合限一次）。1血时发动先进入濒死，被救活后照常摸牌', maxUsesPerTurn: 1 },
+      { id: 'fu-jing', name: '负荆', type: 'active', description: '出牌阶段，你可以主动掉1点血，然后摸2张牌（无次数限制）。1血时发动先进入濒死，被救活后照常摸牌。可通过不断负荆自杀' },
     ],
   },
   {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Hero, HeroStone } from '@hero-legend/shared-types'
+import { HeroStoneIcon } from './HeroStoneIcon'
 
 interface Props {
   stones: HeroStone[]
@@ -13,6 +14,14 @@ const POOL_LABEL: Record<string, string> = {
   baili: '初级',
   qianli: '中级',
   wanli: '高级',
+}
+
+const STAR_NAME_COLOR: Record<number, string> = {
+  1: '#9e9e9e',
+  2: '#66bb6a',
+  3: '#42a5f5',
+  4: '#ab47bc',
+  5: '#ffd54f',
 }
 
 /**
@@ -112,8 +121,6 @@ function StoneCard({
   heroName: string
   heroFaction: string
 }) {
-  const isHigh = stone.starLevel >= 4
-  const starStr = '★'.repeat(stone.starLevel) + '☆'.repeat(5 - stone.starLevel)
   return (
     <div style={{
       position: 'relative',
@@ -149,22 +156,20 @@ function StoneCard({
           position: 'absolute', inset: 0,
           backfaceVisibility: 'hidden',
           transform: 'rotateY(180deg)',
-          background: isHigh
-            ? 'linear-gradient(135deg, #ff6b6b, #c62828)'
-            : 'linear-gradient(135deg, #5d4037, #3e2723)',
-          border: `2px solid ${isHigh ? '#ff6b6b' : '#ffd54f'}`,
+          background: 'linear-gradient(135deg, rgba(93,64,55,0.45), rgba(62,39,35,0.45))',
+          border: '2px solid #ffd54f',
           borderRadius: '8px',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
-          color: '#fff', padding: '8px',
+          color: '#fff', padding: '6px',
           boxSizing: 'border-box',
+          gap: '2px',
         }}>
-          <div style={{ fontSize: '11px', opacity: 0.8 }}>{heroFaction}</div>
-          <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '4px' }}>{heroName}</div>
+          <HeroStoneIcon heroId={stone.heroId} starLevel={stone.starLevel} size={72} />
           <div style={{
-            fontSize: '14px', color: '#ffd54f', marginTop: '8px', letterSpacing: '2px',
-          }}>{starStr}</div>
-          <div style={{ fontSize: '10px', marginTop: '8px', opacity: 0.8 }}>英雄石</div>
+            fontSize: '13px', fontWeight: 'bold', textAlign: 'center', lineHeight: 1.1, marginTop: '2px',
+            color: STAR_NAME_COLOR[Math.min(stone.starLevel, 5)] ?? '#fff',
+          }}>{heroName}</div>
         </div>
       </div>
     </div>

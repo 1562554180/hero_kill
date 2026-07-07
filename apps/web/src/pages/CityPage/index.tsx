@@ -88,7 +88,7 @@ export function CityPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        {(save.buildings ?? []).map((b: any) => {
+        {(save.buildings ?? []).filter((b: any) => b.type !== 'training').map((b: any) => {
           const cost = 200 + b.level * 100
           return (
             <div key={b.type} style={{

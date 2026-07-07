@@ -24,7 +24,7 @@ export function TreasureWorkshopPage() {
   const [selectedTreasureId, setSelectedTreasureId] = useState<string | null>(null)
   const [luckyStones, setLuckyStones] = useState(0)
   const [phase, setPhase] = useState<Phase>('idle')
-  const [result, setResult] = useState<{ success: boolean; lucky: boolean; newLevel: number; oldLevel: number } | null>(null)
+  const [result, setResult] = useState<{ success: boolean; lucky: boolean; newLevel: number; oldLevel: number; message?: string } | null>(null)
   const [toast, setToast] = useState('')
   const [transferOpen, setTransferOpen] = useState(false)
 
@@ -92,6 +92,65 @@ export function TreasureWorkshopPage() {
     }
   }
 
+  // 连续强化最多 10 次, 资源不足 / 满级 / 达上限时提前停止
+  const handleUpgrade10 = async () => {
+    if (!canUpgrade || !selectedTreasure) return
+    setPhase('upgrading')
+    let successCount = 0
+    let luckyCount = 0
+    let failCount = 0
+    let oldLevel = selectedTreasure.level ?? 0
+    let newLevel = oldLevel
+    let stoppedReason = ''
+    try {
+      for (let i = 0; i < 10; i++) {
+        // 每轮重新拉取最新存档, 判断资源/等级/次数是否允许继续
+        const fresh = await fetch(`${API}/save/${userId}`).then(r => r.json())
+        const t = (fresh.treasures as Treasure[])?.find(x => x.id === selectedTreasure.id)
+        const talisman = (fresh.materials as Material[])?.find(m => m.type === 'enhancementTalisman')?.amount ?? 0
+        const lucky = (fresh.materials as Material[])?.find(m => m.type === 'luckyStone')?.amount ?? 0
+        const gold = (fresh.materials as Material[])?.find(m => m.type === 'gold')?.amount ?? 0
+        if (!t) { stoppedReason = '辅印不存在'; break }
+        const lvl = t.level ?? 0
+        const cnt = t.enhanceCount ?? 0
+        const cost = 100 * (lvl + 1)
+        if (lvl >= 45) { stoppedReason = '已满级'; break }
+        if (cnt >= 50) { stoppedReason = '已达强化次数上限'; break }
+        if (talisman < 1) { stoppedReason = '强化符不足'; break }
+        if (lucky < luckyStones) { stoppedReason = '幸运石不足'; break }
+        if (gold < cost) { stoppedReason = '金币不足'; break }
+        const res = await fetch(`${API}/treasure/upgrade/${userId}/${encodeURIComponent(selectedTreasure.id)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ luckyStones }),
+        })
+        const data = await res.json()
+        if (!res.ok || data.error) { stoppedReason = data.error ?? data.message ?? `${res.status}`; break }
+        if (data.success) successCount++
+        else failCount++
+        if (data.lucky) luckyCount++
+        newLevel = data.newLevel as number
+      }
+      setResult({
+        success: successCount > 0,
+        lucky: luckyCount > 0,
+        oldLevel,
+        newLevel,
+        message: `十连完成: 成功 ${successCount} / 失败 ${failCount}${luckyCount > 0 ? ` / 欧皇 ${luckyCount}` : ''}${stoppedReason ? ` / 提前停止: ${stoppedReason}` : ''}`,
+      })
+      setPhase('revealed')
+      setTimeout(() => {
+        setResult(null)
+        setPhase('idle')
+        refresh()
+      }, 2800)
+    } catch (e: any) {
+      setToast('网络错误: ' + (e?.message ?? ''))
+      setTimeout(() => setToast(''), 3000)
+      setPhase('idle')
+    }
+  }
+
   const handleLuckyStoneToggle = (n: number) => {
     setLuckyStones(prev => (n <= prev ? n - 1 : n))
   }
@@ -109,9 +168,21 @@ export function TreasureWorkshopPage() {
         setTimeout(() => setToast(''), 3000)
         throw new Error(data.error)
       }
-      setToast('转移成功')
-      setTimeout(() => setToast(''), 2000)
       await refresh()
+      // 在炉区覆盖层显示转移成功 (与单次强化成功位置一致)
+      const fromT = save?.treasures.find(t => t.id === fromId)
+      setResult({
+        success: true,
+        lucky: false,
+        oldLevel: 0,
+        newLevel: fromT?.level ?? 0,
+        message: `转移成功: Lv.${fromT?.level ?? 0} 已转移`,
+      })
+      setPhase('revealed')
+      setTimeout(() => {
+        setResult(null)
+        setPhase('idle')
+      }, 2200)
     } catch (e: any) {
       if (e?.message && e.message !== 'CANCEL') {
         // already toasted
@@ -170,11 +241,13 @@ export function TreasureWorkshopPage() {
               color: '#fff', fontSize: '14px', fontWeight: 'bold',
               pointerEvents: 'none', zIndex: 10,
             }}>
-              {result.success
-                ? result.lucky
-                  ? `欧皇附体! Lv.${result.oldLevel} → Lv.${result.newLevel} (连升3级)`
-                  : `强化成功! Lv.${result.oldLevel} → Lv.${result.newLevel}`
-                : `强化失败,等级维持 Lv.${result.oldLevel}`}
+              {result.message
+                ? result.message
+                : result.success
+                  ? result.lucky
+                    ? `欧皇附体! Lv.${result.oldLevel} → Lv.${result.newLevel} (连升3级)`
+                    : `强化成功! Lv.${result.oldLevel} → Lv.${result.newLevel}`
+                  : `强化失败,等级维持 Lv.${result.oldLevel}`}
             </div>
           )}
         </div>
@@ -225,8 +298,13 @@ export function TreasureWorkshopPage() {
         </button>
         <button className="primary" onClick={handleUpgrade}
           disabled={!canUpgrade}
-          style={{ padding: '10px 32px', fontSize: '15px', opacity: canUpgrade ? 1 : 0.4 }}>
+          style={{ padding: '10px 20px', fontSize: '15px', opacity: canUpgrade ? 1 : 0.4 }}>
           {phase === 'upgrading' ? '强化中...' : '强化'}
+        </button>
+        <button className="primary" onClick={handleUpgrade10}
+          disabled={!canUpgrade}
+          style={{ padding: '10px 20px', fontSize: '15px', opacity: canUpgrade ? 1 : 0.4 }}>
+          {phase === 'upgrading' ? '强化中...' : '强化十次'}
         </button>
       </div>
 

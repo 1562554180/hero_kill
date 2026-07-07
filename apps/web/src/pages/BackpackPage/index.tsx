@@ -2,21 +2,10 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Hero, HeroInstance, HeroStone, Material, Treasure } from '@hero-legend/shared-types'
 import { getSkillIcon } from '../../skillIcons'
+import { HeroStoneIcon } from '../../components/HeroStoneIcon'
+import { HERO_NAME_TO_ID as NAME_TO_ID } from '../../heroPortraitNames'
 
 const API = '/api'
-
-const NAME_TO_ID: Record<string, string> = {
-  '扁鹊': 'bian-que', '曹操': 'cao-cao', '陈胜': 'chen-sheng', '程咬金': 'cheng-yao-jin',
-  '勾践': 'gou-jian', '关羽': 'guan-yu', '韩信': 'han-xin', '荆轲': 'jing-ke',
-  '李逵': 'li-kui', '李世民': 'li-shi-min', '李师师': 'li-shi-shi', '李煜': 'li-yu',
-  '刘邦': 'liu-bang', '吕雉': 'lv-zhi', '慕容': 'mu-rong', '秦琼': 'qin-qiong',
-  '商鞅': 'shang-yang', '宋江': 'song-jiang', '澹台名': 'tan-tai-ming', '铁木真': 'tie-mu-zhen',
-  '武松': 'wu-song', '武则天': 'wu-ze-tian', '项羽': 'xiang-yu', '小乔': 'xiao-qiao',
-  '杨延昭': 'yang-yan-zhao', '嬴政': 'ying-zheng', '虞姬': 'yu-ji',
-  '岳飞': 'yue-fei', '赵匡胤': 'zhao-kuang-yin', '朱元璋': 'zhu-yuan-zhang', '诸葛亮': 'zhuge-liang',
-  '吴三桂': 'wu-san-gui', '宇文化及': 'yu-wen-hua-ji', '孟获': 'meng-huo',
-  '萧太后': 'xiao-tai-hou', '兰陵王': 'lan-ling-wang',
-}
 
 const portraitModules = import.meta.glob('../../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
 const HERO_PORTRAITS: Record<string, string> = {}
@@ -24,92 +13,6 @@ for (const [path, url] of Object.entries(portraitModules)) {
   const filename = path.replace('../../images/', '').replace('.jpg', '')
   const heroId = NAME_TO_ID[filename]
   if (heroId) HERO_PORTRAITS[heroId] = url
-}
-
-// 头像小图 (images/avatars/*.jpg) — 用于英雄石内嵌圆形头像窗
-const avatarModules = import.meta.glob('../../images/avatars/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
-const HERO_AVATARS: Record<string, string> = {}
-for (const [path, url] of Object.entries(avatarModules)) {
-  const filename = path.replace('../../images/avatars/', '').replace('.jpg', '')
-  const heroId = NAME_TO_ID[filename]
-  if (heroId) HERO_AVATARS[heroId] = url
-}
-
-// 英雄石视觉: 多面切割晶体宝石 + 居中圆形头像窗, 配色按星级
-// 1★灰 / 2★绿 / 3★蓝 / 4★紫 / 5★金
-function HeroStoneIcon({ heroId, starLevel, size = 56 }: { heroId: string; starLevel: number; size?: number }) {
-  const avatar = HERO_AVATARS[heroId]
-  const palette = STONE_PALETTE[Math.min(starLevel, 5)] ?? STONE_PALETTE[1]
-  const gid = `stone-${heroId}-${starLevel}`
-  return (
-    <svg width={size} height={size} viewBox="0 0 100 100" style={{ display: 'block', flexShrink: 0 }}>
-      <defs>
-        <linearGradient id={`${gid}-face`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor={palette.faceLight} />
-          <stop offset="50%" stopColor={palette.face} />
-          <stop offset="100%" stopColor={palette.faceDark} />
-        </linearGradient>
-        <linearGradient id={`${gid}-side`} x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor={palette.faceDark} />
-          <stop offset="100%" stopColor={palette.shadow} />
-        </linearGradient>
-        <radialGradient id={`${gid}-top`} cx="40%" cy="30%" r="50%">
-          <stop offset="0%" stopColor="rgba(255,255,255,0.7)" />
-          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-        </radialGradient>
-        <clipPath id={`${gid}-clip`}>
-          <circle cx="50" cy="46" r="24" />
-        </clipPath>
-      </defs>
-      {/* 主体: 宽胖八边形, 直线切角 (棱角分明) */}
-      <polygon
-        points="50,6 78,12 92,38 92,62 78,86 22,86 8,62 8,38 22,12"
-        fill={`url(#${gid}-face)`}
-        stroke={palette.edge}
-        strokeWidth="1.5"
-        strokeLinejoin="miter"
-      />
-      {/* 切面分割线 (从中心放射) */}
-      <g stroke={palette.edge} strokeWidth="0.6" opacity="0.5" fill="none">
-        <line x1="50" y1="6" x2="50" y2="46" />
-        <line x1="22" y1="12" x2="50" y2="46" />
-        <line x1="78" y1="12" x2="50" y2="46" />
-        <line x1="8" y1="38" x2="50" y2="46" />
-        <line x1="92" y1="38" x2="50" y2="46" />
-        <line x1="8" y1="62" x2="50" y2="46" />
-        <line x1="92" y1="62" x2="50" y2="46" />
-      </g>
-      {/* 顶部高光 (上半斜面) */}
-      <polygon
-        points="50,6 78,12 92,38 50,46 8,38 22,12"
-        fill={`url(#${gid}-top)`}
-        opacity="0.75"
-      />
-      {/* 圆形头像窗 (内嵌, 加大) */}
-      {avatar ? (
-        <>
-          <image
-            href={avatar}
-            x="26" y="22" width="48" height="48"
-            clipPath={`url(#${gid}-clip)`}
-            preserveAspectRatio="xMidYMid slice"
-          />
-          <circle cx="50" cy="46" r="24" fill="none" stroke="rgba(0,0,0,0.55)" strokeWidth="1.5" />
-          <circle cx="50" cy="46" r="24" fill="none" stroke={palette.edge} strokeWidth="0.8" opacity="0.7" />
-        </>
-      ) : (
-        <circle cx="50" cy="46" r="24" fill="rgba(0,0,0,0.35)" stroke={palette.edge} strokeWidth="1" />
-      )}
-    </svg>
-  )
-}
-
-const STONE_PALETTE: Record<number, { face: string; faceLight: string; faceDark: string; shadow: string; edge: string }> = {
-  1: { face: '#9e9e9e', faceLight: '#e0e0e0', faceDark: '#616161', shadow: '#2b2b2b', edge: '#3a3a3a' },
-  2: { face: '#66bb6a', faceLight: '#a5d6a7', faceDark: '#2e7d32', shadow: '#143a14', edge: '#1b5e20' },
-  3: { face: '#42a5f5', faceLight: '#90caf9', faceDark: '#1565c0', shadow: '#0a2a52', edge: '#0d47a1' },
-  4: { face: '#ab47bc', faceLight: '#ce93d8', faceDark: '#6a1b9a', shadow: '#2a0d3f', edge: '#4a148c' },
-  5: { face: '#ffd54f', faceLight: '#fff59d', faceDark: '#f9a825', shadow: '#5a3d00', edge: '#bf6f00' },
 }
 
 type Tab = 'stones' | 'tickets' | 'treasures' | 'materials'

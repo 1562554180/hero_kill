@@ -1024,10 +1024,10 @@ export class Game {
   }
 
   /** 鸩杀: 吕雉对濒死目标使用【药】使其阵亡 */
-  private async promptZhenSha(dyingTarget: Player): Promise<void> {
+  private async promptZhenSha(dyingTarget: Player): Promise<boolean> {
     const lvZhi = this.players.find(p => p.hero.hero.id === 'lv-zhi' && p.isAlive())
-    if (!lvZhi) return
-    if (!lvZhi.getHand().some(c => c.name === '药')) return
+    if (!lvZhi) return false
+    if (!lvZhi.getHand().some(c => c.name === '药')) return false
     let trigger = false
     if (lvZhi.getRole() === 'player' && this.config.zhenShaHandler) {
       trigger = await this.config.zhenShaHandler({ lvZhiId: lvZhi.getId(), dyingTargetId: dyingTarget.getId() })
@@ -1035,13 +1035,14 @@ export class Game {
       // AI: 濒死目标是敌人就发动
       trigger = lvZhi.getRole() !== dyingTarget.getRole()
     }
-    if (!trigger) return
+    if (!trigger) return false
     // 找一张药弃掉 (吕雉手牌)
     const yao = lvZhi.getHand().find(c => c.name === '药')
-    if (!yao) return
+    if (!yao) return false
     this.removeHandCard(lvZhi, yao.id)
     this.cardDeck.discard([yao])
     this.emitSkillTrigger(lvZhi, '鸩杀', `对${dyingTarget.getName()}使用【药】使阵亡`)
+    return true
   }
 
   private async autoPlayPhase(player: Player): Promise<void> {
@@ -2246,10 +2247,10 @@ export class Game {
     if (dyingTarget.getCurrentHp() > 0) return true
     this.eventBus.emit({ type: 'dying', sourceHeroId: dyingTarget.getId(), data: {} })
 
-    // 1. 鸩杀: 吕雉是否先发制人
-    await this.promptZhenSha(dyingTarget)
+    // 1. 鸩杀: 吕雉是否先发制人 (鸩杀发动后直接判死, 不再询问友方救援)
+    const zhenShaTriggered = await this.promptZhenSha(dyingTarget)
+    if (zhenShaTriggered) return false
     if (dyingTarget.getCurrentHp() > 0) return true
-    if (!dyingTarget.isAlive()) return false
 
     // 2. 仅询问濒死者的友方 (同阵营): 从濒死者开始顺时针, 每个友方可弃药救人
     const friends = this.players.filter(p =>

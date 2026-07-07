@@ -21,6 +21,16 @@ export const WORKSHOP_KEYFRAMES = `
   0%, 100% { filter: brightness(0.6); }
   50%      { filter: brightness(0.3); }
 }
+@keyframes transfer-flow {
+  0%   { left: -30%; opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+@keyframes transfer-pulse {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(255, 213, 79, 0.25); }
+  50%      { box-shadow: 0 0 14px 3px rgba(255, 213, 79, 0.55); }
+}
 `
 
 let injected = false

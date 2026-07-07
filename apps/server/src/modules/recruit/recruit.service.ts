@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { randomUUID } from 'crypto'
 import { SaveService } from '../save/save.service'
-import { getPoolConfig, rollHero, rollStar } from '@hero-legend/game-data'
+import { getPoolConfig, rollHero, rollStar, RARE_HERO_IDS } from '@hero-legend/game-data'
 import { heroes } from '@hero-legend/game-data'
 import type { Hero, HeroStone, RecruitPool } from '@hero-legend/shared-types'
 
@@ -130,9 +130,10 @@ export class RecruitService {
       // 同英雄 + 未满级 → 同英雄 +1 星 (一定存在, 因为输入石头锁定了该英雄)
       resultHero = heroes.find(h => h.id === inputs[0].heroId)!
     } else {
-      // 随机其他英雄 (排除输入的 heroId)
+      // 随机其他英雄 (排除输入的 heroId + 稀有英雄)
       const excludeIds = new Set(inputs.map(s => s.heroId))
-      let candidates = heroes.filter(h => h.starLevel === resultStar && !excludeIds.has(h.id))
+      let candidates = heroes.filter(h => h.starLevel === resultStar && !excludeIds.has(h.id) && !RARE_HERO_IDS.has(h.id))
+      if (candidates.length === 0) candidates = heroes.filter(h => h.starLevel === resultStar && !RARE_HERO_IDS.has(h.id))
       if (candidates.length === 0) candidates = heroes.filter(h => h.starLevel === resultStar)
       if (candidates.length === 0) candidates = heroes
       resultHero = candidates[Math.floor(Math.random() * candidates.length)]

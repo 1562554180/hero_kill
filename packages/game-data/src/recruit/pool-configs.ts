@@ -2,6 +2,19 @@ import type { Hero, PoolConfig, RecruitPool } from '@hero-legend/shared-types'
 import { heroes } from '../heroes/hero-definitions.js'
 
 /**
+ * 稀有英雄 (强度过高, 抽卡概率压制到 1/1000).
+ * 这些英雄在常规抽卡中几乎抽不到, 需通过其他途径 (熔炼升星/活动) 获取.
+ */
+export const RARE_HERO_IDS = new Set([
+  'yang-yan-zhao', // 杨延昭
+  'yu-ji',         // 虞姬
+  'shang-yang',    // 商鞅
+  'bian-que',      // 扁鹊
+  'zhuge-liang',   // 诸葛亮
+])
+const RARE_ROLL_WEIGHT = 1 / 1000
+
+/**
  * 三池配置 (抽卡机制核心数据)
  * - 百里: 1/2/3 星, 十连必出 3★
  * - 千里: 2/3/4 星, 每日首次十连必出 4★
@@ -72,15 +85,21 @@ export function rollStar(weights: Record<1 | 2 | 3 | 4 | 5, number>): 1 | 2 | 3 
 
 /** 从池子里某星级的英雄里随机抽一个. 若该池该星级无英雄,降级到该池最低星,再降级到任意英雄. */
 export function rollHero(pool: RecruitPool, starLevel: 1 | 2 | 3 | 4 | 5): Hero {
-  let candidates = getHeroesForPool(pool, starLevel)
+  // 稀有英雄 1/1000 概率: 仅当本星级存在该稀有英雄时才参与
+  const rareAtStar = heroes.filter(h => RARE_HERO_IDS.has(h.id) && h.starLevel === starLevel)
+  if (rareAtStar.length > 0 && Math.random() < RARE_ROLL_WEIGHT) {
+    return rareAtStar[Math.floor(Math.random() * rareAtStar.length)]
+  }
+
+  let candidates = getHeroesForPool(pool, starLevel).filter(h => !RARE_HERO_IDS.has(h.id))
   if (candidates.length === 0) {
-    candidates = getHeroesForPool(pool, poolMinStar(pool))
+    candidates = getHeroesForPool(pool, poolMinStar(pool)).filter(h => !RARE_HERO_IDS.has(h.id))
   }
   if (candidates.length === 0) {
     // 兜底: 该池内任意英雄 (按距离目标星级最近的优先, 然后随机)
     candidates = heroes.filter(h => {
       const minStar = poolMinStar(pool)
-      return h.starLevel >= minStar
+      return h.starLevel >= minStar && !RARE_HERO_IDS.has(h.id)
     })
   }
   if (candidates.length === 0) {

@@ -2288,8 +2288,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     } else if (skill === 'jue-ji') {
       set({ phase: 'treasureSelectTarget', treasurePrompt: '【绝击】选择攻击范围内的1名角色 (无武器则自己掉1血)' })
     } else if (skill === 'fu-jing') {
-      // 负荆: 直接执行 (无目标), 自己掉1血+摸2张
-      set({ phase: 'waiting', treasurePrompt: '【负荆】掉1血摸2张...' })
+      // 负荆: 直接执行 (无目标无提示), 自己掉1血+摸2张
       void (async () => {
         try {
           await game!.playerFuJing(player)

@@ -62,6 +62,7 @@ export function SkillBar() {
   const hasShiQuan = hasSkillOrTreasure('shi-quan')
   const hasJueJi = hasSkillOrTreasure('jue-ji')
   const hasXiaDan = hasSkillOrTreasure('xia-dan')
+  const hasFuJing = hasSkillOrTreasure('fu-jing')
 
   const playerWeaponName = (() => {
     const weaponId = player?.equipment?.weapon
@@ -203,6 +204,22 @@ export function SkillBar() {
             title={jueJiUsedThisTurn > 0 ? '绝击: 本回合已用' : '绝击: 弃装备区或手牌武器, 或受1伤, 令攻击范围内1名角色受1伤 (每回合限1次)'}
           >
             ⚔ 绝击{jueJiUsedThisTurn > 0 ? ' ·已用' : ''}
+          </button>
+        )}
+        {hasFuJing && (
+          <button
+            onClick={() => useTreasureSkill('fu-jing')}
+            style={{
+              fontSize: '11px', padding: '3px 8px',
+              background: 'var(--bg-dark)',
+              color: 'var(--text-light)',
+              border: '1px solid var(--border-wood)',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+            title="负荆: 主动掉1血, 然后摸2张牌 (无次数限制). 1血发动先进入濒死, 被救活后照常摸牌"
+          >
+            🩸 负荆
           </button>
         )}
         {hasXiaDan && (

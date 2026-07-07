@@ -64,8 +64,8 @@ export function BattleOverlays() {
 
   return (
     <>
-      {/* 宝具技能 浮层 — 侠胆自己选牌时不要遮挡手牌, 侠胆激活时也无需浮层; 驭人/烽火/绝击/疗伤/治愈用内联提示 */}
-      {treasureSkill && phase !== 'xiaDanPickCard' && !xiaDanActive && treasureSkill !== 'yu-ren' && treasureSkill !== 'feng-huo' && treasureSkill !== 'jue-ji' && treasureSkill !== 'liao-shang' && treasureSkill !== 'zhi-yu' && (
+      {/* 宝具技能 浮层 — 侠胆自己选牌时不要遮挡手牌, 侠胆激活时也无需浮层; 驭人/烽火/绝击/疗伤/治愈/负荆用内联提示或无提示 */}
+      {treasureSkill && phase !== 'xiaDanPickCard' && !xiaDanActive && treasureSkill !== 'yu-ren' && treasureSkill !== 'feng-huo' && treasureSkill !== 'jue-ji' && treasureSkill !== 'liao-shang' && treasureSkill !== 'zhi-yu' && treasureSkill !== 'fu-jing' && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center',

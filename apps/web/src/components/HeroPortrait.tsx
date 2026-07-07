@@ -1,17 +1,6 @@
 import { memo } from 'react'
 import type { BattleHero } from '@hero-legend/shared-types'
-
-// 中文件名 → heroId 映射
-const NAME_TO_ID: Record<string, string> = {
-  '扁鹊': 'bian-que', '曹操': 'cao-cao', '陈胜': 'chen-sheng', '程咬金': 'cheng-yao-jin',
-  '勾践': 'gou-jian', '关羽': 'guan-yu', '韩信': 'han-xin', '荆轲': 'jing-ke',
-  '李逵': 'li-kui', '李世民': 'li-shi-min', '李师师': 'li-shi-shi', '李煜': 'li-yu',
-  '刘邦': 'liu-bang', '吕雉': 'lv-zhi', '慕容': 'mu-rong', '秦琼': 'qin-qiong',
-  '商鞅': 'shang-yang', '宋江': 'song-jiang', '澹台名': 'tan-tai-ming', '铁木真': 'tie-mu-zhen',
-  '武松': 'wu-song', '武则天': 'wu-ze-tian', '项羽': 'xiang-yu', '小乔': 'xiao-qiao',
-  '杨延昭': 'yang-yan-zhao', '嬴政': 'ying-zheng', '虞姬': 'yu-ji',
-  '岳飞': 'yue-fei', '赵匡胤': 'zhao-kuang-yin', '朱元璋': 'zhu-yuan-zhang', '诸葛亮': 'zhuge-liang',
-}
+import { HERO_NAME_TO_ID as NAME_TO_ID } from '../heroPortraitNames'
 
 // 自动扫 images/ 下所有 JPG, 按文件名匹配 hero ID
 const portraitModules = import.meta.glob('../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
