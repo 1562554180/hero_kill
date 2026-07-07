@@ -67,7 +67,7 @@ export function Cauldron({ selectedTreasure, phase, onSlotClick }: CauldronProps
           })()}
           {!selectedTreasure && (
             <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>
-              请从右侧选辅印
+              请选择辅印
             </div>
           )}
         </div>
