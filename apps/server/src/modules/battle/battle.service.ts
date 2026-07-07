@@ -106,6 +106,11 @@ export class BattleService {
         if (Math.random() < 0.10) allDrops.push({ type: 'luckyStone', amount: 1 })
         if (Math.random() < 0.10) allDrops.push({ type: 'transferTalisman', amount: 1 })
       }
+      // 珍宝阁门票 (按 stage reward 概率掉落)
+      const ticketChance = isBoss
+        ? (stage.rewards.bossBonus?.treasureTicketChance ?? 0)
+        : (stage.rewards.treasureTicketChance ?? 0)
+      if (Math.random() < ticketChance) allDrops.push({ type: 'treasureTicket', amount: 1 })
       for (const drop of allDrops) {
         const mat = save.materials.find((m: any) => m.type === drop.type)
         if (mat) mat.amount += drop.amount

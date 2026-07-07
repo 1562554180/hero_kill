@@ -13,6 +13,7 @@ const CityPage = lazy(() => import('./pages/CityPage').then(m => ({ default: m.C
 const BackpackPage = lazy(() => import('./pages/BackpackPage').then(m => ({ default: m.BackpackPage })))
 const SmelterPage = lazy(() => import('./pages/SmelterPage').then(m => ({ default: m.SmelterPage })))
 const TreasureWorkshopPage = lazy(() => import('./pages/TreasureWorkshopPage').then(m => ({ default: m.TreasureWorkshopPage })))
+const TreasurePavilionPage = lazy(() => import('./pages/TreasurePavilionPage').then(m => ({ default: m.TreasurePavilionPage })))
 
 // 轻量 fallback (不引 framer-motion 等大库, 避免污染主 chunk)
 const PageLoader = () => (
@@ -35,6 +36,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/city" element={<CityPage />} />
           <Route path="/smelter" element={<SmelterPage />} />
           <Route path="/treasure-workshop" element={<TreasureWorkshopPage />} />
+          <Route path="/treasure-pavilion" element={<TreasurePavilionPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

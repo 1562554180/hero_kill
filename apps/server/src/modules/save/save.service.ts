@@ -46,6 +46,10 @@ export class SaveService {
       save.dailyRecruitGuarantee = { qianliDate: null, wanliDate: null } as any
       patched = true
     }
+    if (!save.treasurePiece) {
+      save.treasurePiece = [] as any
+      patched = true
+    }
     // 老存档缺哪种抽卡券就 seed 99 张 (新手补偿)
     for (const t of ['bailiTicket', 'qianliTicket', 'wanliTicket']) {
       if (!save.materials.find((m: any) => m.type === t)) {
@@ -167,9 +171,11 @@ export class SaveService {
         { type: 'qianliTicket', amount: 99 },  // 新存档给 99 张千里卡开局
         { type: 'wanliTicket', amount: 99 },   // 新存档给 99 张万里卡开局
         { type: 'enhancementTalisman', amount: 20 },  // 强化符新手 20 张
+        { type: 'treasureTicket', amount: 50 }, // 珍宝阁门票 50 张
       ],
       heroStones: [],
       dailyRecruitGuarantee: { qianliDate: null, wanliDate: null },
+      treasurePiece: [],
       stageProgress: [
         { stageId: 'xu-zhou', battlesCompleted: 0, stars: 0, unlocked: true },
         { stageId: 'yang-zhou', battlesCompleted: 0, stars: 0, unlocked: false },
@@ -318,6 +324,56 @@ export class SaveService {
     ).exec()
   }
 
+  /** 珍宝阁: 加指定宝具碎片 N 个 */
+  async addTreasurePiece(userId: string, treasureId: string, amount: number): Promise<SaveDoc | null> {
+    const save = await this.getSave(userId)
+    if (!save) return null
+    const list = (save.treasurePiece as any[]) ?? []
+    const item = list.find(p => p.treasureId === treasureId)
+    if (item) {
+      item.amount += amount
+    } else {
+      list.push({ treasureId, amount })
+    }
+    return this.saveModel.findOneAndUpdate(
+      { userId },
+      { $set: { treasurePiece: list, updatedAt: Date.now() } },
+      { new: true },
+    ).exec()
+  }
+
+  /** 珍宝阁: 扣指定宝具碎片 N 个 (余额不足返回 null) */
+  async spendTreasurePiece(userId: string, treasureId: string, amount: number): Promise<{ save: SaveDoc; newAmount: number } | null> {
+    const save = await this.getSave(userId)
+    if (!save) return null
+    const list = (save.treasurePiece as any[]) ?? []
+    const item = list.find(p => p.treasureId === treasureId)
+    const current = item?.amount ?? 0
+    if (current < amount) return null
+    const newAmount = current - amount
+    if (item) {
+      item.amount = newAmount
+    } else {
+      list.push({ treasureId, amount: newAmount })
+    }
+    await this.saveModel.findOneAndUpdate(
+      { userId },
+      { $set: { treasurePiece: list, updatedAt: Date.now() } },
+      { new: true },
+    ).exec()
+    const fresh = await this.getSave(userId)
+    return fresh ? { save: fresh, newAmount } : null
+  }
+
+  /** 珍宝阁: 添加新宝具实例到 treasures 数组 */
+  async addTreasureInstance(userId: string, treasure: any): Promise<SaveDoc | null> {
+    return this.saveModel.findOneAndUpdate(
+      { userId },
+      { $push: { treasures: treasure }, $set: { updatedAt: Date.now() } },
+      { new: true },
+    ).exec()
+  }
+
   /**
    * 一次性调试种子: 金币 10 亿 / 强化符 1 万 / 幸运石 1 万 /
    * 三种抽卡券(baili/qianli/wanli ticket)各 1 万张. 不动 heroStones.
@@ -333,6 +389,8 @@ export class SaveService {
       bailiTicket: 10_000,
       qianliTicket: 10_000,
       wanliTicket: 10_000,
+      treasureTicket: 10_000,
+      treasureFragment: 100_000,
     }
     for (const [type, amount] of Object.entries(amountMap)) {
       const m = (save.materials as any[]).find((x: any) => x.type === type)

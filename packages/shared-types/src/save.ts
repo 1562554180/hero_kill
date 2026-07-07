@@ -16,7 +16,14 @@ export interface Material {
     | 'enhancementTalisman'   // 强化符
     | 'luckyStone'            // 幸运石
     | 'transferTalisman'      // 转移符
+    | 'treasureTicket'        // 珍宝阁门票
   itemId?: string          // 碎片对应的 hero/treasure ID
+  amount: number
+}
+
+/** 珍宝阁: 指定宝具碎片 (合成用) */
+export interface TreasurePiece {
+  treasureId: string       // 对应 treasure-definitions 里的 id
   amount: number
 }
 
@@ -41,6 +48,8 @@ export interface UserSave {
   heroStones: HeroStone[]                       // 待使用的英雄石
   dailyRecruitGuarantee: DailyRecruitGuarantee  // 每日首次十连保底记录
   stageProgress: StageProgress[]
+  /** 珍宝阁: 指定宝具碎片列表 (合成用) */
+  treasurePiece: TreasurePiece[]
   createdAt: number
   updatedAt: number
 }

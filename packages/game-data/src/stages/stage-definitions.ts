@@ -21,7 +21,8 @@ export const stages: Stage[] = [
       growthValue: 100,
       heroFragmentChance: 0.3,
       treasureFragmentChance: 0.2,
-      bossBonus: { gold: 1000, treasureChance: 0.5 },
+      treasureTicketChance: 0.2,
+      bossBonus: { gold: 1000, treasureChance: 0.5, treasureTicketChance: 0.4 },
     },
   },
   {
@@ -42,7 +43,8 @@ export const stages: Stage[] = [
       growthValue: 150,
       heroFragmentChance: 0.35,
       treasureFragmentChance: 0.25,
-      bossBonus: { gold: 1500, treasureChance: 0.55 },
+      treasureTicketChance: 0.3,
+      bossBonus: { gold: 1500, treasureChance: 0.55, treasureTicketChance: 0.5 },
     },
   },
   {
@@ -63,7 +65,8 @@ export const stages: Stage[] = [
       growthValue: 200,
       heroFragmentChance: 0.4,
       treasureFragmentChance: 0.3,
-      bossBonus: { gold: 2000, treasureChance: 0.6 },
+      treasureTicketChance: 0.4,
+      bossBonus: { gold: 2000, treasureChance: 0.6, treasureTicketChance: 0.6 },
     },
   },
 ]

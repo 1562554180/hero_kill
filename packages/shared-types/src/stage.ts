@@ -19,9 +19,12 @@ export interface StageReward {
   growthValue: number
   heroFragmentChance: number   // 英雄碎片掉落概率 0-1
   treasureFragmentChance: number
+  /** 珍宝阁门票掉落概率 0-1 */
+  treasureTicketChance?: number
   bossBonus?: {
     gold: number
     treasureChance: number
+    treasureTicketChance?: number
   }
 }
 

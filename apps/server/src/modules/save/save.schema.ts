@@ -53,6 +53,9 @@ export class SaveDoc extends Document {
   @Prop({ type: DailyRecruitGuaranteeDoc, default: { qianliDate: null, wanliDate: null } })
   dailyRecruitGuarantee: DailyRecruitGuaranteeDoc
   @Prop({ type: [StageProgressDoc], default: [] }) stageProgress: StageProgressDoc[]
+  /** 珍宝阁: 指定宝具碎片列表 */
+  @Prop({ type: [{ treasureId: String, amount: Number }], default: [] })
+  treasurePiece: { treasureId: string; amount: number }[]
   /** 辅印 def 补全迁移是否已完成 (确保只补一次, 防止用户分解后被重新加回) */
   @Prop({ default: false }) subDefMigrated: boolean
   @Prop({ default: Date.now }) createdAt: number

@@ -127,6 +127,24 @@ export function CityPage() {
             </div>
           )
         })}
+        {/* 珍宝阁: 不可升级, 仅入口 */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(255,215,0,0.10), var(--bg-medium))',
+          border: '1px solid var(--border-gold)',
+          borderRadius: '8px', padding: '16px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h4 style={{ color: 'var(--text-gold)' }}>珍宝阁</h4>
+            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>抽取宝具</span>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '12px' }}>
+            消耗宝具券抽取稀有宝具与碎片
+          </p>
+          <button style={{ width: '100%', fontSize: '12px' }}
+            onClick={() => navigate('/treasure-pavilion')}>
+            进入珍宝阁
+          </button>
+        </div>
       </div>
     </div>
   )
