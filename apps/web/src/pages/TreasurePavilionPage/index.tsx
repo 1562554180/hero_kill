@@ -361,16 +361,6 @@ function DrawnCard({ item, entered, revealed }: { item: DrawItem; entered: boole
     iconName = getSkillIcon(defName(item.defId))
   }
   const borderColor = STAR_BORDER[star] ?? '#ffd54f'
-  const gradientByStar: Record<number, string> = {
-    5: 'linear-gradient(135deg, #ff6b6b, #c62828)',
-    4: 'linear-gradient(135deg, #a78bfa, #6d28d9)',
-    3: 'linear-gradient(135deg, #60a5fa, #1e40af)',
-    2: 'linear-gradient(135deg, #86efac, #166534)',
-    1: 'linear-gradient(135deg, #9ca3af, #4b5563)',
-  }
-  const faceGradient = isTreasureKind
-    ? (gradientByStar[star] ?? 'linear-gradient(135deg, #5d4037, #3e2723)')
-    : 'linear-gradient(135deg, #5d4037, #3e2723)'
 
   return (
     <div style={{
@@ -390,27 +380,33 @@ function DrawnCard({ item, entered, revealed }: { item: DrawItem; entered: boole
           position: 'absolute', inset: 0,
           backfaceVisibility: 'hidden',
           background: 'linear-gradient(135deg, #5d4037, #3e2723)',
-          border: `2px solid ${borderColor}`,
+          border: '2px solid #ffd54f',
           borderRadius: '8px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: borderColor, fontSize: '24px', fontWeight: 'bold',
+          color: '#ffd54f', fontSize: '24px', fontWeight: 'bold',
         }}>珍</div>
         <div style={{
           position: 'absolute', inset: 0,
           backfaceVisibility: 'hidden',
           transform: 'rotateY(180deg)',
-          background: faceGradient,
-          border: `2px solid ${borderColor}`,
+          background: 'linear-gradient(135deg, #5d4037, #3e2723)',
+          border: '2px solid #ffd54f',
           borderRadius: '8px',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
-          color: borderColor, padding: '8px', boxSizing: 'border-box',
+          color: '#fff', padding: '8px', boxSizing: 'border-box',
         }}>
-          <div style={{ fontSize: '11px', opacity: 0.85, color: '#fff' }}>{subtitle}</div>
+          <div style={{ fontSize: '11px', opacity: 0.8 }}>{subtitle}</div>
           {iconName && (
-            <img src={iconName} alt={title} style={{ width: '50%', marginTop: '6px' }} />
+            <div style={{
+              width: '50%', aspectRatio: '1', marginTop: '6px',
+              background: `url("${iconName}") center/contain no-repeat`,
+              border: `2px solid ${borderColor}`,
+              borderRadius: '4px',
+              boxSizing: 'border-box',
+            }} />
           )}
-          <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '4px', textAlign: 'center' }}>{title}</div>
+          <div style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '4px', textAlign: 'center', color: borderColor }}>{title}</div>
         </div>
       </div>
     </div>
