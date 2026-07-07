@@ -75,57 +75,60 @@ export function SmelterPage() {
   // 双击池行: 把该组第一个未投入的石头放到第一个空凹槽
   const handleAutoPlace = (stoneId: string) => {
     if (phase !== 'idle') return
-    const target = stones.find(s => s.stoneId === stoneId)
-    if (!target) return
-    const group = stones.filter(s => s.starLevel === target.starLevel && s.heroId === target.heroId)
-    const stone = group.find(s => !usedStoneIds.has(s.stoneId))
-    if (!stone) return  // group fully used
-    const emptyIdx = slots.findIndex(s => s === null)
-    if (emptyIdx === -1) return  // all slots full
-    const newSlots = [...slots]
-    newSlots[emptyIdx] = { stoneId: stone.stoneId, starLevel: stone.starLevel, heroId: stone.heroId }
-    setSlots(newSlots)
+    setSlots(prevSlots => {
+      const target = stones.find(s => s.stoneId === stoneId)
+      if (!target) return prevSlots
+      const currentUsed = new Set(prevSlots.filter(Boolean).map(s => s!.stoneId))
+      const group = stones.filter(s => s.starLevel === target.starLevel && s.heroId === target.heroId)
+      const stone = group.find(s => !currentUsed.has(s.stoneId))
+      if (!stone) return prevSlots  // group fully used
+      const emptyIdx = prevSlots.findIndex(s => s === null)
+      if (emptyIdx === -1) return prevSlots  // all slots full
+      const newSlots = [...prevSlots]
+      newSlots[emptyIdx] = { stoneId: stone.stoneId, starLevel: stone.starLevel, heroId: stone.heroId }
+      return newSlots
+    })
     // 不动 pendingStoneId: 用户可能想再放同组另一个到下一个空凹槽
   }
 
   // 凹槽点击 4 路逻辑
   const handleSlotClick = (idx: number) => {
     if (phase !== 'idle') return
-    const current = slots[idx]
-    if (!current && pendingStoneId) {
-      // 槽空 + 待用 → 投入 (取待用对应组的 stoneId; 若该 stoneId 已投入, 取该组下一个未用的)
-      const pending = stones.find(x => x.stoneId === pendingStoneId)
-      if (!pending) return
-      const group = stones.filter(s => s.starLevel === pending.starLevel && s.heroId === pending.heroId)
-      const target = group.find(s => !usedStoneIds.has(s.stoneId))
-      if (!target) return
-      const newSlots = [...slots]
-      newSlots[idx] = { stoneId: target.stoneId, starLevel: target.starLevel, heroId: target.heroId }
-      setSlots(newSlots)
-      // pending 保留, 用户可继续投入另两个槽
-      return
-    }
-    if (!current && !pendingStoneId) {
-      setToast('请先在右侧池中选一颗')
-      setTimeout(() => setToast(''), 2000)
-      return
-    }
-    if (current && pendingStoneId && pendingStoneId !== current.stoneId) {
-      // 槽有 + 待用 ≠ 槽内 → 替换 (旧回池)
-      const targetStone = stones.find(s => s.stoneId === pendingStoneId)
-      if (!targetStone) return
-      const newSlots = [...slots]
-      newSlots[idx] = { stoneId: targetStone.stoneId, starLevel: targetStone.starLevel, heroId: targetStone.heroId }
-      setSlots(newSlots)
-      return
-    }
-    if (current && !pendingStoneId) {
-      // 槽有 + 无待用 → 取出
-      const newSlots = [...slots]
-      newSlots[idx] = null
-      setSlots(newSlots)
-      return
-    }
+    setSlots(prevSlots => {
+      const current = prevSlots[idx]
+      const currentUsed = new Set(prevSlots.filter(Boolean).map(s => s!.stoneId))
+      if (!current && pendingStoneId) {
+        // 槽空 + 待用 → 投入 (取待用对应组的 stoneId; 若该 stoneId 已投入, 取该组下一个未用的)
+        const pending = stones.find(x => x.stoneId === pendingStoneId)
+        if (!pending) return prevSlots
+        const group = stones.filter(s => s.starLevel === pending.starLevel && s.heroId === pending.heroId)
+        const target = group.find(s => !currentUsed.has(s.stoneId))
+        if (!target) return prevSlots
+        const newSlots = [...prevSlots]
+        newSlots[idx] = { stoneId: target.stoneId, starLevel: target.starLevel, heroId: target.heroId }
+        return newSlots
+      }
+      if (!current && !pendingStoneId) {
+        setToast('请先在右侧池中选一颗')
+        setTimeout(() => setToast(''), 2000)
+        return prevSlots
+      }
+      if (current && pendingStoneId && pendingStoneId !== current.stoneId) {
+        // 槽有 + 待用 ≠ 槽内 → 替换 (旧回池)
+        const targetStone = stones.find(s => s.stoneId === pendingStoneId)
+        if (!targetStone) return prevSlots
+        const newSlots = [...prevSlots]
+        newSlots[idx] = { stoneId: targetStone.stoneId, starLevel: targetStone.starLevel, heroId: targetStone.heroId }
+        return newSlots
+      }
+      if (current && !pendingStoneId) {
+        // 槽有 + 无待用 → 取出
+        const newSlots = [...prevSlots]
+        newSlots[idx] = null
+        return newSlots
+      }
+      return prevSlots
+    })
   }
 
   const handleSmelt = async () => {
