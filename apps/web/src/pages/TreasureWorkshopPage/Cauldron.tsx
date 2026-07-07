@@ -48,20 +48,20 @@ export function Cauldron({ selectedTreasure, phase, onSlotClick }: CauldronProps
           {selectedTreasure && (() => {
             const icon = getSkillIcon(selectedTreasure.name)
             return (
-              <div style={{ textAlign: 'center', color: 'var(--text-gold)' }}>
-                {icon && (
-                  <div style={{
-                    width: '80px', height: '80px',
-                    background: `url("${icon}") 0px 0px / contain no-repeat`,
-                    margin: '0 auto 4px',
-                  }} />
-                )}
-                <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
-                  {selectedTreasure.name}
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              <div style={{
+                position: 'relative',
+                width: '80px', height: '80px',
+                background: icon ? `url("${icon}") 0px 0px / contain no-repeat` : undefined,
+              }}>
+                <span style={{
+                  position: 'absolute', bottom: '-2px', right: '0px',
+                  fontSize: '12px', color: 'var(--text-gold)',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.9)',
+                  pointerEvents: 'none',
+                }}>
                   Lv.{selectedTreasure.level ?? 0}
-                </div>
+                </span>
               </div>
             )
           })()}
