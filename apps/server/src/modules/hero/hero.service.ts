@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { SaveService } from '../save/save.service'
+import { heroes } from '@hero-legend/game-data'
 import type { HeroInstance, Treasure } from '@hero-legend/shared-types'
 import { getMaxLevelByStar } from '@hero-legend/shared-types'
 
@@ -61,9 +62,16 @@ export class HeroService {
     if (stackIdx < 0) return { error: '宝具不存在' }
     const stack: Treasure = save.treasures[stackIdx]
 
-    // 校验: 该 skill.id 已装备在任意槽位 → 不允许重复 (排除即将被替换的当前槽)
+    // 校验: 该 skill.id 不能与英雄自身技能或已装备槽位重复
     const newSkillId = stack.skill?.id
     if (newSkillId) {
+      // 1) 英雄自身技能 (例: 杨延昭有"天狼"技能, 不能再装天狼主印)
+      const heroDef = heroes.find(h => h.id === heroInstance.heroId)
+      const heroSkillIds = (heroDef?.skills ?? []).map(s => s.id)
+      if (heroSkillIds.includes(newSkillId)) {
+        return { error: '与英雄自身技能重复, 不能镶嵌' }
+      }
+      // 2) 已装备槽位 (排除即将被替换的当前槽)
       const mainSlots = heroInstance.treasures.main
       const subSlots = heroInstance.treasures.sub
       const conflictInMain = mainSlots.some((t, i) =>

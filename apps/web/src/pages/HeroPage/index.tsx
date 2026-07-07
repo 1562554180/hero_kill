@@ -389,11 +389,30 @@ export function HeroPage() {
                         const ratePercent = Math.round(actualRate * 100)
                         const rateColor = actualRate >= 0.5 ? '#7ec850' : actualRate >= 0.3 ? 'var(--text-gold)' : actualRate >= 0.15 ? '#ff9e3a' : '#ff6b6b'
                         const icon = getSkillIcon(t.skill?.name ?? t.name)
-                        const titleText = `${t.name} ×${n}\n★${t.starLevel} ${t.type === 'main' ? '主印' : '辅印'}\n基础触发: ${Math.round(baseRate * 100)}%${t.type === 'sub' ? `\n强化 Lv.${lvl}/45 次数 ${cnt}/50\n强化后触发: ${ratePercent}%${starBonus > 0 ? ` (含星5 +10%)` : ''}${atMaxLevel ? '\n已满级' : ''}${outOfAttempts ? '\n次数用尽' : ''}` : ''}\n双击镶嵌\n${t.skill.description}`
+                        // 校验: 与英雄自身技能/已装备槽位 skill.id 重复 → 禁用
+                        const conflictWithHero = (selectedConfig?.skills ?? []).some(s => s.id === t.skill?.id)
+                        const conflictEquipped = [
+                          ...selectedInstance.treasures.main,
+                          ...selectedInstance.treasures.sub,
+                        ].some((tt, idx) => {
+                          if (!tt) return false
+                          // 排除当前正在替换的槽
+                          if (idx === (activeSlot.slotType === 'main'
+                            ? activeSlot.slotIndex
+                            : selectedInstance.treasures.main.length + activeSlot.slotIndex)) return false
+                          return tt.skill?.id === t.skill?.id
+                        })
+                        const isDisabled = conflictWithHero || conflictEquipped
+                        const conflictReason = conflictWithHero
+                          ? '与英雄自身技能重复'
+                          : conflictEquipped
+                            ? '已有相同技能的宝具'
+                            : ''
+                        const titleText = `${t.name} ×${n}\n★${t.starLevel} ${t.type === 'main' ? '主印' : '辅印'}\n基础触发: ${Math.round(baseRate * 100)}%${t.type === 'sub' ? `\n强化 Lv.${lvl}/45 次数 ${cnt}/50\n强化后触发: ${ratePercent}%${starBonus > 0 ? ` (含星5 +10%)` : ''}${atMaxLevel ? '\n已满级' : ''}${outOfAttempts ? '\n次数用尽' : ''}` : ''}${isDisabled ? `\n${conflictReason} - 不可镶嵌` : '\n双击镶嵌'}\n${t.skill.description}`
                         return (
                           <div key={t.id}
                             title={titleText}
-                            onDoubleClick={() => equipTreasure(selectedInstance.instanceId!, activeSlot.slotType, activeSlot.slotIndex, t.id)}
+                            onDoubleClick={() => !isDisabled && equipTreasure(selectedInstance.instanceId!, activeSlot.slotType, activeSlot.slotIndex, t.id)}
                             style={{
                               position: 'relative',
                               aspectRatio: '1',
@@ -402,7 +421,10 @@ export function HeroPage() {
                                 : 'var(--bg-medium)',
                               border: `1px solid ${STAR_BORDER[t.starLevel] ?? 'var(--border-wood)'}`,
                               borderRadius: '4px',
-                              cursor: 'pointer', userSelect: 'none',
+                              cursor: isDisabled ? 'not-allowed' : 'pointer',
+                              userSelect: 'none',
+                              opacity: isDisabled ? 0.35 : 1,
+                              filter: isDisabled ? 'grayscale(1)' : 'none',
                             }}
                           >
                             {!icon && (
