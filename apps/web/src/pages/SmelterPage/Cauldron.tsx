@@ -1,5 +1,6 @@
 import { useSmelterKeyframes } from './keyframes'
 import type { HeroStone } from '@hero-legend/shared-types'
+import { HeroStoneIcon } from '../../components/HeroStoneIcon'
 
 const SLOT_POS: Array<{ top?: string; bottom?: string; left?: string; right?: string }> = [
   { top: '8%', left: '50%' },           // 凹槽① 顶中
@@ -98,10 +99,7 @@ export function Cauldron({ slots, phase, resultStone, onSlotClick, slotsPulsing 
             }}
           >
             {stone ? (
-              <div style={{ textAlign: 'center', lineHeight: 1.2 }}>
-                <div style={{ color: 'var(--text-gold)', fontSize: '10px' }}>{'★'.repeat(stone.starLevel)}</div>
-                <div style={{ fontSize: '10px' }}>{stone.heroId.slice(0, 4)}</div>
-              </div>
+              <HeroStoneIcon heroId={stone.heroId} starLevel={stone.starLevel} size={56} />
             ) : (
               <span style={{ color: slotColor, fontSize: '18px' }}>+</span>
             )}
@@ -116,15 +114,10 @@ export function Cauldron({ slots, phase, resultStone, onSlotClick, slotsPulsing 
           zIndex: 5, animation: 'result-rise 400ms ease-out forwards',
         }}>
           <div style={{
-            width: '80px', height: '80px', borderRadius: '50%',
-            background: `linear-gradient(135deg, #ff6b6b, #c62828)`,
-            border: '3px solid #ffd54f',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight: 'bold', textAlign: 'center', position: 'relative',
-            boxShadow: '0 0 30px rgba(255, 213, 79, 0.8)',
+            position: 'relative',
+            filter: 'drop-shadow(0 0 20px rgba(255, 213, 79, 0.9))',
           }}>
-            <div style={{ fontSize: '12px', color: '#ffd54f' }}>{'★'.repeat(resultStone.starLevel)}</div>
-            <div style={{ fontSize: '11px', padding: '0 4px' }}>{resultStone.heroId.slice(0, 6)}</div>
+            <HeroStoneIcon heroId={resultStone.heroId} starLevel={resultStone.starLevel} size={96} />
             {/* 高光环 */}
             <div style={{
               position: 'absolute', inset: '-8px', borderRadius: '50%',
