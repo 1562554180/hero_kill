@@ -81,7 +81,7 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
                 position: 'relative',
                 aspectRatio: '1',
                 background: icon
-                  ? `url("${icon}") 1px 0px / contain no-repeat`
+                  ? `url("${icon}") 0px 0px / contain no-repeat`
                   : (isSelected ? '#3a2a1a' : 'var(--bg-dark)'),
                 border: `1px solid ${borderColor}`,
                 borderRadius: '4px',
