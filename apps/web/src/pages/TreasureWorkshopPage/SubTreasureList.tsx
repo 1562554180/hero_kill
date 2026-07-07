@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Treasure } from '@hero-legend/shared-types'
+import { getSkillIcon } from '../../skillIcons'
 
 interface SubTreasureListProps {
   treasures: Treasure[]
@@ -10,7 +11,7 @@ interface SubTreasureListProps {
   disabled?: boolean
 }
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 48
 const MAX_LEVEL = 45
 const MAX_ENHANCE_COUNT = 50
 
@@ -19,12 +20,19 @@ function nextEnhanceRate(level: number): number {
   return Math.max(0, Math.round(100 - level * 85 / 44))
 }
 
+const STAR_BORDER: Record<number, string> = {
+  5: '#ffd700',
+  4: '#a78bfa',
+  3: '#60a5fa',
+  2: '#86efac',
+  1: '#9ca3af',
+}
+
 export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasureIds, onPick, onUnpick, disabled }: SubTreasureListProps) {
   const subs = useMemo(() => treasures.filter(t => t.type !== 'main'), [treasures])
   const totalPages = Math.max(1, Math.ceil(subs.length / PAGE_SIZE))
   const [page, setPage] = useState(0)
 
-  // 总页数变少 (强化消耗/熔炼后) 把 page 收回
   useEffect(() => {
     if (page >= totalPages) setPage(Math.max(0, totalPages - 1))
   }, [page, totalPages])
@@ -42,61 +50,84 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-      <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px', padding: '0 4px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ color: 'var(--text-muted)', fontSize: '12px', padding: '0 4px' }}>
         共 {subs.length} 条 · 第 {start + 1}-{end} 条
       </div>
-      {pageItems.map(t => {
-        const lvl = t.level ?? 0
-        const cnt = t.enhanceCount ?? 0
-        const atMaxLevel = lvl >= MAX_LEVEL
-        const outOfAttempts = cnt >= MAX_ENHANCE_COUNT
-        const isMaxed = atMaxLevel || outOfAttempts
-        const isSelected = selectedTreasureId === t.id
-        const isDisabled = disabledTreasureIds.has(t.id) || isMaxed
-        const rate = atMaxLevel ? null : nextEnhanceRate(lvl)
-        const rateColor = rate == null ? '#ff6b6b'
-          : rate >= 80 ? '#7ec850'
-          : rate >= 50 ? 'var(--text-gold)'
-          : rate >= 20 ? '#ff9e3a'
-          : '#ff6b6b'
-        return (
-          <div
-            key={t.id}
-            onClick={() => !disabled && !isDisabled && onPick(t.id)}
-            onDoubleClick={() => !disabled && isSelected && onUnpick?.()}
-            style={{
-              background: isSelected ? '#3a2a1a' : 'var(--bg-dark)',
-              border: `1px solid ${isSelected ? 'var(--text-gold)' : 'var(--border-wood)'}`,
-              borderRadius: '4px', padding: '6px 10px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              cursor: disabled || isDisabled ? 'not-allowed' : 'pointer',
-              opacity: disabled || isDisabled ? 0.4 : 1,
-              fontSize: '12px',
-              transition: 'all 150ms',
-            }}
-          >
-            <span style={{ color: 'var(--text-light)', fontWeight: 'bold' }}>
-              {'★'.repeat(t.starLevel)} {t.name}
-            </span>
-            <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-light)', fontSize: '11px' }}>
-                Lv.<span style={{ color: 'var(--text-gold)', fontWeight: 'bold' }}>{lvl}</span>
-                <span style={{ color: 'var(--text-muted)' }}>/{MAX_LEVEL}</span>
-              </span>
-              <span style={{ color: rateColor, fontSize: '11px', fontWeight: 'bold', minWidth: '42px', textAlign: 'right' }}>
-                {atMaxLevel ? '已满级' : `${rate}%`}
-              </span>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))',
+        gap: '6px',
+        alignContent: 'start',
+      }}>
+        {pageItems.map(t => {
+          const lvl = t.level ?? 0
+          const cnt = t.enhanceCount ?? 0
+          const atMaxLevel = lvl >= MAX_LEVEL
+          const outOfAttempts = cnt >= MAX_ENHANCE_COUNT
+          const isMaxed = atMaxLevel || outOfAttempts
+          const isSelected = selectedTreasureId === t.id
+          const isDisabled = disabledTreasureIds.has(t.id) || isMaxed
+          const rate = atMaxLevel ? null : nextEnhanceRate(lvl)
+          const icon = getSkillIcon(t.name)
+          const borderColor = isSelected ? 'var(--text-gold)' : (STAR_BORDER[t.starLevel] ?? 'var(--border-wood)')
+          return (
+            <div
+              key={t.id}
+              title={`${'★'.repeat(t.starLevel)} ${t.name}\nLv.${lvl}/${MAX_LEVEL}  强化 ${cnt}/${MAX_ENHANCE_COUNT}\n${atMaxLevel ? '已满级' : `成功率 ${rate}%`}`}
+              onClick={() => !disabled && !isDisabled && onPick(t.id)}
+              onDoubleClick={() => !disabled && isSelected && onUnpick?.()}
+              style={{
+                position: 'relative',
+                aspectRatio: '1',
+                background: isSelected ? '#3a2a1a' : 'var(--bg-dark)',
+                border: `2px solid ${borderColor}`,
+                borderRadius: '6px',
+                cursor: disabled || isDisabled ? 'not-allowed' : 'pointer',
+                opacity: disabled || isDisabled ? 0.4 : 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                overflow: 'hidden',
+                transition: 'all 150ms',
+              }}
+            >
+              {icon ? (
+                <img src={icon} alt={t.name} style={{ width: '90%', height: '90%', objectFit: 'contain' }} />
+              ) : (
+                <span style={{ color: 'var(--text-light)', fontSize: '11px', fontWeight: 'bold', textAlign: 'center', padding: '2px' }}>
+                  {t.name}
+                </span>
+              )}
+              {/* 星级 (左上) */}
               <span style={{
-                color: outOfAttempts ? '#ff6b6b' : 'var(--text-muted)',
-                fontSize: '11px',
-              }}>
-                {cnt}/{MAX_ENHANCE_COUNT}
-              </span>
-            </span>
-          </div>
-        )
-      })}
+                position: 'absolute', top: '2px', left: '3px',
+                fontSize: '10px', color: STAR_BORDER[t.starLevel],
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                fontWeight: 'bold', pointerEvents: 'none',
+              }}>{t.starLevel}★</span>
+              {/* 等级 (右下) */}
+              <span style={{
+                position: 'absolute', bottom: '2px', right: '3px',
+                fontSize: '10px', color: isMaxed ? '#ff6b6b' : 'var(--text-gold)',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                fontWeight: 'bold', pointerEvents: 'none',
+              }}>{atMaxLevel ? '满' : `L${lvl}`}</span>
+              {/* 成功率指示 (左下小点) */}
+              {!atMaxLevel && (
+                <span style={{
+                  position: 'absolute', bottom: '3px', left: '3px',
+                  width: '6px', height: '6px', borderRadius: '50%',
+                  background: rate == null ? '#ff6b6b'
+                    : rate >= 80 ? '#7ec850'
+                    : rate >= 50 ? 'var(--text-gold)'
+                    : rate >= 20 ? '#ff9e3a'
+                    : '#ff6b6b',
+                  pointerEvents: 'none',
+                }} />
+              )}
+            </div>
+          )
+        })}
+      </div>
 
       {totalPages > 1 && (
         <div style={{
