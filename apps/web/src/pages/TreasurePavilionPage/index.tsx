@@ -25,7 +25,8 @@ const STAR_BORDER: Record<number, string> = {
 }
 
 function defName(id: string): string {
-  return treasureDefinitions.find(d => d.id === id)?.name ?? id
+  const raw = treasureDefinitions.find(d => d.id === id)?.name ?? id
+  return stripLevelSuffix(raw)
 }
 
 function defDesc(id: string): string {
@@ -34,6 +35,11 @@ function defDesc(id: string): string {
 
 function defStar(id: string): number {
   return treasureDefinitions.find(d => d.id === id)?.starLevel ?? 1
+}
+
+/** 去掉名字里的等级后缀: "轻灵·肆" → "轻灵", "强化·伍" → "强化" */
+function stripLevelSuffix(name: string): string {
+  return name.replace(/[·•\-—]\s*[壹贰叁肆伍一二三四五1-5]\s*$/, '').trim()
 }
 
 export function TreasurePavilionPage() {
@@ -346,9 +352,9 @@ function DrawnCard({ item, entered, revealed }: { item: DrawItem; entered: boole
   let isTreasureKind = false
   if (item.kind === 'treasure') {
     star = item.star
-    title = item.treasure.name
+    title = stripLevelSuffix(item.treasure.name)
     subtitle = '宝具'
-    iconName = getSkillIcon(title)
+    iconName = getSkillIcon(item.treasure.name)
     isTreasureKind = true
   } else if (item.kind === 'universal') {
     star = 5
