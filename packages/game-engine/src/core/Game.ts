@@ -1299,11 +1299,18 @@ export class Game {
       this.emitSkillTrigger(attacker, '精准', '杀不可闪响应')
     }
 
-    // 豹头: 目标手牌数≥攻击者体力 → 此杀不可被闪
-    if (!assassinNoDodge && attacker.hasSkillOrTreasure('bao-tou') &&
-        defender.getHandSize() >= attacker.getCurrentHp()) {
-      assassinNoDodge = true
-      this.emitSkillTrigger(attacker, '豹头', `目标手牌${defender.getHandSize()}≥体力${attacker.getCurrentHp()}-不可闪`)
+    // 豹头: (1) 目标手牌数≥攻击者体力 或 (2) 目标手牌数≤攻击者攻击范围 → 不可闪
+    if (!assassinNoDodge && attacker.hasSkillOrTreasure('bao-tou')) {
+      const defHand = defender.getHandSize()
+      const attackerHp = attacker.getCurrentHp()
+      const attackerRange = attacker.getAttackRange()
+      if (defHand >= attackerHp) {
+        assassinNoDodge = true
+        this.emitSkillTrigger(attacker, '豹头', `目标手牌${defHand}≥体力${attackerHp}-不可闪`)
+      } else if (defHand <= attackerRange) {
+        assassinNoDodge = true
+        this.emitSkillTrigger(attacker, '豹头', `目标手牌${defHand}≤攻击范围${attackerRange}-不可闪`)
+      }
     }
 
     // 检查防御
