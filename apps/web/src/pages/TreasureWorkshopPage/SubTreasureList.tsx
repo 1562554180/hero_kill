@@ -56,7 +56,7 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
       </div>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(40px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(32px, 1fr))',
         gap: '4px',
         alignContent: 'start',
       }}>
@@ -81,7 +81,7 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
                 position: 'relative',
                 aspectRatio: '1',
                 background: icon
-                  ? `url("${icon}") center/contain no-repeat`
+                  ? `url("${icon}") 1px 0px / contain no-repeat`
                   : (isSelected ? '#3a2a1a' : 'var(--bg-dark)'),
                 border: `1px solid ${borderColor}`,
                 borderRadius: '4px',
