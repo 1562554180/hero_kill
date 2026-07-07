@@ -48,7 +48,7 @@ export function TreasurePavilionPage() {
   const [ticket, setTicket] = useState(0)
   const [universal, setUniversal] = useState(0)
   const [pieces, setPieces] = useState<{ treasureId: string; amount: number }[]>([])
-  const [drawing, setDrawing] = useState<DrawItem[] | null>(null)
+  const [drawing, setDrawing] = useState<{ items: DrawItem[]; count: 1 | 10 } | null>(null)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const userId = localStorage.getItem('hero-legend-userId') || ''
@@ -75,7 +75,7 @@ export function TreasurePavilionPage() {
       })
       const data = await res.json()
       if (!res.ok || data.error) { setMessage(data.error ?? '抽卡失败'); return }
-      setDrawing(data.results)
+      setDrawing({ items: data.results, count })
       await refresh()
     } catch (e: any) {
       setMessage('抽卡失败: ' + (e?.message ?? '网络错误'))
@@ -276,7 +276,13 @@ export function TreasurePavilionPage() {
 
       {drawing && (
         <PavilionDrawAnimation
-          items={drawing}
+          items={drawing.items}
+          count={drawing.count}
+          onContinue={() => {
+            const c = drawing.count
+            setDrawing(null)
+            draw(c)
+          }}
           onClose={() => setDrawing(null)}
         />
       )}
@@ -284,7 +290,12 @@ export function TreasurePavilionPage() {
   )
 }
 
-function PavilionDrawAnimation({ items, onClose }: { items: DrawItem[]; onClose: () => void }) {
+function PavilionDrawAnimation({ items, count, onContinue, onClose }: {
+  items: DrawItem[]
+  count: 1 | 10
+  onContinue: () => void
+  onClose: () => void
+}) {
   const [revealedCount, setRevealedCount] = useState(0)
   const [enteredCount, setEnteredCount] = useState(0)
 
@@ -302,6 +313,7 @@ function PavilionDrawAnimation({ items, onClose }: { items: DrawItem[]; onClose:
   }, [enteredCount, revealedCount, items.length])
 
   const allRevealed = revealedCount >= items.length
+  const continueLabel = count === 1 ? '继续单抽 (×1)' : '继续十连 (×9)'
 
   return (
     <div style={{
@@ -332,13 +344,24 @@ function PavilionDrawAnimation({ items, onClose }: { items: DrawItem[]; onClose:
 
       <button
         disabled={!allRevealed}
-        onClick={onClose}
+        onClick={onContinue}
         style={{
           marginTop: '32px', padding: '10px 32px', fontSize: '16px',
           opacity: allRevealed ? 1 : 0.4,
         }}
       >
-        {allRevealed ? '关闭' : '翻开中...'}
+        {allRevealed ? continueLabel : '翻开中...'}
+      </button>
+
+      <button
+        onClick={onClose}
+        style={{
+          marginTop: '8px', padding: '4px 12px', fontSize: '12px',
+          background: 'transparent', color: 'var(--text-muted)',
+          border: 'none', cursor: 'pointer',
+        }}
+      >
+        返回
       </button>
     </div>
   )
