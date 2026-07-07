@@ -61,6 +61,20 @@ export class HeroService {
     if (stackIdx < 0) return { error: '宝具不存在' }
     const stack: Treasure = save.treasures[stackIdx]
 
+    // 校验: 该 skill.id 已装备在任意槽位 → 不允许重复 (排除即将被替换的当前槽)
+    const newSkillId = stack.skill?.id
+    if (newSkillId) {
+      const mainSlots = heroInstance.treasures.main
+      const subSlots = heroInstance.treasures.sub
+      const conflictInMain = mainSlots.some((t, i) =>
+        i !== (slotType === 'main' ? slotIndex : -1) && t?.skill?.id === newSkillId)
+      const conflictInSub = subSlots.some((t, i) =>
+        i !== (slotType === 'sub' ? slotIndex : -1) && t?.skill?.id === newSkillId)
+      if (conflictInMain || conflictInSub) {
+        return { error: '已有相同技能的宝具, 不能重复镶嵌' }
+      }
+    }
+
     // 卸下旧宝具 (合并到背包堆叠)
     if (slots[slotIndex]) {
       save.treasures = pushToInventory(save.treasures, slots[slotIndex] as Treasure)
