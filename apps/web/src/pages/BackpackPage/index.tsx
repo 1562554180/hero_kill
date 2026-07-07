@@ -102,6 +102,15 @@ export function BackpackPage() {
   const heroMap = useMemo(() => new Map(allHeroes.map(h => [h.id, h])), [allHeroes])
   const stoneGroups = useMemo(() => groupStones(stones), [stones])
 
+  /** 宝具列表默认排序: 强化等级 desc → 星级 desc */
+  const sortedTreasures = useMemo(() => {
+    return [...treasures].sort((a, b) => {
+      const lvlDiff = (b.level ?? 0) - (a.level ?? 0)
+      if (lvlDiff !== 0) return lvlDiff
+      return (b.starLevel ?? 0) - (a.starLevel ?? 0)
+    })
+  }, [treasures])
+
   // 宝具 → 装备它的英雄 (一个宝具同时只能被一个英雄装备, 因 id 唯一)
   const equippedMap = useMemo(() => {
     const m = new Map<string, { instanceId: string; heroId: string; slot: 'main' | 'sub'; index: number }>()
@@ -267,7 +276,7 @@ export function BackpackPage() {
           ) : (
             <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(48px, 1fr))', columnGap: '4px', rowGap: '16px' }}>
-              {treasures.slice(treasurePage * TREASURE_PAGE_SIZE, (treasurePage + 1) * TREASURE_PAGE_SIZE).map(t => {
+              {sortedTreasures.slice(treasurePage * TREASURE_PAGE_SIZE, (treasurePage + 1) * TREASURE_PAGE_SIZE).map(t => {
                 const n = t.count ?? 1
                 const equipped = equippedMap.get(t.id)
                 const equippedHeroName = equipped

@@ -2273,7 +2273,10 @@ export class Game {
         ]
         : []
       const allRescueCards = [...yaoHandCards, ...huiChunCards]
-      if (allRescueCards.length === 0) continue
+      // 濒死目标本人: 总是要询问一次 (即使没牌, 让玩家确认"放弃救援")
+      // 队友没牌则跳过 (不打扰)
+      const isDyingTargetSelf = savior.getId() === dyingTarget.getId()
+      if (!isDyingTargetSelf && allRescueCards.length === 0) continue
 
       let cardIds: string[] = []
       if (savior.getRole() === 'player' && this.config.dyingRescueHandler) {

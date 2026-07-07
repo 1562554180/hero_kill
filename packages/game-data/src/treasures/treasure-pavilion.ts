@@ -4,12 +4,14 @@ import { treasureDefinitions } from './treasure-definitions.js'
 export const TREASURE_PAVILION_EXCHANGE_LIST = [
   { treasureId: 'treasure-feng-huo',       star: 4 as const, price: 4000 },
   { treasureId: 'treasure-zui-jiu',        star: 4 as const, price: 4000 },
+  { treasureId: 'main_shengqiang_4',       star: 4 as const, price: 4000 },
   { treasureId: 'treasure-kong-ju',        star: 5 as const, price: 5000 },
   { treasureId: 'treasure-fa-jia',         star: 5 as const, price: 5000 },
   { treasureId: 'treasure-guo-se',         star: 5 as const, price: 5000 },
   { treasureId: 'treasure-qiang-hua-5',    star: 5 as const, price: 5000 },
   { treasureId: 'treasure-jing-zhun-5',    star: 5 as const, price: 5000 },
   { treasureId: 'treasure-sha-zhi-tan-5',  star: 5 as const, price: 5000 },
+  { treasureId: 'main_shengqiang_5',       star: 5 as const, price: 5000 },
 ] as const
 
 /** 指定宝具碎片合成所需数量 */
