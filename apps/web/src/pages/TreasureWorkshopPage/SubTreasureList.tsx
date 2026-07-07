@@ -91,7 +91,7 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
               }}
             >
               {icon ? (
-                <img src={icon} alt={t.name} style={{ width: '90%', height: '90%', objectFit: 'contain' }} />
+                <img src={icon} alt={t.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               ) : (
                 <span style={{ color: 'var(--text-light)', fontSize: '10px', fontWeight: 'bold', textAlign: 'center', padding: '2px' }}>
                   {t.name}
