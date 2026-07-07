@@ -20,7 +20,7 @@ import type {
   BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx, HouZhuCtx, TianXiangCtx, ManWuPickCardCtx,
   ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx, ZhenShaCtx, JueBieCtx, BuDaoCtx,
   FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
-  SheShenCtx, SheShenTriggerCtx,
+  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx,
 } from '@hero-legend/game-engine'
 import type { Card, EquipmentSlot, GameEvent } from '@hero-legend/shared-types'
 import type {
@@ -180,6 +180,7 @@ function buildWrappedConfig(config: SerializedGameConfig): GameConfig {
   wrapped.zhenShaHandler = (ctx: ZhenShaCtx) => forwardHandler('zhenShaHandler', ctx)
   wrapped.jueBieHandler = (ctx: JueBieCtx) => forwardHandler('jueBieHandler', ctx)
   wrapped.buDaoHandler = (ctx: BuDaoCtx) => forwardHandler('buDaoHandler', ctx)
+  wrapped.panLongGunHandler = (ctx: PanLongGunCtx) => forwardHandler('panLongGunHandler', ctx)
   wrapped.fuChouTriggerHandler = (ctx: FuChouTriggerCtx) => forwardHandler('fuChouTriggerHandler', ctx)
   wrapped.fuChouChooseHandler = (ctx: FuChouChooseCtx) => forwardHandler('fuChouChooseHandler', ctx)
   wrapped.fuChouPickHandler = (ctx: FuChouPickCtx) => forwardHandler('fuChouPickHandler', ctx)
@@ -268,6 +269,12 @@ async function handleAction(name: EngineMethodName, args: EngineMethodArgsMap[En
       const [pid, wid, tid] = args as EngineMethodArgsMap['playerJueJi']
       const p = lookup(pid)
       if (p) await g.playerJueJi(p, wid, tid ?? '')
+      return
+    }
+    case 'playerFuJing': {
+      const [pid] = args as EngineMethodArgsMap['playerFuJing']
+      const p = lookup(pid)
+      if (p) await g.playerFuJing(p)
       return
     }
     case 'playerXiaDan': {

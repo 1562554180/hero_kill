@@ -31,7 +31,7 @@ import type {
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
   HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
-  SheShenCtx, SheShenTriggerCtx,
+  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx,
 } from '@hero-legend/game-engine'
 import type { HeroInstance } from '@hero-legend/shared-types'
 
@@ -72,6 +72,7 @@ export type HandlerName =
   | 'zhenShaHandler'
   | 'jueBieHandler'
   | 'buDaoHandler'
+  | 'panLongGunHandler'
   | 'fuChouTriggerHandler'
   | 'fuChouChooseHandler'
   | 'fuChouPickHandler'
@@ -88,7 +89,7 @@ export type HandlerCtx =
   | FaJiaPickCtx | YuRuYiCtx | DiscardPickCtx | BaWangMountCtx | QiangLueCtx | CiKeCtx | DieHunCtx
   | HouZhuCtx | TianXiangCtx | ManWuPickCardCtx | ManWuCtx | JueJiCtx | MenShenTargetCtx | SanBanFuCtx
   | ZhenShaCtx | JueBieCtx | BuDaoCtx | FuChouTriggerCtx | FuChouChooseCtx | FuChouPickCtx | DyingRescueCtx
-  | SheShenCtx | SheShenTriggerCtx
+  | SheShenCtx | SheShenTriggerCtx | PanLongGunCtx
   | undefined  // awaitUIReady 无 ctx
 
 // ---------- 启动配置 (可序列化) ----------
@@ -123,6 +124,7 @@ export type EngineMethodName =
   | 'playerZhiYu'
   | 'playerFengHuo'
   | 'playerJueJi'
+  | 'playerFuJing'
   | 'playerXiaDan'
   | 'playerQiYi'
   | 'playerShiQuan'
@@ -149,6 +151,7 @@ export interface EngineMethodArgsMap {
   playerZhiYu: [playerId: string, cardIds: string[], targetId: string]
   playerFengHuo: [playerId: string, cardId: string]
   playerJueJi: [playerId: string, weaponCardId: string | null, targetId?: string]
+  playerFuJing: [playerId: string]
   playerXiaDan: [playerId: string, targetId: string]
   playerQiYi: [playerId: string, targetIds: string[], cardMap: Record<string, string>]
   playerShiQuan: [playerId: string, cardId: string]
@@ -176,6 +179,7 @@ export interface EngineMethodReturnMap {
   playerZhiYu: void
   playerFengHuo: void
   playerJueJi: void
+  playerFuJing: void
   playerXiaDan: void
   playerQiYi: void
   playerShiQuan: void

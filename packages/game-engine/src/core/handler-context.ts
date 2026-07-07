@@ -200,6 +200,13 @@ export interface BuDaoCtx {
   victimId: string
 }
 
+/** 盘龙棍: 杀被闪避后, 装备者是否继续追击 (true=继续出杀; false=停止) */
+export interface PanLongGunCtx {
+  attackerId: string
+  defenderId: string
+  nextKillCardId: string     // 手牌中可作追击的下一张杀
+}
+
 export interface FuChouTriggerCtx {
   victimId: string
   attackerId: string

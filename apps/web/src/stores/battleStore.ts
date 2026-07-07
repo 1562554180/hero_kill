@@ -7,7 +7,7 @@ import type {
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, CiKeCtx, DieHunCtx,
   HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
-  SheShenCtx, SheShenTriggerCtx
+  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx
 } from '@hero-legend/game-engine'
 import type { GameState, BattleResult, Card, GameEvent, GameEventType, HeroInstance, EquipmentSlot } from '@hero-legend/shared-types'
 import type { FlyingCard, FlyingStage } from '../components/FlyingCard'
@@ -161,6 +161,9 @@ class GameProxy {
   async playerJueJi(_p: PlayerProxy, weaponCardId: string | null, targetId?: string): Promise<void> {
     await engineProxy?.action('playerJueJi', _p.id, weaponCardId, targetId)
   }
+  async playerFuJing(_p: PlayerProxy): Promise<void> {
+    await engineProxy?.action('playerFuJing', _p.id)
+  }
   async playerXiaDan(_p: PlayerProxy, targetId: string): Promise<void> {
     await engineProxy?.action('playerXiaDan', _p.id, targetId)
   }
@@ -231,7 +234,7 @@ interface BattleState {
   // 釜底抽薪: 选目标后展示其手牌/判定/装备
   fudiTargetInfo: { id: string; name: string; hand: Card[]; judge: Card[]; equipment: Card[] } | null
   // 主印技能流程
-  treasureSkill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan' | 'yu-ren' | 'shi-quan' | null
+  treasureSkill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan' | 'yu-ren' | 'shi-quan' | 'fu-jing' | null
   treasurePrompt: string
   treasureCardIds: string[]         // 累计已选的卡牌 (用于治愈/绝击)
   treasureTargetIds: string[]       // 累计已选的目标 (用于起义)
@@ -300,6 +303,9 @@ interface BattleState {
   resolveZhenSha: ((use: boolean) => void) | null
   // 补刀: 关羽对受害角色出杀
   buDaoPrompt: { victimId: string; victimName: string } | null
+  /** 盘龙棍: 杀被闪避后是否继续追击 */
+  panLongGunPrompt: { defenderName: string } | null
+  resolvePanLongGun: ((proceed: boolean) => void) | null
   resolveBuDao: ((cardId: string | null) => void) | null
   // 三板斧: 程咬金出杀时确认
   sanBanFuPrompt: { targetName: string } | null
@@ -391,7 +397,7 @@ interface BattleState {
   selectFaJiaCard: (cardId: string | null) => void
   cancelFaJiaCard: () => void
   // 宝具技能
-  useTreasureSkill: (skill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan' | 'yu-ren' | 'shi-quan') => void
+  useTreasureSkill: (skill: 'liao-shang' | 'zhi-yu' | 'feng-huo' | 'jue-ji' | 'qi-yi' | 'xia-dan' | 'yu-ren' | 'shi-quan' | 'fu-jing') => void
   pickTreasureCard: (cardId: string) => Promise<void> | void
   pickTreasureTarget: (targetId: string) => void
   confirmTreasureTargets: () => void
@@ -457,6 +463,8 @@ interface BattleState {
   // 三板斧
   confirmSanBanFu: () => void
   cancelSanBanFu: () => void
+  confirmPanLongGun: () => void
+  cancelPanLongGun: () => void
   // 复仇
   confirmFuChouTrigger: () => void
   cancelFuChouTrigger: () => void
@@ -696,6 +704,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveZhenSha: null,
   buDaoPrompt: null,
   resolveBuDao: null,
+  panLongGunPrompt: null,
+  resolvePanLongGun: null,
   sanBanFuPrompt: null,
   resolveSanBanFu: null,
   fuChouTriggerPrompt: null,
@@ -817,6 +827,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveZhenSha: null,
       buDaoPrompt: null,
       resolveBuDao: null,
+      panLongGunPrompt: null,
+      resolvePanLongGun: null,
       sanBanFuPrompt: null,
       resolveSanBanFu: null,
       fuChouTriggerPrompt: null,
@@ -1302,6 +1314,19 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           set({ resolveBuDao: resolve })
         })
       },
+      panLongGunHandler: async (ctx: PanLongGunCtx) => {
+        const attacker = P(ctx.attackerId)
+        // AI 装备者: 默认继续追击 (省 UI)
+        if (attacker.getRole() !== 'player') {
+          await new Promise(r => setTimeout(r, 300))
+          return true
+        }
+        const defender = P(ctx.defenderId)
+        set({ panLongGunPrompt: { defenderName: defender.getName() } })
+        return new Promise<boolean>(resolve => {
+          set({ resolvePanLongGun: resolve })
+        })
+      },
       sanBanFuHandler: async (ctx: SanBanFuCtx) => {
         const defender = P(ctx.defenderId)
         set({ sanBanFuPrompt: { targetName: defender.getName() } })
@@ -1707,6 +1732,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         gameState: snap.gameState,
         playerHand: snap.playerHand,
         equippedCards: snap.equippedCardsByHero,
+        aoJianActive: snap.aoJianActive,
       })
       Object.keys(snap.heroNames).forEach(k => { heroNames[k] = snap.heroNames[k] })
     }
@@ -2261,6 +2287,16 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       set({ phase: 'treasureSelectEquipment', treasurePrompt: '【烽火】选择1张装备区装备弃置' })
     } else if (skill === 'jue-ji') {
       set({ phase: 'treasureSelectTarget', treasurePrompt: '【绝击】选择攻击范围内的1名角色 (无武器则自己掉1血)' })
+    } else if (skill === 'fu-jing') {
+      // 负荆: 直接执行 (无目标), 自己掉1血+摸2张
+      set({ phase: 'waiting', treasurePrompt: '【负荆】掉1血摸2张...' })
+      void (async () => {
+        try {
+          await game!.playerFuJing(player)
+        } finally {
+          set({ treasureSkill: null, treasurePrompt: '', phase: 'playing', gameState: game!.getState(), playerHand: player.getHand() })
+        }
+      })()
     } else if (skill === 'qi-yi') {
       set({ phase: 'treasureSelectTargets', treasurePrompt: '【起义】选择至多2名其他角色 (各获得1张手牌), 点确认结束' })
     } else if (skill === 'shi-quan') {
@@ -2757,6 +2793,20 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (!resolveSanBanFu) return
     resolveSanBanFu(false)
     set({ resolveSanBanFu: null, sanBanFuPrompt: null, phase: 'waiting' })
+  },
+
+  // 盘龙棍: 继续 / 停止
+  confirmPanLongGun: () => {
+    const { resolvePanLongGun } = get()
+    if (!resolvePanLongGun) return
+    resolvePanLongGun(true)
+    set({ resolvePanLongGun: null, panLongGunPrompt: null, phase: 'waiting' })
+  },
+  cancelPanLongGun: () => {
+    const { resolvePanLongGun } = get()
+    if (!resolvePanLongGun) return
+    resolvePanLongGun(false)
+    set({ resolvePanLongGun: null, panLongGunPrompt: null, phase: 'waiting' })
   },
 
   // 复仇: 发动 / 不发动

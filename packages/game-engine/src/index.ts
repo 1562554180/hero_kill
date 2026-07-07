@@ -9,7 +9,7 @@ export type {
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
   HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
-  SheShenCtx, SheShenTriggerCtx
+  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx
 } from './core/handler-context.js'
 export type { DerivedSnapshot } from './core/derived-snapshot.js'
 export { DrawPhase, DiscardPhase, JudgePhase } from './phases/index.js'

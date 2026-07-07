@@ -15,7 +15,7 @@ import type {
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
   HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
-  SheShenCtx, SheShenTriggerCtx
+  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx
 } from './handler-context.js'
 
 export type {
@@ -25,7 +25,7 @@ export type {
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
   HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
-  SheShenCtx, SheShenTriggerCtx
+  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx
 } from './handler-context.js'
 
 export interface GameConfig {
@@ -108,6 +108,8 @@ export interface GameConfig {
   jueBieHandler?: (ctx: JueBieCtx) => Promise<string | null>
   /** 补刀: 关羽是否对目标补杀 (null=不补) */
   buDaoHandler?: (ctx: BuDaoCtx) => Promise<string | null>
+  /** 盘龙棍: 杀被闪避后是否继续追击 (返回 true=继续; false=停止) */
+  panLongGunHandler?: (ctx: PanLongGunCtx) => Promise<boolean>
   /** 复仇: 受伤后是否发动判定 (true=发动; false=不发动) */
   fuChouTriggerHandler?: (ctx: FuChouTriggerCtx) => Promise<boolean>
   /** 复仇: 判定成功后, 来源选 (弃2张手牌 / 掉1血). 返回 'discard' | 'damage'; 手牌<2时引擎直接掉血不询问 */
@@ -1527,19 +1529,31 @@ export class Game {
           }
         }
       }
-      // 盘龙棍: 杀被闪避后自动继续出杀 (手牌里找下一张杀, 对同一目标)
+      // 盘龙棍: 杀被闪避后, 询问装备者是否继续追击 (手牌里找下一张杀)
       if (attacker.getWeaponName() === '盘龙棍' && defender.isAlive()) {
         const nextKill = attacker.getHand().find(c => c.name === '杀')
         if (nextKill) {
-          this.emitSkillTrigger(attacker, '盘龙棍', `对${defender.getName()}继续出杀`)
-          await this.executeKill(attacker, defender, nextKill)
+          let proceed = true
+          if (this.config.panLongGunHandler) {
+            this.emitSkillTrigger(attacker, '盘龙棍', `询问是否继续追击`)
+            proceed = await this.config.panLongGunHandler({
+              attackerId: attacker.getId(),
+              defenderId: defender.getId(),
+              nextKillCardId: nextKill.id,
+            })
+          }
+          if (proceed) {
+            this.emitSkillTrigger(attacker, '盘龙棍', `对${defender.getName()}继续出杀`)
+            await this.executeKill(attacker, defender, nextKill)
+          }
         }
       }
     }
 
-    // 傲剑: 出杀后自动关闭激活状态 (激活一次使用一次)
+    // 傲剑: 出杀后自动关闭激活状态 (激活一次使用一次). 触发一次 emit 让 UI 快照刷新
     if (skillName === '傲剑' || usedAoJian) {
       this.aoJianActive.delete(attacker.getId())
+      this.emitSkillTrigger(attacker, '傲剑', '已关闭激活')
     }
   }
 

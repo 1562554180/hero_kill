@@ -29,7 +29,7 @@ export function FloatingPrompts() {
     manWuPrompt, manWuRedHeartCards, manWuSelectedCardId,
     tianXiangJudgeCard, tianXiangEquipment,
     menShenCandidates, jueBieCandidates,
-    zhenShaPrompt, buDaoPrompt, sanBanFuPrompt,
+    zhenShaPrompt, buDaoPrompt, sanBanFuPrompt, panLongGunPrompt,
     fuChouTriggerPrompt, fuChouChoosePrompt, fuChouPickSelected,
     sheShenTriggerPrompt,
     dyingRescuePrompt, dyingRescueSelected,
@@ -54,6 +54,7 @@ export function FloatingPrompts() {
     confirmZhenSha, cancelZhenSha,
     selectBuDaoCard,
     confirmSanBanFu, cancelSanBanFu,
+    confirmPanLongGun, cancelPanLongGun,
     confirmFuChouTrigger, cancelFuChouTrigger,
     confirmSheShenTrigger,
     confirmFuChouChoose,
@@ -103,6 +104,8 @@ export function FloatingPrompts() {
     confirmZhenSha: s.confirmZhenSha, cancelZhenSha: s.cancelZhenSha,
     selectBuDaoCard: s.selectBuDaoCard,
     confirmSanBanFu: s.confirmSanBanFu, cancelSanBanFu: s.cancelSanBanFu,
+    confirmPanLongGun: s.confirmPanLongGun, cancelPanLongGun: s.cancelPanLongGun,
+    panLongGunPrompt: s.panLongGunPrompt,
     confirmFuChouTrigger: s.confirmFuChouTrigger, cancelFuChouTrigger: s.cancelFuChouTrigger,
     confirmSheShenTrigger: s.confirmSheShenTrigger,
     confirmFuChouChoose: s.confirmFuChouChoose,
@@ -147,6 +150,7 @@ export function FloatingPrompts() {
     || !!fuChouTriggerPrompt
     || !!fuChouChoosePrompt
     || !!sheShenTriggerPrompt
+    || !!panLongGunPrompt
     || (phase === 'buDaoKill' && !!buDaoPrompt)
     || phase === 'chaoTuoPick'
     || phase === 'houZhuTarget'
@@ -155,7 +159,7 @@ export function FloatingPrompts() {
     || phase === 'selectMultiTargets'
     || phase === 'selectKillMultiTargets'
     || (phase === 'qiYiPrompt' && !!qiYiDecision)
-  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, sheShenTriggerPrompt, buDaoPrompt, dyingRescuePrompt, qiYiDecision])
+  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, sheShenTriggerPrompt, buDaoPrompt, dyingRescuePrompt, qiYiDecision, panLongGunPrompt])
 
   const killMultiCardId = useBattleStore(s => s.killMultiCardId)
   const [wolfFangPromptRect, setWolfFangPromptRect] = useState<{ left: number; top: number; width: number } | null>(null)
@@ -695,6 +699,28 @@ export function FloatingPrompts() {
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button style={treasureBtnStyle} onClick={confirmSanBanFu}>发动</button>
                     <button style={treasureBtnStyle} onClick={cancelSanBanFu}>普通【杀】</button>
+                  </div>
+                </div>
+              )}
+
+              {/* 20.5 盘龙棍 — 杀被闪避后是否继续追击 */}
+              {panLongGunPrompt && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '6px 10px',
+                  background: 'linear-gradient(135deg, rgba(120,80,40,0.18), rgba(60,30,15,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #c8a050',
+                  color: '#ffd54f', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(200,160,80,0.4)',
+                }}>
+                  <span>🐉 盘龙棍 — 杀被闪避, 是否对 <b>{panLongGunPrompt.defenderName}</b> 继续出【杀】?</span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button style={treasureBtnStyle} onClick={cancelPanLongGun}>不发动</button>
+                    <button className="primary" style={treasureBtnStyle} onClick={confirmPanLongGun}>继续出杀</button>
                   </div>
                 </div>
               )}
