@@ -371,7 +371,7 @@ export function HeroPage() {
                   <div style={{ marginTop: '8px', background: 'var(--bg-dark)', borderRadius: '4px', padding: '10px' }}>
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(40px, 1fr))',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(32px, 1fr))',
                       gap: '4px',
                       maxHeight: '280px', overflowY: 'auto',
                       alignContent: 'start',
