@@ -399,7 +399,7 @@ function DrawnCard({ item, entered, revealed }: { item: DrawItem; entered: boole
           <div style={{ fontSize: '11px', opacity: 0.8 }}>{subtitle}</div>
           {iconName && (
             <div style={{
-              width: '50%', aspectRatio: '1', marginTop: '6px',
+              width: '40%', aspectRatio: '1', marginTop: '6px',
               background: `url("${iconName}") center/contain no-repeat`,
               border: `2px solid ${borderColor}`,
               borderRadius: '4px',
