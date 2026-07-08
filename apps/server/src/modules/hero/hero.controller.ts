@@ -38,4 +38,12 @@ export class HeroController {
   async useStone(@Param('userId') userId: string, @Param('stoneId') stoneId: string) {
     return this.heroService.useHeroStone(userId, stoneId)
   }
+
+  @Post('banish/:userId/:instanceId')
+  async banish(
+    @Param('userId') userId: string,
+    @Param('instanceId') instanceId: string,
+  ) {
+    return this.heroService.banish(userId, instanceId)
+  }
 }
