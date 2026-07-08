@@ -143,6 +143,7 @@ export class Game {
   private skipNextTurnPlayerId: string | null = null  // 蓄谋：跳过指定玩家的下一回合
   private skipCurrentTurnPlayerId: string | null = null  // 画地为牢：跳过指定玩家的当前回合
   private aoJianActive = new Set<string>()  // 傲剑主动模式: 玩家id集合, 回合结束清空
+  private shenTouActive = new Set<string>()  // 神偷主动模式: 玩家id集合, 回合结束清空
   private emittedDie = new Set<string>()   // 已emit过 'die' 的玩家id, 防止强化/补刀等递归伤害重复emit
   // 侠胆: 胜→本回合所有杀可指定2目标 + 杀次数+1 (天狼/虎符不增加次数但保留2目标)
   //      负→本回合不能出杀
@@ -192,6 +193,17 @@ export class Game {
     return this.aoJianActive.has(playerId)
   }
 
+  // 神偷主动模式: UI点击激活/取消
+  activateShenTou(playerId: string): void {
+    this.shenTouActive.add(playerId)
+  }
+  deactivateShenTou(playerId: string): void {
+    this.shenTouActive.delete(playerId)
+  }
+  isShenTouActive(playerId: string): boolean {
+    return this.shenTouActive.has(playerId)
+  }
+
   /**
    * 计算当前引擎状态的 derived snapshot (可序列化派生数据).
    * 阶段 3 步骤 B: 在状态变更 emit 时附带, 让主线程子组件 render 期不再调 engine 方法.
@@ -203,6 +215,7 @@ export class Game {
       return {
         canPlayKill: false,
         aoJianActive: false,
+        shenTouActive: false,
         hasLeiInJudge: false,
         jueJiUsedCount: 0,
         playerHasEquipment: false,
@@ -297,6 +310,7 @@ export class Game {
     return {
       canPlayKill: this.canPlayKill,
       aoJianActive: this.aoJianActive.has(pid),
+      shenTouActive: this.shenTouActive.has(pid),
       hasLeiInJudge,
       jueJiUsedCount,
       playerHasEquipment,
@@ -865,6 +879,7 @@ export class Game {
     this.lastPlayedCardName = null
     this.zuijiuActive = false
     this.aoJianActive.clear()  // 傲剑主动模式: 每个玩家回合开始时清空
+    this.shenTouActive.clear()  // 神偷主动模式: 每个玩家回合开始时清空
     this.emittedDie.clear()     // 重置死亡去重集合 (为可能的复活机制留余地)
     // 门神: 秦琼的下回合开始时清除自己上回合指定的保护
     this.menShenMap.delete(player.getId())
@@ -2662,8 +2677,8 @@ export class Game {
   async playerPlayScheme(player: Player, cardId: string, targetId?: string): Promise<void> {
     const card = player.getHand().find(c => c.id === cardId)
     if (!card) return
-    // 神偷: 梅花手牌可作为探囊取物 (允许非 scheme 卡)
-    const isShenTou = player.hasSkillOrTreasure('shen-tou') && card.suit === 'club' && card.name !== '探囊取物'
+    // 神偷: 梅花手牌可作为探囊取物 (允许非 scheme 卡) — 需激活
+    const isShenTou = player.hasSkillOrTreasure('shen-tou') && this.shenTouActive.has(player.getId()) && card.suit === 'club' && card.name !== '探囊取物'
     if (card.type !== 'scheme' && !isShenTou) return
 
     // 魅惑: 方块牌可当画地为牢
@@ -2673,8 +2688,8 @@ export class Game {
       effectiveCard = { ...card, name: '画地为牢', delayed: true } as Card
       usedAsSkill = '魅惑'
     }
-    // 神偷: 梅花手牌可当探囊取物
-    if (player.hasSkillOrTreasure('shen-tou') && card.suit === 'club' && card.name !== '探囊取物') {
+    // 神偷: 梅花手牌可当探囊取物 — 需激活
+    if (isShenTou) {
       effectiveCard = { ...card, name: '探囊取物' } as Card
       usedAsSkill = '神偷'
     }

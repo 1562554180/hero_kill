@@ -96,6 +96,7 @@ function buildSnapshot(game: Game): WorkerSnapshot {
     playerId,
     heroNames,
     aoJianActive: player ? game.isAoJianActive(playerId) : false,
+    shenTouActive: player ? game.isShenTouActive(playerId) : false,
     canPlayKill: game.canPlayKill,
     jueJiUsedCount: derived.jueJiUsedCount,
     xiaDanMultiTargetPerKill,
@@ -327,6 +328,22 @@ async function handleAction(name: EngineMethodName, args: EngineMethodArgsMap[En
     case 'isAoJianActive': {
       const [pid] = args as EngineMethodArgsMap['isAoJianActive']
       return g.isAoJianActive(pid)
+    }
+    case 'activateShenTou': {
+      const [pid] = args as EngineMethodArgsMap['activateShenTou']
+      g.activateShenTou(pid)
+      postMsg({ kind: 'event', event: { type: 'phase:end', timestamp: Date.now(), data: { phase: 'shenTouToggle' } }, snapshot: buildSnapshot(g) })
+      return
+    }
+    case 'deactivateShenTou': {
+      const [pid] = args as EngineMethodArgsMap['deactivateShenTou']
+      g.deactivateShenTou(pid)
+      postMsg({ kind: 'event', event: { type: 'phase:end', timestamp: Date.now(), data: { phase: 'shenTouToggle' } }, snapshot: buildSnapshot(g) })
+      return
+    }
+    case 'isShenTouActive': {
+      const [pid] = args as EngineMethodArgsMap['isShenTouActive']
+      return g.isShenTouActive(pid)
     }
     case 'getMaxTargetsPerKill': {
       return g.getMaxTargetsPerKill()

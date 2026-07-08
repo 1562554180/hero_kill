@@ -95,6 +95,9 @@ class GameProxy {
   isAoJianActive(playerId: string): boolean {
     return !!latestSnapshot && playerId === latestSnapshot.playerId ? latestSnapshot.aoJianActive : false
   }
+  isShenTouActive(playerId: string): boolean {
+    return !!latestSnapshot && playerId === latestSnapshot.playerId ? latestSnapshot.shenTouActive : false
+  }
   getMaxTargetsPerKill(): number {
     return latestSnapshot?.xiaDanMultiTargetPerKill ?? 1
   }
@@ -125,6 +128,8 @@ class GameProxy {
   }
   activateAoJian(playerId: string): void { void engineProxy?.action('activateAoJian', playerId) }
   deactivateAoJian(playerId: string): void { void engineProxy?.action('deactivateAoJian', playerId) }
+  activateShenTou(playerId: string): void { void engineProxy?.action('activateShenTou', playerId) }
+  deactivateShenTou(playerId: string): void { void engineProxy?.action('deactivateShenTou', playerId) }
   resolveQiYiDecision(decision: { useIt: boolean; targetIds?: string[]; cardMap?: Record<string, string> } | null): void {
     void engineProxy?.action('resolveQiYiDecision', decision)
   }
@@ -198,6 +203,7 @@ interface BattleState {
   pendingCardFromPos: { x: number; y: number } | null  // 玩家点牌时手牌位置, 飞行卡起点用
   selectedTargetId: string | null  // pending 状态下选中的目标 (仅高亮, 不立即出牌)
   aoJianActive: boolean
+  shenTouActive: boolean
   /** 引擎派生快照 (阶段 3 步骤 B): 由 event.data.derived merge, 子组件 render 期读它替代调 game.xxx() */
   derived: DerivedSnapshot | null
   responsePrompt: string | null  // 例如 '决斗: 请打出【杀】或放弃'
@@ -356,6 +362,7 @@ interface BattleState {
   cancelSelection: () => void
   judgeReplace: (cardId: string | null) => void
   toggleAoJian: () => void
+  toggleShenTou: () => void
   respondWithCard: (cardId: string | null) => void
   // 狼牙棒多目标
   toggleTarget: (targetId: string) => void
@@ -627,6 +634,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   pendingCardFromPos: null,
   selectedTargetId: null,
   aoJianActive: false,
+  shenTouActive: false,
   derived: null,
   responsePrompt: null,
   responseType: null,
@@ -757,6 +765,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       pendingCardType: null,
       selectedTargetId: null,
       aoJianActive: false,
+      shenTouActive: false,
       derived: null,
       responsePrompt: null,
       responseType: null,
@@ -1340,11 +1349,13 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         while (true) {
           const state = game.getState()
           const engineAoJianActive = game.isAoJianActive(player.getId())
+          const engineShenTouActive = game.isShenTouActive(player.getId())
           set({
             gameState: state,
             playerHand: player.getHand(),
             phase: 'playing',
             aoJianActive: engineAoJianActive,
+            shenTouActive: engineShenTouActive,
           })
 
           const action = await new Promise<string | null>(resolve => {
@@ -1352,7 +1363,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           })
 
           if (!action || action === 'endPhase') {
-            set({ phase: 'waiting', aoJianActive: false })
+            set({ phase: 'waiting', aoJianActive: false, shenTouActive: false })
             return null
           }
 
@@ -1733,6 +1744,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         playerHand: snap.playerHand,
         equippedCards: snap.equippedCardsByHero,
         aoJianActive: snap.aoJianActive,
+        shenTouActive: snap.shenTouActive,
       })
       Object.keys(snap.heroNames).forEach(k => { heroNames[k] = snap.heroNames[k] })
     }
@@ -1741,7 +1753,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       unsubs.push(engineProxy.on(et, handler))
     }
 
-    set({ phase: 'waiting', actionLog: [], result: null, aoJianActive: false, selectedDiscardCards: [], discardCount: 0, resolveDiscard: null, baWangOptions: null, resolveBaWangMount: null })
+    set({ phase: 'waiting', actionLog: [], result: null, aoJianActive: false, shenTouActive: false, selectedDiscardCards: [], discardCount: 0, resolveDiscard: null, baWangOptions: null, resolveBaWangMount: null })
 
     try {
       const result = await engineProxy.start({
@@ -1753,7 +1765,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         enemyInstances: config.enemyInstances,
       })
       const finalSnap = engineProxy.latestSnapshot
-      set({ phase: 'ended', result, gameState: finalSnap?.gameState ?? null, aoJianActive: false })
+      set({ phase: 'ended', result, gameState: finalSnap?.gameState ?? null, aoJianActive: false, shenTouActive: false })
       return result
     } catch (err) {
       // 战斗中 engine 抛错: 清理 + 传播
@@ -2029,6 +2041,22 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     } else {
       game.activateAoJian(player.getId())
       set({ aoJianActive: true })
+    }
+  },
+
+  toggleShenTou: () => {
+    const game = gameRef
+    const { phase } = get()
+    if (phase !== 'playing' && phase !== 'awaitingResponse') return
+    const player = game?.getPlayer()
+    if (!player || !player.hasSkillOrTreasure('shen-tou')) return
+    if (!game) return
+    if (game.isShenTouActive(player.getId())) {
+      game.deactivateShenTou(player.getId())
+      set({ shenTouActive: false })
+    } else {
+      game.activateShenTou(player.getId())
+      set({ shenTouActive: true })
     }
   },
 

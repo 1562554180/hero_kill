@@ -134,6 +134,9 @@ export type EngineMethodName =
   | 'activateAoJian'
   | 'deactivateAoJian'
   | 'isAoJianActive'
+  | 'activateShenTou'
+  | 'deactivateShenTou'
+  | 'isShenTouActive'
   | 'getMaxTargetsPerKill'
   | 'canPlayerUseAsKill'
   | 'runPendingWuguContinuation'
@@ -161,6 +164,9 @@ export interface EngineMethodArgsMap {
   activateAoJian: [playerId: string]
   deactivateAoJian: [playerId: string]
   isAoJianActive: [playerId: string]
+  activateShenTou: [playerId: string]
+  deactivateShenTou: [playerId: string]
+  isShenTouActive: [playerId: string]
   getMaxTargetsPerKill: []
   canPlayerUseAsKill: [cardId: string]
   runPendingWuguContinuation: []
@@ -189,6 +195,9 @@ export interface EngineMethodReturnMap {
   activateAoJian: void
   deactivateAoJian: void
   isAoJianActive: boolean
+  activateShenTou: void
+  deactivateShenTou: void
+  isShenTouActive: boolean
   getMaxTargetsPerKill: number
   canPlayerUseAsKill: boolean
   runPendingWuguContinuation: void
@@ -229,6 +238,8 @@ export interface WorkerSnapshot {
   handsByHero: Record<string, Card[]>
   /** 玩家是否激活 aoJian (与 derived.aoJianActive 重复, 但保留以便 store 同步) */
   aoJianActive: boolean
+  /** 玩家是否激活神偷 (derived.shenTouActive 透传, 用于 SkillBar toggle 显示) */
+  shenTouActive: boolean
   /** 玩家是否可出杀 (替代 game.canPlayKill) */
   canPlayKill: boolean
   /** jueJi 已用次数 (替代 SkillBar 引擎读取) */

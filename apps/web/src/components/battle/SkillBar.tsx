@@ -28,6 +28,7 @@ export function SkillBar() {
     derived: st.derived,
     aoJianActive: st.aoJianActive,
     toggleAoJian: st.toggleAoJian,
+    toggleShenTou: st.toggleShenTou,
     useTreasureSkill: st.useTreasureSkill,
     endPlayPhase: st.endPlayPhase,
   })))
@@ -36,7 +37,7 @@ export function SkillBar() {
     phase, treasureSkill, playerHand, gameState,
     pendingCardId, pendingCardType, equippedCards,
     xiaDanActive, xiaDanUsedThisTurn, yuRenUsedThisTurn, yuRenCardIds,
-    derived, aoJianActive, toggleAoJian, useTreasureSkill, endPlayPhase,
+    derived, aoJianActive, toggleAoJian, toggleShenTou, useTreasureSkill, endPlayPhase,
   } = s
 
   const player = useMemo(() => gameState?.heroes.find(h => h.role === 'player'), [gameState])
@@ -64,6 +65,7 @@ export function SkillBar() {
   const hasXiaDan = hasSkillOrTreasure('xia-dan')
   const hasFuJing = hasSkillOrTreasure('fu-jing')
   const hasShenTou = hasSkillOrTreasure('shen-tou')
+  const shenTouActive = derived?.shenTouActive ?? false
 
   const playerWeaponName = (() => {
     const weaponId = player?.equipment?.weapon
@@ -224,19 +226,21 @@ export function SkillBar() {
           </button>
         )}
         {hasShenTou && (
-          <span style={{
-            fontSize: '11px', padding: '3px 8px',
-            background: 'rgba(76,175,80,0.18)',
-            color: '#7ec850',
-            border: '1px solid #4caf50',
-            borderRadius: '4px',
-            fontWeight: 'bold',
-            cursor: 'help',
-          }}
-          title="神偷: 所有♣梅花手牌都当【探囊取物】使用, 直接点击梅花牌即可"
+          <button
+            onClick={toggleShenTou}
+            style={{
+              fontSize: '11px', padding: '3px 8px',
+              background: shenTouActive ? '#7ec850' : 'var(--bg-dark)',
+              color: shenTouActive ? '#fff' : 'var(--text-light)',
+              border: shenTouActive ? '1px solid #7ec850' : '1px solid var(--border-wood)',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontWeight: shenTouActive ? 'bold' : 'normal',
+            }}
+            title="神偷: 激活后所有♣梅花手牌都当【探囊取物】使用"
           >
-            🃏 神偷·激活
-          </span>
+            {shenTouActive ? '🃏 神偷·激活' : '🃏 神偷'}
+          </button>
         )}
         {hasXiaDan && (
           <button

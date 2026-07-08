@@ -28,6 +28,8 @@ export interface DerivedSnapshot {
   canPlayKill: boolean
   /** 玩家傲剑主动模式是否激活 (用于红色牌/装备当杀点击高亮) */
   aoJianActive: boolean
+  /** 玩家神偷主动模式是否激活 (用于梅花手牌当探囊取物) */
+  shenTouActive: boolean
   /** 玩家是否在判定区有"手捧雷" (SkillBar/PlayerHand hasLeiInJudge) */
   hasLeiInJudge: boolean
   /** 玩家本回合"绝击"已用次数 (SkillBar 烽火/绝击 disabled) */

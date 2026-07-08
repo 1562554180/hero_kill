@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef } from 'react'
 import { useBattleStore } from '../../stores/battleStore'
 import { useShallow } from 'zustand/react/shallow'
 import { HandCard } from '../HandCard'
-
-const HAND_CARD_WIDTH = 55
-const HAND_CARD_GAP = 6
 
 export function PlayerHand() {
   const {
@@ -59,12 +56,13 @@ export function PlayerHand() {
   const hasHongZhuang = hasSkillOrTreasure('hong-zhuang')
   const hasHuiChun = hasSkillOrTreasure('hui-chun')
   const hasShenTou = hasSkillOrTreasure('shen-tou')
+  const shenTouActive = derived?.shenTouActive ?? false
   const huiChunAvailable = hasHuiChun && !isPlayerTurn && !isFullHp
   const hasLeiInJudge = derived?.hasLeiInJudge ?? false
 
   const hasValidSchemeTarget = (cardName: string, cardSuit?: string): boolean => {
     if (!derived) return true
-    if (cardName === '探囊取物' || (hasShenTou && cardSuit === 'club' && cardName !== '探囊取物')) {
+    if (cardName === '探囊取物' || (shenTouActive && cardSuit === 'club' && cardName !== '探囊取物')) {
       return derived.validTanNangTargetIds.length > 0
     }
     if (cardName === '釜底抽薪') {
@@ -76,36 +74,19 @@ export function PlayerHand() {
     return true
   }
 
-  // 手牌容器宽度 — 判断是否启用叠放
   const handContainerRef = useRef<HTMLDivElement>(null)
-  const [handContainerWidth, setHandContainerWidth] = useState(0)
-  useEffect(() => {
-    const el = handContainerRef.current
-    if (!el) return
-    setHandContainerWidth(el.offsetWidth)
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) setHandContainerWidth(e.contentRect.width)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [playerHand.length])
-
-  const handNeedsOverlap = playerHand.length > 0 && playerHand.length * HAND_CARD_WIDTH > handContainerWidth
-  const handOverlapMarginLeft = handNeedsOverlap && playerHand.length > 1 && handContainerWidth > 0
-    ? Math.min(-2, Math.floor((handContainerWidth - 8 - HAND_CARD_WIDTH) / (playerHand.length - 1)) - HAND_CARD_WIDTH)
-    : -32
 
   return (
     <div ref={handContainerRef} style={{
       flex: 1, minHeight: 0, display: 'flex',
       flexWrap: 'nowrap',
-      overflowX: 'hidden',
+      overflowX: 'auto',
       overflowY: 'hidden',
-      alignItems: handNeedsOverlap ? 'flex-end' : 'stretch',
-      gap: handNeedsOverlap ? 0 : '6px',
-      padding: handNeedsOverlap ? '10px 4px 8px 0' : '6px 0 6px 0',
+      alignItems: 'flex-end',
+      gap: '6px',
+      padding: '6px 0 6px 0',
     }}>
-      {playerHand.map((card, idx) => {
+      {playerHand.map((card) => {
         const isSelectedDual = selectedDualCards.includes(card.id)
         const isSelectedTreasure = treasureCardIds.includes(card.id)
         const isSelectedYuRen = treasureSkill === 'yu-ren' && yuRenCardIds.includes(card.id)
@@ -142,9 +123,8 @@ export function PlayerHand() {
               }
             }}
             style={{
-              flexShrink: handNeedsOverlap ? 0 : 1,
+              flexShrink: 0,
               alignSelf: 'flex-end',
-              marginLeft: handNeedsOverlap && idx > 0 ? handOverlapMarginLeft : 0,
               outline: 'none',
               borderRadius: '4px',
               cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || phase === 'dyingRescue' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
@@ -179,7 +159,7 @@ export function PlayerHand() {
               }
               isLuYeQiangKillCard={isLuYeQiangKillCard}
               hasValidSchemeTarget={hasValidSchemeTarget(card.name, card.suit)}
-              shenTouActive={hasShenTou}
+              shenTouActive={shenTouActive}
               huiChunAvailable={huiChunAvailable}
               onPlayKill={playKill}
               onPlayHeal={playHeal}
