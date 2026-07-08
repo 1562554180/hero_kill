@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { Hero, HeroInstance, Treasure } from '@hero-legend/shared-types'
 import { getSkillIcon } from '../../skillIcons'
 import { HERO_NAME_TO_ID as NAME_TO_ID } from '../../heroPortraitNames'
+import { BanishConfirmModal } from '../../components/BanishConfirmModal'
 
 const portraitModules = import.meta.glob('../../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
 const HERO_PORTRAITS_BY_NAME: Record<string, string> = {}
@@ -47,6 +48,15 @@ export function HeroPage() {
   // 镶嵌凹槽选中状态: 点击槽位时展开可镶嵌列表
   const [activeSlot, setActiveSlot] = useState<{ slotType: 'main' | 'sub'; slotIndex: number } | null>(null)
   const [equipPage, setEquipPage] = useState(0)
+  const [banishModal, setBanishModal] = useState<{
+    open: boolean
+    instanceId: string | null
+    heroName: string
+    heroLevel: number
+    heroStar: number
+    faction: string
+    returnedCount: number
+  }>({ open: false, instanceId: null, heroName: '', heroLevel: 0, heroStar: 0, faction: '', returnedCount: 0 })
 
   useEffect(() => {
     const uid = localStorage.getItem('hero-legend-userId') || ''
@@ -102,6 +112,44 @@ export function HeroPage() {
     }
   }
 
+  const openBanishModal = () => {
+    if (!selectedInstance || !selectedConfig) return
+    const returnedCount = [
+      ...(selectedInstance.treasures?.main ?? []),
+      ...(selectedInstance.treasures?.sub ?? []),
+    ].filter(t => t != null).length
+    setBanishModal({
+      open: true,
+      instanceId: selectedInstance.instanceId ?? null,
+      heroName: selectedConfig.name,
+      heroLevel: selectedInstance.level,
+      heroStar: selectedInstance.starLevel,
+      faction: selectedConfig.faction,
+      returnedCount,
+    })
+  }
+
+  const fetchBanish = async (instanceId: string) => {
+    const res = await fetch(`${API}/hero/banish/${userId}/${instanceId}`, { method: 'POST' })
+    const data = await res.json()
+    if (!res.ok || data.error) throw new Error(data.error ?? data.message ?? `HTTP ${res.status}`)
+    return data as { success: true; removedInstanceId: string; heroId: string; heroName: string; returnedTreasures: number }
+  }
+
+  const handleBanishConfirm = async () => {
+    if (!banishModal.instanceId) return
+    try {
+      const data = await fetchBanish(banishModal.instanceId)
+      setBanishModal(m => ({ ...m, open: false }))
+      setSelectedInstanceId(null)
+      await refreshSave()
+      setMessage(`已放逐【${data.heroName}】，返还 ${data.returnedTreasures} 件宝具`)
+    } catch (e: any) {
+      setMessage(`放逐失败: ${e.message ?? e}`)
+      // 弹窗保持打开, 让用户看到错误后手动取消
+    }
+  }
+
   // 按 instanceId 选 (同名多份时区分)
   const selectedInstance = myHeroes.find(h => h.instanceId === selectedInstanceId)
   const selectedConfig = selectedInstance
@@ -110,6 +158,16 @@ export function HeroPage() {
 
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
+      <BanishConfirmModal
+        open={banishModal.open}
+        heroName={banishModal.heroName}
+        heroLevel={banishModal.heroLevel}
+        heroStar={banishModal.heroStar}
+        faction={banishModal.faction}
+        returnedCount={banishModal.returnedCount}
+        onConfirm={handleBanishConfirm}
+        onCancel={() => setBanishModal(m => ({ ...m, open: false }))}
+      />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ color: 'var(--text-gold)' }}>英雄管理 ({myHeroes.length})</h2>
         <div style={{ display: 'flex', gap: '12px' }}>
@@ -225,6 +283,21 @@ export function HeroPage() {
                     <div style={{ color: 'var(--text-light)', fontSize: '13px', fontWeight: 'bold' }}>{selectedConfig.faction}</div>
                   </div>
                 </div>
+              </div>
+
+              {/* 放逐按钮 (红色 outline, 与主操作区分) */}
+              <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={openBanishModal}
+                  style={{
+                    padding: '6px 14px', fontSize: '13px',
+                    background: 'transparent', color: '#c62828',
+                    border: '1px solid #c62828', borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  放逐
+                </button>
               </div>
 
               <h4 style={{ color: 'var(--text-gold)', marginBottom: '8px' }}>技能</h4>
