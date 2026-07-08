@@ -67,6 +67,17 @@ export function BattlePage() {
     }
   }, [availableHeroes, forbiddenHeroIds, save, selectedHeroIdx])
 
+  // 玩家切换英雄后, 若当前友军选中的英雄与玩家同 heroId (或同实例), 重置友军为"无"
+  useEffect(() => {
+    if (selectedAllyIdx < 0) return
+    const playerHero = save?.heroes?.[selectedHeroIdx]
+    const allyHero = save?.heroes?.[selectedAllyIdx]
+    if (!playerHero || !allyHero) return
+    if (playerHero.heroId === allyHero.heroId || selectedAllyIdx === selectedHeroIdx) {
+      setSelectedAllyIdx(-1)
+    }
+  }, [selectedHeroIdx, selectedAllyIdx, save])
+
   useEffect(() => {
     if (!userId) { navigate('/'); return }
     Promise.all([
@@ -295,7 +306,7 @@ export function BattlePage() {
               </p>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))',
                 gap: '8px', alignContent: 'start',
               }}>
                 <div
@@ -316,10 +327,15 @@ export function BattlePage() {
                   }}>无</div>
                   <span style={{ color: selectedAllyIdx === -1 ? 'var(--text-gold)' : 'var(--text-muted)', fontWeight: 'bold', fontSize: '12px' }}>无友军</span>
                 </div>
-                {save.heroes.map((hero: any, idx: number) => {
-                  // 不能选自己, 不能选敌人
-                  if (idx === selectedHeroIdx) return null
-                  if (forbiddenHeroIds.has(hero.heroId)) return null
+                {(() => {
+                  // 玩家已选英雄的 heroId (友军不能选同名英雄, 包括不同实例)
+                  const selectedHero = save.heroes?.[selectedHeroIdx]
+                  const selectedHeroId = selectedHero?.heroId
+                  return save.heroes.map((hero: any, idx: number) => {
+                    // 不能选自己 (同实例), 不能选敌人, 不能选与玩家同 heroId 的英雄
+                    if (idx === selectedHeroIdx) return null
+                    if (forbiddenHeroIds.has(hero.heroId)) return null
+                    if (hero.heroId === selectedHeroId) return null
                   const heroDef = allHeroes.find((h: any) => h.id === hero.heroId)
                   const selected = idx === selectedAllyIdx
                   const name = heroDef?.name ?? hero.heroId
@@ -349,7 +365,8 @@ export function BattlePage() {
                       </span>
                     </div>
                   )
-                })}
+                  })
+                })()}
               </div>
             </div>
           )}
