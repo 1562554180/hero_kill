@@ -2337,6 +2337,8 @@ export class Game {
       } else {
         this.removeHandCard(savior, cardId)
         this.cardDeck.discard([card])
+        // 触发 card:discard 事件, 让 UI 播放飞弃牌堆动画
+        this.eventBus.emit({ type: 'card:discard', sourceHeroId: savior.getId(), data: { cards: [cardId], reason: 'dying-rescue' } })
       }
       const healed = target.heal(1)
       if (healed > 0) {
