@@ -529,6 +529,20 @@ export function HeroPage() {
                   </div>
                 )
               })()}
+              {/* 放逐按钮 (详情卡片右下角) */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button
+                  onClick={openBanishModal}
+                  style={{
+                    padding: '6px 14px', fontSize: '13px',
+                    background: 'transparent', color: '#c62828',
+                    border: '1px solid #c62828', borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  放逐
+                </button>
+              </div>
             </div>
           ) : (
             <div style={{
@@ -536,22 +550,6 @@ export function HeroPage() {
               borderRadius: '8px', padding: '40px', textAlign: 'center', color: 'var(--text-muted)',
             }}>
               选择一个英雄查看详情
-            </div>
-          )}
-          {/* 放逐按钮 (右下角, 红色 outline, 与主操作区分) */}
-          {selectedConfig && selectedInstance && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-              <button
-                onClick={openBanishModal}
-                style={{
-                  padding: '6px 14px', fontSize: '13px',
-                  background: 'transparent', color: '#c62828',
-                  border: '1px solid #c62828', borderRadius: '4px',
-                  cursor: 'pointer',
-                }}
-              >
-                放逐
-              </button>
             </div>
           )}
         </div>
