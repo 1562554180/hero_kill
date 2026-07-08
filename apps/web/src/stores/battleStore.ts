@@ -473,7 +473,7 @@ interface BattleState {
   confirmFuChouPick: () => void
   // 濒死救援
   toggleDyingRescueCard: (cardId: string) => void
-  confirmDyingRescue: () => void
+  confirmDyingRescue: (cardIds?: string[]) => void
   cancelDyingRescue: () => void
   // 舍身: 是否发动 / 选分配牌 / 选接收目标 / 撤销 / 完成
   confirmSheShenTrigger: (use: boolean) => void
@@ -2860,10 +2860,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       set({ dyingRescueSelected: [...dyingRescueSelected, cardId] })
     }
   },
-  confirmDyingRescue: () => {
+  confirmDyingRescue: (cardIds?: string[]) => {
     const { resolveDyingRescue, dyingRescueSelected } = get()
     if (!resolveDyingRescue) return
-    resolveDyingRescue(dyingRescueSelected)
+    resolveDyingRescue(cardIds ?? dyingRescueSelected)
   },
   cancelDyingRescue: () => {
     const { resolveDyingRescue } = get()

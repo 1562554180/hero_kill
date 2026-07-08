@@ -32,7 +32,7 @@ export function FloatingPrompts() {
     zhenShaPrompt, buDaoPrompt, sanBanFuPrompt, panLongGunPrompt,
     fuChouTriggerPrompt, fuChouChoosePrompt, fuChouPickSelected,
     sheShenTriggerPrompt,
-    dyingRescuePrompt, dyingRescueSelected,
+    dyingRescuePrompt,
     chaoTuoPrompt, houZhuPrompt,
     ciKePrompt, yuRuYiPrompt, dieHunPrompt,
     xiaDanActive, xiaDanTargetName,
@@ -59,7 +59,7 @@ export function FloatingPrompts() {
     confirmSheShenTrigger,
     confirmFuChouChoose,
     toggleFuChouPick, confirmFuChouPick,
-    toggleDyingRescueCard, confirmDyingRescue, cancelDyingRescue,
+    cancelDyingRescue,
     selectChaoTuoCard,
     selectHouZhuTarget,
     pickXiaDanCard, cancelXiaDanCard,
@@ -82,7 +82,7 @@ export function FloatingPrompts() {
     zhenShaPrompt: s.zhenShaPrompt, buDaoPrompt: s.buDaoPrompt, sanBanFuPrompt: s.sanBanFuPrompt,
     fuChouTriggerPrompt: s.fuChouTriggerPrompt, fuChouChoosePrompt: s.fuChouChoosePrompt, fuChouPickSelected: s.fuChouPickSelected,
     sheShenTriggerPrompt: s.sheShenTriggerPrompt,
-    dyingRescuePrompt: s.dyingRescuePrompt, dyingRescueSelected: s.dyingRescueSelected,
+    dyingRescuePrompt: s.dyingRescuePrompt,
     chaoTuoPrompt: s.chaoTuoPrompt, houZhuPrompt: s.houZhuPrompt,
     ciKePrompt: s.ciKePrompt, yuRuYiPrompt: s.yuRuYiPrompt, dieHunPrompt: s.dieHunPrompt,
     xiaDanActive: s.xiaDanActive, xiaDanTargetName: s.xiaDanTargetName,
@@ -110,7 +110,7 @@ export function FloatingPrompts() {
     confirmSheShenTrigger: s.confirmSheShenTrigger,
     confirmFuChouChoose: s.confirmFuChouChoose,
     toggleFuChouPick: s.toggleFuChouPick, confirmFuChouPick: s.confirmFuChouPick,
-    toggleDyingRescueCard: s.toggleDyingRescueCard, confirmDyingRescue: s.confirmDyingRescue, cancelDyingRescue: s.cancelDyingRescue,
+    cancelDyingRescue: s.cancelDyingRescue,
     selectChaoTuoCard: s.selectChaoTuoCard,
     selectHouZhuTarget: s.selectHouZhuTarget,
     pickXiaDanCard: s.pickXiaDanCard, cancelXiaDanCard: s.cancelXiaDanCard,
@@ -866,36 +866,24 @@ export function FloatingPrompts() {
                 </div>
               )}
 
-              {/* 26. 濒死救援 — 玩家被询问是否用药救濒死目标 */}
+              {/* 26. 濒死救援 — 与出牌提示同尺寸横幅, 直接点击手牌中的药/红桃使用 */}
               {phase === 'dyingRescue' && dyingRescuePrompt && (
                 <div style={{
                   pointerEvents: 'auto',
-                  padding: '8px 12px',
-                  background: 'rgba(171,71,71,0.18)', borderRadius: '4px',
-                  border: '1px solid rgba(171,71,71,0.4)',
-                  color: '#ff8a8a', fontSize: '12px',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'linear-gradient(135deg, rgba(244,67,54,0.18), rgba(183,28,28,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #ef5350',
+                  color: '#ef9a9a', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(244,67,54,0.4)',
                 }}>
-                  <div style={{ marginBottom: '6px' }}>💀 濒死救援 — <b>{dyingRescuePrompt.targetName}</b> 濒死！是否用药或红桃(回春)救？(已选 {dyingRescueSelected.length} 张)</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {dyingRescuePrompt.yaoHandCards.map(c => {
-                      const picked = dyingRescueSelected.includes(c.id)
-                      const label = c.name === '药' ? '【药】' : `【${c.name}♥】`
-                      return (
-                        <button key={c.id} onClick={() => toggleDyingRescueCard(c.id)} style={{
-                          padding: '4px 8px', fontSize: '11px',
-                          background: picked ? 'rgba(171,71,71,0.35)' : 'var(--bg-medium)',
-                          border: picked ? '1px solid #ff8a8a' : '1px solid var(--border-wood)',
-                          color: 'var(--text-light)', borderRadius: '3px', cursor: 'pointer',
-                        }}>
-                          {label}
-                        </button>
-                      )
-                    })}
-                    <button className="primary" style={treasureBtnStyle} disabled={dyingRescueSelected.length === 0} onClick={confirmDyingRescue}>
-                      救人
-                    </button>
-                    <button style={treasureBtnStyle} onClick={cancelDyingRescue}>放弃救援</button>
-                  </div>
+                  <span style={{ flex: 1 }}>
+                    💀 <b style={{ fontSize: '14px' }}>濒死救援</b> — <b>{dyingRescuePrompt.targetName}</b> 濒死！点击手牌中的【药】或红桃(回春)救援
+                  </span>
+                  <button style={treasureBtnStyle} onClick={cancelDyingRescue}>放弃救援</button>
                 </div>
               )}
 
