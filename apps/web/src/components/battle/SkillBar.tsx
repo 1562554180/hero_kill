@@ -3,7 +3,7 @@ import { useBattleStore } from '../../stores/battleStore'
 import { useShallow } from 'zustand/react/shallow'
 
 const treasureBtnStyle = {
-  fontSize: '12px',
+  fontSize: '11px',
   padding: '4px 10px',
   background: 'var(--bg-dark)',
   color: 'var(--text-light)',
@@ -91,7 +91,7 @@ export function SkillBar() {
             key={skill.id}
             title={skill.description}
             style={{
-              fontSize: '11px', padding: '3px 8px',
+              fontSize: '11px', padding: '4px 10px',
               background: 'rgba(255,215,0,0.18)',
               color: 'var(--text-gold)',
               border: '1px solid #b8860b', borderRadius: '4px',
@@ -108,7 +108,7 @@ export function SkillBar() {
             title={skill.description}
             disabled
             style={{
-              fontSize: '11px', padding: '3px 8px',
+              fontSize: '11px', padding: '4px 10px',
               background: 'rgba(255,255,255,0.05)',
               color: 'var(--text-muted)',
               border: '1px solid #3a2a1a', borderRadius: '4px',
@@ -123,7 +123,7 @@ export function SkillBar() {
           <button
             onClick={toggleAoJian}
             style={{
-              fontSize: '11px', padding: '3px 8px',
+              fontSize: '11px', padding: '4px 10px',
               background: aoJianActive ? '#e57373' : 'var(--bg-dark)',
               color: aoJianActive ? '#fff' : 'var(--text-light)',
               border: aoJianActive ? '1px solid #e57373' : '1px solid var(--border-wood)',
@@ -147,7 +147,7 @@ export function SkillBar() {
               }
             }}
             style={{
-              fontSize: '11px', padding: '3px 8px',
+              fontSize: '11px', padding: '4px 10px',
               background: phase === 'selectDualCards' ? 'rgba(184,134,11,0.45)' : 'var(--bg-dark)',
               color: phase === 'selectDualCards' ? '#ffd54f' : 'var(--text-light)',
               border: phase === 'selectDualCards' ? '1px solid #ffd54f' : '1px solid var(--border-wood)',
@@ -213,7 +213,7 @@ export function SkillBar() {
           <button
             onClick={() => useTreasureSkill('fu-jing')}
             style={{
-              fontSize: '11px', padding: '3px 8px',
+              fontSize: '11px', padding: '4px 10px',
               background: 'var(--bg-dark)',
               color: 'var(--text-light)',
               border: '1px solid var(--border-wood)',
@@ -229,7 +229,7 @@ export function SkillBar() {
           <button
             onClick={toggleShenTou}
             style={{
-              fontSize: '11px', padding: '3px 8px',
+              fontSize: '11px', padding: '4px 10px',
               background: shenTouActive ? '#7ec850' : 'var(--bg-dark)',
               color: shenTouActive ? '#fff' : 'var(--text-light)',
               border: shenTouActive ? '1px solid #7ec850' : '1px solid var(--border-wood)',
@@ -292,7 +292,7 @@ export function SkillBar() {
         )}
 
         {isPlayerTurn && (
-          <button className="primary" style={{ fontSize: '12px', padding: '4px 12px', marginLeft: 'auto' }} onClick={endPlayPhase}>
+          <button className="primary" style={{ fontSize: '11px', padding: '4px 10px', marginLeft: 'auto' }} onClick={endPlayPhase}>
             结束出牌
           </button>
         )}
