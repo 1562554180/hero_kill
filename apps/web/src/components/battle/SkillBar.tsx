@@ -63,6 +63,7 @@ export function SkillBar() {
   const hasJueJi = hasSkillOrTreasure('jue-ji')
   const hasXiaDan = hasSkillOrTreasure('xia-dan')
   const hasFuJing = hasSkillOrTreasure('fu-jing')
+  const hasShenTou = hasSkillOrTreasure('shen-tou')
 
   const playerWeaponName = (() => {
     const weaponId = player?.equipment?.weapon
@@ -221,6 +222,21 @@ export function SkillBar() {
           >
             🩸 负荆
           </button>
+        )}
+        {hasShenTou && (
+          <span style={{
+            fontSize: '11px', padding: '3px 8px',
+            background: 'rgba(76,175,80,0.18)',
+            color: '#7ec850',
+            border: '1px solid #4caf50',
+            borderRadius: '4px',
+            fontWeight: 'bold',
+            cursor: 'help',
+          }}
+          title="神偷: 所有♣梅花手牌都当【探囊取物】使用, 直接点击梅花牌即可"
+          >
+            🃏 神偷·激活
+          </span>
         )}
         {hasXiaDan && (
           <button
