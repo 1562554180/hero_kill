@@ -220,7 +220,7 @@ export function BattlePage() {
                   </p>
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))',
                     gap: '8px', alignContent: 'start',
                   }}>
                     {save.heroes.map((hero: any, idx: number) => {
