@@ -49,17 +49,20 @@ export function BattleField() {
       otherPositions = [{ left: '50%', top: '8px', transform: 'translateX(-50%)' }]
     } else if (n === 2) {
       otherPositions = [
-        { left: '8px', top: '50%' },
-        { right: '8px', top: '50%' },
+        { left: '8px', bottom: '2%' },
+        { right: '8px', bottom: '2%' },
       ]
     } else {
       const topCount = n - 2
-      const positions: CSSProperties[] = [{ left: '8px', top: '50%' }]
+      const positions: CSSProperties[] = [{ left: '8px', bottom: '2%' }]
+      // 上排: 以 50% 为中心, 按数量紧凑分布 (每张卡片占约 16% 宽度)
+      const topStep = 16
+      const topStart = 50 - (topCount - 1) * topStep / 2
       for (let i = 0; i < topCount; i++) {
-        const leftPct = 5 + (i + 0.5) * (90 / topCount)
-        positions.push({ left: `${leftPct}%`, top: '8px' })
+        const leftPct = topStart + i * topStep
+        positions.push({ left: `${leftPct}%`, top: '8px', transform: 'translateX(-50%)' })
       }
-      positions.push({ right: '8px', top: '50%' })
+      positions.push({ right: '8px', bottom: '2%' })
       otherPositions = positions
     }
     return { others, otherPositions, player }

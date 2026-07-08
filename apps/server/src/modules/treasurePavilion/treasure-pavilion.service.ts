@@ -7,6 +7,7 @@ import {
   rollTreasurePavilionSlot,
   randomTreasureIdByStar,
   rollPieceAmount,
+  rollUniversalFragmentAmount,
   getTreasureDefinitionById,
 } from '@hero-legend/game-data'
 import type { Treasure } from '@hero-legend/shared-types'
@@ -88,7 +89,7 @@ export class TreasurePavilionService {
       case 'star4': return this.awardTreasure(userId, 4)
       case 'star5': return this.awardTreasure(userId, 5)
       case 'universal': {
-        const amount = rollPieceAmount()
+        const amount = rollUniversalFragmentAmount()
         await this.saveService.addMaterial(userId, 'treasureFragment', amount)
         return { kind: 'universal', amount }
       }

@@ -35,7 +35,7 @@ interface Props {
   isDead?: boolean
 }
 
-const SLOT_SIZE = '15px'
+const SLOT_SIZE = '24px'
 
 function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, dimmed, onClick, aoJianActive, canPlayKill, onEquipAsKill, hasHongZhuang, isDying = false, isDead = false }: Props) {
   const phase = useBattleStore(s => s.phase)
@@ -109,8 +109,8 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
         borderColor: (isDying || flash) ? '#ff3333' : borderColor,
         borderRadius: '6px',
         padding: '4px',
-        width: '100px',
-        height: '170px',
+        width: '140px',
+        height: '230px',
         maxHeight: '100%',
         flexShrink: 0,
         boxSizing: 'border-box',
@@ -256,7 +256,7 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
         const isYuRen = treasureSkill === 'yu-ren' && phase === 'treasureSelectCard'
         const isJueJiWeaponPick = treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon'
         return (
-          <div style={{ display: 'flex', alignItems: 'stretch', gap: '2px', height: '30px' }}>
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: '2px', height: '40px' }}>
             {slots.map(s => {
               const id = hero.equipment[s.slot]
               if (!id) {
@@ -380,7 +380,7 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
           color: '#f44336', fontSize: '14px', fontWeight: 'bold',
           textShadow: '0 0 4px rgba(0,0,0,0.8)',
-        }}>阵亡</div>
+        }}>{isDying ? '濒死' : '阵亡'}</div>
       )}
     </div>
   )
@@ -454,8 +454,22 @@ function TreasureSlot({ treasure, type, locked, heroStarLevel }: { treasure: Tre
         cursor: 'help',
         textShadow: '0 0 2px rgba(0,0,0,0.6)',
         overflow: 'hidden',
+        position: 'relative',
       }}
-    >{icon ? <img src={icon} alt={treasure.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayChar}</div>
+    >
+      {icon ? <img src={icon} alt={treasure.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayChar}
+      {type === 'sub' && lvl > 0 && (
+        <span style={{
+          position: 'absolute', top: '-4px', right: '-4px',
+          background: 'rgba(0,0,0,0.85)', color: 'var(--text-gold)',
+          fontSize: '8px', fontWeight: 'bold', padding: '0 4px',
+          lineHeight: '11px', borderRadius: '6px',
+          border: '1px solid rgba(255,213,79,0.5)',
+          pointerEvents: 'none',
+          zIndex: 2,
+        }}>+{lvl}</span>
+      )}
+    </div>
   )
 }
 

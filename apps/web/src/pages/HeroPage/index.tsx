@@ -335,11 +335,13 @@ export function HeroPage() {
                         )}
                         {tt && tt.level > 0 && (
                           <span style={{
-                            position: 'absolute', right: '0', bottom: '0',
-                            background: 'rgba(0,0,0,0.85)', color: 'var(--text-gold)',
-                            fontSize: '9px', fontWeight: 'bold', padding: '0 3px',
-                            lineHeight: '11px', borderRadius: '3px 0 0 0',
-                          }}>L{tt.level}</span>
+                            position: 'absolute', top: '0', right: '0',
+                            background: 'rgba(0,0,0,0.74)', color: '#aa5a5a',
+                            fontSize: '11px', fontWeight: 'bold', padding: '0 5px',
+                            lineHeight: '14px', borderRadius: '7px',
+                            pointerEvents: 'none',
+                            zIndex: 2,
+                          }}>{tt.level}</span>
                         )}
                       </div>
                     </div>

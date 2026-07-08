@@ -138,7 +138,11 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
       onHuiChunHeal(card.id)
       return
     }
-    // 神偷激活时优先: ♣牌(非探囊取物)当探囊取物使用, 避免被杀/装备路径吞掉
+    // 神偷激活时优先: ♣牌(非探囊取物)一律走 onPlayScheme, 即使是延时锦囊/借刀/手捧雷
+    if (shenTouActive && card.suit === 'club' && card.name !== '探囊取物' && onPlayScheme) {
+      onPlayScheme(card.id, clickPos())
+      return
+    }
     if (canUseAsTanNang) onPlayScheme(card.id, clickPos())
     else if (canUseAsKillNow) onPlayKill(card.id, clickPos())
     else if (isHeal) onPlayHeal(card.id, clickPos())

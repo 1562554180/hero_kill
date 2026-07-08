@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Treasure, Material } from '@hero-legend/shared-types'
+import type { Treasure, Material, Hero, HeroInstance } from '@hero-legend/shared-types'
 import { Cauldron } from './Cauldron'
 import { SubTreasureList } from './SubTreasureList'
 import { TransferModal } from './TransferModal'
@@ -12,6 +12,7 @@ const API = '/api'
 interface SaveData {
   treasures: Treasure[]
   materials: Material[]
+  heroes?: HeroInstance[]
 }
 
 type Phase = 'idle' | 'upgrading' | 'revealed'
@@ -21,6 +22,7 @@ export function TreasureWorkshopPage() {
   const navigate = useNavigate()
   const userId = localStorage.getItem('hero-legend-userId') || ''
   const [save, setSave] = useState<SaveData | null>(null)
+  const [allHeroes, setAllHeroes] = useState<Hero[]>([])
   const [selectedTreasureId, setSelectedTreasureId] = useState<string | null>(null)
   const [luckyStones, setLuckyStones] = useState(0)
   const [phase, setPhase] = useState<Phase>('idle')
@@ -29,8 +31,12 @@ export function TreasureWorkshopPage() {
   const [transferOpen, setTransferOpen] = useState(false)
 
   const refresh = useCallback(async () => {
-    const data = await fetch(`${API}/save/${userId}`).then(r => r.json())
+    const [data, heroData] = await Promise.all([
+      fetch(`${API}/save/${userId}`).then(r => r.json()),
+      fetch(`${API}/hero`).then(r => r.json()),
+    ])
     setSave(data)
+    setAllHeroes(heroData.heroes ?? [])
   }, [userId])
 
   useEffect(() => {
@@ -38,8 +44,34 @@ export function TreasureWorkshopPage() {
     refresh()
   }, [userId, navigate, refresh])
 
-  const subs = useMemo(() => (save?.treasures ?? []).filter(t => t.type === 'sub'), [save])
+  // 工坊列表 = 背包里的辅印 + 已镶嵌在英雄身上的辅印 (按 id 去重)
+  const subs = useMemo(() => {
+    const bagSubs = (save?.treasures ?? []).filter(t => t.type === 'sub')
+    const seen = new Set(bagSubs.map(t => t.id))
+    const equippedSubs: Treasure[] = []
+    for (const h of save?.heroes ?? []) {
+      const ts = h.treasures ?? { main: [], sub: [] }
+      for (const t of ts.sub ?? []) {
+        if (t && !seen.has(t.id)) {
+          seen.add(t.id)
+          equippedSubs.push(t)
+        }
+      }
+    }
+    return [...bagSubs, ...equippedSubs]
+  }, [save])
   const selectedTreasure = subs.find(t => t.id === selectedTreasureId) ?? null
+
+  const heroNameMap = useMemo(() => new Map(allHeroes.map(h => [h.id, h.name])), [allHeroes])
+  const equippedMap = useMemo(() => {
+    const m = new Map<string, { heroId: string; slot: 'main' | 'sub'; index: number }>()
+    for (const h of save?.heroes ?? []) {
+      const ts = h.treasures ?? { main: [], sub: [] }
+      ts.main?.forEach((t, i) => { if (t?.id) m.set(t.id, { heroId: h.heroId, slot: 'main', index: i }) })
+      ts.sub?.forEach((t, i) => { if (t?.id) m.set(t.id, { heroId: h.heroId, slot: 'sub', index: i }) })
+    }
+    return m
+  }, [save?.heroes])
   const talismanCount = save?.materials.find(m => m.type === 'enhancementTalisman')?.amount ?? 0
   const luckyStoneCount = save?.materials.find(m => m.type === 'luckyStone')?.amount ?? 0
   const goldCount = save?.materials.find(m => m.type === 'gold')?.amount ?? 0
@@ -106,7 +138,17 @@ export function TreasureWorkshopPage() {
       for (let i = 0; i < 10; i++) {
         // 每轮重新拉取最新存档, 判断资源/等级/次数是否允许继续
         const fresh = await fetch(`${API}/save/${userId}`).then(r => r.json())
-        const t = (fresh.treasures as Treasure[])?.find(x => x.id === selectedTreasure.id)
+        // 跨位置查找: 背包 + 所有英雄的装备槽 (装备中的辅印也能十连)
+        let t: Treasure | undefined = (fresh.treasures as Treasure[])?.find(x => x.id === selectedTreasure.id)
+        if (!t) {
+          for (const h of (fresh.heroes as HeroInstance[]) ?? []) {
+            const ts = h.treasures ?? { main: [], sub: [] }
+            const inMain = ts.main?.find(x => x?.id === selectedTreasure.id)
+            if (inMain) { t = inMain; break }
+            const inSub = ts.sub?.find(x => x?.id === selectedTreasure.id)
+            if (inSub) { t = inSub; break }
+          }
+        }
         const talisman = (fresh.materials as Material[])?.find(m => m.type === 'enhancementTalisman')?.amount ?? 0
         const lucky = (fresh.materials as Material[])?.find(m => m.type === 'luckyStone')?.amount ?? 0
         const gold = (fresh.materials as Material[])?.find(m => m.type === 'gold')?.amount ?? 0
@@ -259,12 +301,14 @@ export function TreasureWorkshopPage() {
         }}>
           <h4 style={{ color: 'var(--text-gold)', marginBottom: '8px' }}>辅印列表</h4>
           <SubTreasureList
-            treasures={save.treasures}
+            treasures={subs}
             selectedTreasureId={selectedTreasureId}
             disabledTreasureIds={new Set(selectedTreasureId ? [selectedTreasureId] : [])}
             onPick={(id) => setSelectedTreasureId(id)}
             onUnpick={() => setSelectedTreasureId(null)}
             disabled={phase !== 'idle'}
+            equippedMap={equippedMap}
+            heroNameMap={heroNameMap}
           />
         </div>
       </div>
@@ -310,10 +354,12 @@ export function TreasureWorkshopPage() {
 
       <TransferModal
         open={transferOpen}
-        treasures={save.treasures}
+        treasures={subs}
         transferTalismanCount={transferTalismanCount}
         onConfirm={handleTransfer}
         onClose={() => setTransferOpen(false)}
+        equippedMap={equippedMap}
+        heroNameMap={heroNameMap}
       />
     </div>
   )

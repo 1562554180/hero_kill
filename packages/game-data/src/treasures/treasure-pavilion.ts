@@ -87,7 +87,12 @@ export function randomTreasureIdByStar(star: 1 | 2 | 3 | 4 | 5): string {
   return list[Math.floor(Math.random() * list.length)]
 }
 
-/** 随机 1-3 个碎片数量 */
+/** 普通碎片: 随机 1-3 个 */
 export function rollPieceAmount(): number {
   return 1 + Math.floor(Math.random() * 3)
+}
+
+/** 万能碎片: 随机 30-50 个 */
+export function rollUniversalFragmentAmount(): number {
+  return 30 + Math.floor(Math.random() * 21)
 }

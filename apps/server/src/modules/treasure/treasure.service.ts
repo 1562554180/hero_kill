@@ -21,6 +21,24 @@ export class TreasureService {
     return t.type === 'main'
   }
 
+  /**
+   * 跨位置查找宝具: 先扫背包 (save.treasures), 再扫所有英雄的装备槽 (main/sub).
+   * 返回对象引用 (mongoose document 内嵌对象), 修改后调 save.save() 即可持久化.
+   */
+  private findTreasureAnywhere(save: any, treasureId: string): Treasure | null {
+    const inBag = (save.treasures as Treasure[]).find(t => t.id === treasureId)
+    if (inBag) return inBag
+    for (const h of (save.heroes as any[]) ?? []) {
+      const ts = h.treasures ?? { main: [], sub: [] }
+      for (const slot of ['main', 'sub'] as const) {
+        for (const t of (ts[slot] ?? [])) {
+          if (t?.id === treasureId) return t as Treasure
+        }
+      }
+    }
+    return null
+  }
+
   async upgrade(userId: string, treasureId: string, luckyStones: number): Promise<UpgradeResult> {
     if (luckyStones < 0 || luckyStones > 6 || !Number.isInteger(luckyStones)) {
       throw new BadRequestException('幸运石数量需在 0-6 之间')
@@ -29,7 +47,7 @@ export class TreasureService {
     const save = await this.saveService.getSave(userId)
     if (!save) throw new BadRequestException('存档不存在')
 
-    const treasure = (save.treasures as Treasure[]).find(t => t.id === treasureId)
+    const treasure = this.findTreasureAnywhere(save, treasureId)
     if (!treasure) throw new BadRequestException('宝具不存在')
     if (this.isMain(treasure)) throw new BadRequestException('主印不可强化')
 
@@ -69,13 +87,12 @@ export class TreasureService {
 
     const newLevel = success ? Math.min(level + levelGain, 45) : level
     const newEnhanceCount = enhanceCount + 1
-    await this.saveService.updateTreasure(userId, treasureId, {
-      level: newLevel,
-      enhanceCount: newEnhanceCount,
-    })
-
-    const updatedSave = await this.saveService.getSave(userId)
-    const updatedTreasure = (updatedSave!.treasures as Treasure[]).find(t => t.id === treasureId)!
+    treasure.level = newLevel
+    treasure.enhanceCount = newEnhanceCount
+    // treasure 可能是内嵌 sub-document (装备槽), mongoose 变更跟踪对内嵌对象可能失效
+    ;(save as any).markModified?.('heroes')
+    ;(save as any).markModified?.('treasures')
+    await save.save()
 
     return {
       success,
@@ -85,7 +102,7 @@ export class TreasureService {
       baseRate,
       goldCost,
       luckyStonesUsed: luckyStones,
-      treasure: updatedTreasure,
+      treasure,
     }
   }
 
@@ -93,8 +110,8 @@ export class TreasureService {
     const save = await this.saveService.getSave(userId)
     if (!save) throw new BadRequestException('存档不存在')
 
-    const from = (save.treasures as Treasure[]).find(t => t.id === fromTreasureId)
-    const to = (save.treasures as Treasure[]).find(t => t.id === toTreasureId)
+    const from = this.findTreasureAnywhere(save, fromTreasureId)
+    const to = this.findTreasureAnywhere(save, toTreasureId)
     if (!from) throw new BadRequestException('源宝具不存在')
     if (!to) throw new BadRequestException('目标宝具不存在')
 
@@ -112,16 +129,15 @@ export class TreasureService {
 
     await this.saveService.spendMaterial(userId, 'transferTalisman', 1)
 
-    await this.saveService.updateTreasure(userId, fromTreasureId, { level: 0 })
-    await this.saveService.updateTreasure(userId, toTreasureId, { level: fromLevel })
-
-    const updatedSave = await this.saveService.getSave(userId)
-    const updatedFrom = (updatedSave!.treasures as Treasure[]).find(t => t.id === fromTreasureId)!
-    const updatedTo = (updatedSave!.treasures as Treasure[]).find(t => t.id === toTreasureId)!
+    from.level = 0
+    to.level = fromLevel
+    ;(save as any).markModified?.('heroes')
+    ;(save as any).markModified?.('treasures')
+    await save.save()
 
     return {
-      fromTreasure: updatedFrom,
-      toTreasure: updatedTo,
+      fromTreasure: from,
+      toTreasure: to,
       transferredLevel: fromLevel,
     }
   }
@@ -167,6 +183,9 @@ export class TreasureService {
 
     // 2) 从 treasures 数组删除
     save.treasures = (save.treasures as any[]).filter(t => t.id !== treasureId)
+    if (equippedHero) {
+      ;(save as any).markModified?.('heroes')
+    }
 
     // 3) 加碎片
     const FRAGMENT_BY_STAR: Record<number, number> = { 1: 20, 2: 100, 3: 400, 4: 1000, 5: 2500 }

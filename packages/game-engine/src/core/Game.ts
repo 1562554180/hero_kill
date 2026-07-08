@@ -144,6 +144,8 @@ export class Game {
   private skipCurrentTurnPlayerId: string | null = null  // 画地为牢：跳过指定玩家的当前回合
   private aoJianActive = new Set<string>()  // 傲剑主动模式: 玩家id集合, 回合结束清空
   private shenTouActive = new Set<string>()  // 神偷主动模式: 玩家id集合, 回合结束清空
+  /** 无懈可击决策上下文: 当前正在被抵消的锦囊目标 id, 让 AI 知道"被攻击者是不是我队友" */
+  private nullifyContextTargetId: string | null = null
   private emittedDie = new Set<string>()   // 已emit过 'die' 的玩家id, 防止强化/补刀等递归伤害重复emit
   // 侠胆: 胜→本回合所有杀可指定2目标 + 杀次数+1 (天狼/虎符不增加次数但保留2目标)
   //      负→本回合不能出杀
@@ -2106,6 +2108,16 @@ export class Game {
   }
 
   async checkNullification(schemePlayer: Player, targetPlayer: Player | undefined, schemeCard: Card): Promise<boolean> {
+    // 注入 target 给 AI 决策用, 出口处复位
+    this.nullifyContextTargetId = targetPlayer ? targetPlayer.getId() : null
+    try {
+      return await this.doCheckNullification(schemePlayer, targetPlayer, schemeCard)
+    } finally {
+      this.nullifyContextTargetId = null
+    }
+  }
+
+  private async doCheckNullification(schemePlayer: Player, targetPlayer: Player | undefined, schemeCard: Card): Promise<boolean> {
     const alivePlayers = this.getAlivePlayers()
     const startIdx = targetPlayer
       ? alivePlayers.indexOf(targetPlayer)
@@ -2207,22 +2219,29 @@ export class Game {
     const isFirstWuXie = lastActor === schemePlayer
     // 群体锦囊(万箭齐发/南蛮入侵/烽火狼烟/五谷丰登/休养生息)走响应阶段的免于响应, 不在使用阶段被抵消, 故不出现在 harmful
     const harmful = ['决斗', '釜底抽薪', '探囊取物', '画地为牢', '手捧雷']
-    const isHarmfulToMySide = isEnemy && harmful.includes(schemeCard.name)
+    // 关键: 是否要出无懈, 取决于"锦囊最终目标是不是我方队友" (而非仅"敌方是否施法")
+    // 找到 checkNullification 调用链里的实际 targetPlayer — 通过 lastActor 与 schemePlayer 关系推不出, 故由 caller 注入
+    const targetIsMySide = this.nullifyContextTargetId
+      ? this.isSameSide(candidate, this.getPlayerById(this.nullifyContextTargetId)!)
+      : isEnemy  // 兜底: 拿不到目标信息时, 仍按"敌方施法即有害"判断
 
-    let probability = 0
+    const isHarmfulToMySide = isEnemy && harmful.includes(schemeCard.name) && targetIsMySide
+
+    // 决策: 敌方有害锦囊瞄向我方队友 → 必出 (有就出, 防止队友损失)
+    // 例外: 反制链上队友的无懈不破坏; 自己手牌极少仍会保守
     if (isFirstWuXie) {
-      // 第一次无懈: 防止敌方锦囊生效 (或友方判定触发伤害)
-      if (isHarmfulToMySide) probability = 0.6
-      else if (isEnemy) probability = 0.2
-    } else {
-      // 反制无懈: 当前已被抵消(nullified=true), 再无懈会把链翻回不抵消
-      // - 原始锦囊对我方有害, 翻转回去等于让有害锦囊生效, 不反制
-      // - 原始锦囊对我方无害/有利, 翻转没事, 可以反制帮队友补刀
-      if (!isHarmfulToMySide) probability = 0.5
+      if (isHarmfulToMySide) {
+        if (candidate.getHandSize() <= 2) return null  // 手牌极少时留作保命
+        return wxCard
+      }
+      // 敌方对我方无害锦囊/敌方自用锦囊: 不浪费
+      return null
     }
-    if (candidate.getHandSize() <= 2) probability *= 0.5
-
-    return Math.random() < probability ? wxCard : null
+    // 反制链: 当前已被抵消(nullified=true), 再无懈会把链翻回不抵消
+    // - 原始锦囊对我方有害: 不反制 (反了等于让有害锦囊生效)
+    // - 原始锦囊对我方无害/有利: 反制帮队友补刀
+    if (!isHarmfulToMySide) return wxCard
+    return null
   }
 
   /** 手捧雷顺延：找到下一个无雷的存活玩家 */
@@ -2709,7 +2728,11 @@ export class Game {
     })
     this.lastPlayedCardName = effectiveCard.name
     if (usedAsSkill === '魅惑') this.emitSkillTrigger(player, '魅惑', `${card.name}当画地为牢`)
-    if (usedAsSkill === '神偷') this.emitSkillTrigger(player, '神偷', `${card.name}当探囊取物`)
+    if (usedAsSkill === '神偷') {
+      this.emitSkillTrigger(player, '神偷', `${card.name}当探囊取物`)
+      // 神偷: 使用一次后自动关闭激活状态 (与傲剑一致, 需再次点击才能再用)
+      this.shenTouActive.delete(player.getId())
+    }
 
     // 延时锦囊：放到目标判定区 (使用时不支持无懈可击, 判定前才响应)
     if ((effectiveCard as any).delayed) {
@@ -2776,7 +2799,7 @@ export class Game {
         player.drawCards(extra)
         this.emitSkillTrigger(player, '生有', '额外摸1张')
       }
-    } else if (card.name === '探囊取物') {
+    } else if (effectiveCard.name === '探囊取物') {
       // 选目标: 如未传targetId, 通过tanNangTargetHandler选
       let target = targetId ? this.players.find(p => p.getId() === targetId) : undefined
       if (!target && this.config.tanNangTargetHandler) {

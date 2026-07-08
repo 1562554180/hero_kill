@@ -2,12 +2,20 @@ import { useState, useEffect, useMemo } from 'react'
 import type { Treasure } from '@hero-legend/shared-types'
 import { getSkillIcon } from '../../skillIcons'
 
+interface EquippedInfo {
+  heroId: string
+  slot: 'main' | 'sub'
+  index: number
+}
+
 interface TransferModalProps {
   open: boolean
   treasures: Treasure[]
   transferTalismanCount: number
   onConfirm: (fromId: string, toId: string) => Promise<void>
   onClose: () => void
+  equippedMap?: Map<string, EquippedInfo>
+  heroNameMap?: Map<string, string>
 }
 
 const SLOT_COLOR_BY_STAR: Record<number, string> = {
@@ -28,7 +36,7 @@ const STAR_BORDER: Record<number, string> = {
 
 type SlotKind = 'source' | 'target'
 
-export function TransferModal({ open, treasures, transferTalismanCount, onConfirm, onClose }: TransferModalProps) {
+export function TransferModal({ open, treasures, transferTalismanCount, onConfirm, onClose, equippedMap, heroNameMap }: TransferModalProps) {
   const [fromId, setFromId] = useState('')
   const [toId, setToId] = useState('')
   const [busy, setBusy] = useState(false)
@@ -153,6 +161,8 @@ export function TransferModal({ open, treasures, transferTalismanCount, onConfir
           treasures={pickerCandidates}
           onPick={handlePick}
           onClose={() => setPickerFor(null)}
+          equippedMap={equippedMap}
+          heroNameMap={heroNameMap}
         />
       )}
     </div>
@@ -220,12 +230,14 @@ function ForgeSlot({
 const PAGE_SIZE = 48
 
 function SubTreasurePicker({
-  title, treasures, onPick, onClose,
+  title, treasures, onPick, onClose, equippedMap, heroNameMap,
 }: {
   title: string
   treasures: Treasure[]
   onPick: (id: string) => void
   onClose: () => void
+  equippedMap?: Map<string, EquippedInfo>
+  heroNameMap?: Map<string, string>
 }) {
   const totalPages = Math.max(1, Math.ceil(treasures.length / PAGE_SIZE))
   const [page, setPage] = useState(0)
@@ -274,11 +286,14 @@ function SubTreasurePicker({
             const lvl = t.level ?? 0
             const cnt = t.enhanceCount ?? 0
             const icon = getSkillIcon(t.name)
+            const equipped = equippedMap?.get(t.id)
+            const equippedHeroName = equipped ? (heroNameMap?.get(equipped.heroId) ?? equipped.heroId) : null
+            const slotLabel = equipped?.slot === 'main' ? '主印' : '辅印'
             const borderColor = STAR_BORDER[t.starLevel] ?? 'var(--border-wood)'
             return (
               <div
                 key={t.id}
-                title={`${'★'.repeat(t.starLevel)} ${t.name}\nLv.${lvl}  强化 ${cnt}/50`}
+                title={`${'★'.repeat(t.starLevel)} ${t.name}\nLv.${lvl}  强化 ${cnt}/50${equippedHeroName ? `\n装备中: ${equippedHeroName} (${slotLabel}${(equipped!.index ?? 0) + 1})` : ''}`}
                 onClick={() => onPick(t.id)}
                 style={{
                   position: 'relative',

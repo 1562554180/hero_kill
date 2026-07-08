@@ -9,6 +9,7 @@ export {
   rollTreasurePavilionSlot,
   randomTreasureIdByStar,
   rollPieceAmount,
+  rollUniversalFragmentAmount,
 } from './treasures/index.js'
 export type { TreasureDefinition, EnemySpawnConfig, PavilionSlotType } from './treasures/index.js'
 export * from './recruit/index.js'

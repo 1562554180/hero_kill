@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Treasure } from '@hero-legend/shared-types'
 import { getSkillIcon } from '../../skillIcons'
 
+export interface EquippedInfo {
+  heroId: string
+  slot: 'main' | 'sub'
+  index: number
+}
+
 interface SubTreasureListProps {
   treasures: Treasure[]
   selectedTreasureId: string | null
@@ -9,6 +15,10 @@ interface SubTreasureListProps {
   onPick: (treasureId: string) => void
   onUnpick?: () => void
   disabled?: boolean
+  /** treasureId → 装备信息 */
+  equippedMap?: Map<string, EquippedInfo>
+  /** heroId → 英雄名, 用于 tooltip 显示 */
+  heroNameMap?: Map<string, string>
 }
 
 const PAGE_SIZE = 48
@@ -28,7 +38,7 @@ const STAR_BORDER: Record<number, string> = {
   1: '#9ca3af',
 }
 
-export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasureIds, onPick, onUnpick, disabled }: SubTreasureListProps) {
+export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasureIds, onPick, onUnpick, disabled, equippedMap, heroNameMap }: SubTreasureListProps) {
   const subs = useMemo(() => treasures.filter(t => t.type !== 'main'), [treasures])
   const totalPages = Math.max(1, Math.ceil(subs.length / PAGE_SIZE))
   const [page, setPage] = useState(0)
@@ -56,7 +66,7 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
       </div>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(32px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(52px, 1fr))',
         gap: '4px',
         alignContent: 'start',
       }}>
@@ -70,11 +80,16 @@ export function SubTreasureList({ treasures, selectedTreasureId, disabledTreasur
           const isDisabled = disabledTreasureIds.has(t.id) || isMaxed
           const rate = atMaxLevel ? null : nextEnhanceRate(lvl)
           const icon = getSkillIcon(t.name)
-          const borderColor = isSelected ? 'var(--text-gold)' : (STAR_BORDER[t.starLevel] ?? 'var(--border-wood)')
+          const equipped = equippedMap?.get(t.id)
+          const equippedHeroName = equipped ? (heroNameMap?.get(equipped.heroId) ?? equipped.heroId) : null
+          const borderColor = isSelected
+            ? 'var(--text-gold)'
+            : (STAR_BORDER[t.starLevel] ?? 'var(--border-wood)')
+          const slotLabel = equipped?.slot === 'main' ? '主印' : '辅印'
           return (
             <div
               key={t.id}
-              title={`${'★'.repeat(t.starLevel)} ${t.name}\nLv.${lvl}/${MAX_LEVEL}  强化 ${cnt}/${MAX_ENHANCE_COUNT}\n${atMaxLevel ? '已满级' : `成功率 ${rate}%`}`}
+              title={`${'★'.repeat(t.starLevel)} ${t.name}\nLv.${lvl}/${MAX_LEVEL}  强化 ${cnt}/${MAX_ENHANCE_COUNT}\n${atMaxLevel ? '已满级' : `成功率 ${rate}%`}${equippedHeroName ? `\n装备中: ${equippedHeroName} (${slotLabel}${(equipped!.index ?? 0) + 1})` : ''}`}
               onClick={() => !disabled && !isDisabled && onPick(t.id)}
               onDoubleClick={() => !disabled && isSelected && onUnpick?.()}
               style={{

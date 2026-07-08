@@ -1449,6 +1449,29 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
     const game = new GameProxy()
     gameRef = game
+    // [DEBUG] 临时暴露 game 到 window, 供测试脚本替换手牌
+    ;(globalThis as any).__game = game
+    ;(globalThis as any).__setPlayerHand = (names: string[]) => {
+      const g = gameRef as any
+      if (!g || !g.game) return false
+      const realGame = g.game
+      const player = realGame.getPlayer()
+      if (!player) return false
+      // 构造调试牌: 全部♣花色, 指定 name
+      const stock = realGame.cardDeck.draw(names.length)
+      const newCards = stock.map((c: any, i: number) => ({ ...c, id: `debug-club-${i}-${Math.random().toString(36).slice(2,8)}`, name: names[i], suit: 'club', type: names[i] === '杀' || names[i] === '闪' || names[i] === '药' ? 'basic' : 'scheme', delayed: names[i] === '画地为牢' || names[i] === '手捧雷' }))
+      // 把原手牌塞回牌堆底
+      const old = player.getHand()
+      player.setHand?.(newCards)
+      if (!player.setHand) {
+        // 没有 setter, 用 internal 方式
+        ;(player as any).hand = newCards
+      }
+      realGame.cardDeck.discard?.(old)
+      // 触发 store 刷新
+      set({ playerHand: newCards })
+      return true
+    }
 
     // 飘字入队: 转发到 animationStore, 让高频动画状态脱离 battleStore
     const pushFloater = (entry: { heroId: string; amount: number; type: 'damage' | 'heal' | 'dodge' | 'response-kill' }) => {
@@ -1846,7 +1869,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
   playScheme: (cardId: string, fromPos?: { x: number; y: number }) => {
     // 点击同一张pending牌 → 取消
-    const { pendingCardId, pendingCardType, playerHand } = get()
+    const { pendingCardId, pendingCardType, playerHand, shenTouActive } = get()
     if (pendingCardId === cardId && pendingCardType === 'scheme') {
       set({ pendingCardId: null, pendingCardType: null, selectedTargetId: null, pendingCardFromPos: null })
       return
@@ -1855,8 +1878,9 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     const card = playerHand.find(c => c.id === cardId)
     if (!card) return
 
-    if (card.name === '借刀杀人') {
+    if (card.name === '借刀杀人' && !(shenTouActive && card.suit === 'club')) {
       // 借刀: 走 pending+confirm 流程 (1阶段选持武器玩家), 与其他牌一致
+      // 神偷激活时 ♣借刀杀人当探囊取物用, 走下面的通用流程
       const game = gameRef
       if (!game) return
       const player = game.getPlayer()

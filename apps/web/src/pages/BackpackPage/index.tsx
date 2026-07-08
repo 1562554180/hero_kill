@@ -29,6 +29,10 @@ const MAT_LABEL: Record<string, string> = {
   heroFragment: '英雄碎片',
   treasureFragment: '宝具碎片',
   heroToken: '英雄令牌',
+  enhancementTalisman: '强化符',
+  luckyStone: '幸运石',
+  transferTalisman: '转移符',
+  treasureTicket: '珍宝阁门票',
 }
 
 const SLOT_LABEL: Record<string, string> = { main: '主印槽', sub: '辅印槽' }
@@ -46,6 +50,10 @@ const STAR_BORDER: Record<number, string> = {
 
 const MAX_LEVEL = 45
 const MAX_ENHANCE_COUNT = 50
+
+const FRAGMENT_BY_STAR: Record<number, number> = { 1: 20, 2: 100, 3: 400, 4: 1000, 5: 2500 }
+/** 一键分解默认选中的星级 */
+const ONE_CLICK_STARS = new Set([1, 2])
 
 /** 服务端公式: 100 - level * 85 / 44, 向下取整 */
 function nextEnhanceRate(level: number): number {
@@ -82,6 +90,7 @@ export function BackpackPage() {
   const [userId, setUserId] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [confirmDecompose, setConfirmDecompose] = useState<null | { treasureIds: string[]; fragments: number }>(null)
 
   const refresh = useCallback(async () => {
     const uid = localStorage.getItem('hero-legend-userId') || ''
@@ -151,6 +160,58 @@ export function BackpackPage() {
   }
 
   // 分解功能已移到宝具工坊
+
+  /** 单个/批量分解, 内部串行调 /api/treasure/decompose */
+  const decomposeTreasures = async (ids: string[]) => {
+    if (busy || ids.length === 0) return
+    setBusy(true)
+    setMessage('')
+    let totalFragments = 0
+    let failed = 0
+    try {
+      for (const id of ids) {
+        const res = await fetch(`${API}/treasure/decompose/${userId}/${encodeURIComponent(id)}`, { method: 'POST' })
+        const data = await res.json()
+        if (!res.ok || data.error) {
+          failed++
+          continue
+        }
+        totalFragments += data.fragments ?? 0
+      }
+      setMessage(`分解完成: ${ids.length - failed} 件, 获得 ${totalFragments} 万能碎片${failed > 0 ? ` (失败 ${failed})` : ''}`)
+      await refresh()
+    } finally {
+      setBusy(false)
+      setConfirmDecompose(null)
+    }
+  }
+
+  /** 一键分解: 选中所有 1★/2★ 且未装备的宝具, 弹确认 */
+  const openOneClickDecompose = () => {
+    if (busy) return
+    const candidates = sortedTreasures.filter(t =>
+      ONE_CLICK_STARS.has(t.starLevel)
+      && !equippedMap.has(t.id)
+      && (t.level ?? 0) === 0
+    )
+    if (candidates.length === 0) {
+      setMessage('没有可分解的 1★/2★ 宝具')
+      return
+    }
+    const fragments = candidates.reduce((s, t) => s + (FRAGMENT_BY_STAR[t.starLevel] ?? 0), 0)
+    setConfirmDecompose({ treasureIds: candidates.map(t => t.id), fragments })
+  }
+
+  /** 双击单个: 弹确认 (已装备的也允许, 服务端会自动卸下) */
+  const openSingleDecompose = (treasureId: string) => {
+    if (busy) return
+    const t = treasures.find(x => x.id === treasureId)
+    if (!t) return
+    setConfirmDecompose({
+      treasureIds: [treasureId],
+      fragments: FRAGMENT_BY_STAR[t.starLevel] ?? 0,
+    })
+  }
 
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', height: '100vh', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
@@ -275,7 +336,16 @@ export function BackpackPage() {
             </div>
           ) : (
             <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(48px, 1fr))', columnGap: '4px', rowGap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+              <button
+                onClick={openOneClickDecompose}
+                disabled={busy}
+                style={{ fontSize: '12px', padding: '4px 12px', opacity: busy ? 0.5 : 1 }}
+              >
+                一键分解 1★/2★
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(52px, 1fr))', columnGap: '4px', rowGap: '16px' }}>
               {sortedTreasures.slice(treasurePage * TREASURE_PAGE_SIZE, (treasurePage + 1) * TREASURE_PAGE_SIZE).map(t => {
                 const n = t.count ?? 1
                 const equipped = equippedMap.get(t.id)
@@ -296,15 +366,21 @@ export function BackpackPage() {
                 const isEquipped = !!equipped
                 const borderColor = isEquipped ? '#ff6b6b' : (STAR_BORDER[t.starLevel] ?? 'var(--border-wood)')
                 return (
-                  <div key={t.id} className="treasure-cell" style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <div
+                    key={t.id}
+                    className="treasure-cell"
+                    onDoubleClick={() => openSingleDecompose(t.id)}
+                    title="双击分解"
+                    style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: busy ? 'not-allowed' : 'pointer' }}
+                  >
                     <div style={{
-                      width: '24px', height: '24px',
+                      width: '52px', height: '52px',
                       backgroundColor: '#1a1a1a',
                       backgroundImage: icon ? `url(${icon})` : 'none',
                       backgroundPosition: '0px -1px',
                       backgroundSize: 'contain',
                       backgroundRepeat: 'no-repeat',
-                      borderRadius: '3px',
+                      borderRadius: '4px',
                       border: `1px solid ${borderColor}`,
                       boxShadow: isEquipped ? '0 0 4px rgba(255,107,107,0.6)' : 'none',
                       position: 'relative',
@@ -315,7 +391,7 @@ export function BackpackPage() {
                           position: 'absolute', inset: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)',
-                          fontSize: '10px', fontWeight: 'bold',
+                          fontSize: '20px', fontWeight: 'bold',
                         }}>{t.name?.[0] ?? '?'}</div>
                       )}
                       {/* 数量角标 */}
@@ -323,9 +399,9 @@ export function BackpackPage() {
                         <span style={{
                           position: 'absolute', right: '0', bottom: '0',
                           background: 'rgba(0,0,0,0.85)', color: 'var(--text-gold)',
-                          fontSize: '11px', fontWeight: 'bold', padding: '0 4px',
-                          lineHeight: '14px',
-                          borderRadius: '3px 0 0 0',
+                          fontSize: '14px', fontWeight: 'bold', padding: '0 6px',
+                          lineHeight: '18px',
+                          borderRadius: '4px 0 0 0',
                         }}>×{n}</span>
                       )}
                     </div>
@@ -426,6 +502,52 @@ export function BackpackPage() {
           </div>
         )}
       </div>
+
+      {confirmDecompose && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => !busy && setConfirmDecompose(null)}
+        >
+          <div
+            style={{
+              background: 'var(--bg-medium)', border: '1px solid var(--border-wood)',
+              borderRadius: '8px', padding: '20px', minWidth: '320px', maxWidth: '440px',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h4 style={{ color: 'var(--text-gold)', margin: '0 0 12px' }}>分解确认</h4>
+            <div style={{ fontSize: '13px', lineHeight: 1.7, marginBottom: '16px' }}>
+              <div>
+                将分解 <span style={{ color: 'var(--text-gold)' }}>{confirmDecompose.treasureIds.length}</span> 件宝具
+              </div>
+              <div style={{ color: 'var(--text-muted)', marginTop: '6px' }}>
+                按星级获得万能碎片: 1★=20 / 2★=100 / 3★=400 / 4★=1000 / 5★=2500
+              </div>
+              <div style={{ marginTop: '6px' }}>
+                预计获得 <span style={{ color: 'var(--text-gold)' }}>{confirmDecompose.fragments}</span> 万能碎片
+              </div>
+              {confirmDecompose.treasureIds.length === 1 && (
+                <div style={{ color: '#ff9e3a', marginTop: '6px', fontSize: '12px' }}>
+                  注: 双击单个宝具时, 已装备的也会自动卸下分解
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button onClick={() => setConfirmDecompose(null)} disabled={busy}>取消</button>
+              <button
+                className="primary"
+                onClick={() => decomposeTreasures(confirmDecompose.treasureIds)}
+                disabled={busy}
+              >
+                {busy ? '处理中...' : '确认分解'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

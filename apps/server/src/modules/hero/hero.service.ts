@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { randomUUID } from 'crypto'
 import { SaveService } from '../save/save.service'
 import { heroes } from '@hero-legend/game-data'
 import type { HeroInstance, Treasure } from '@hero-legend/shared-types'
@@ -88,9 +89,9 @@ export class HeroService {
       save.treasures = pushToInventory(save.treasures, slots[slotIndex] as Treasure)
     }
 
-    // 从堆叠中扣 1 件
-    const { count, id: _id, ...equippedTreasure } = stack
-    slots[slotIndex] = { ...equippedTreasure, count: undefined } as Treasure
+    // 从堆叠中扣 1 件, 给装备槽里的副本分配新 uuid (避免与背包堆叠 id 重复)
+    const { count, ...equippedBase } = stack
+    slots[slotIndex] = { ...equippedBase, id: randomUUID(), count: undefined } as Treasure
     if ((count ?? 1) > 1) {
       save.treasures[stackIdx] = { ...stack, count: (count ?? 1) - 1 }
     } else {

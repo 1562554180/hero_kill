@@ -9,5 +9,6 @@ export {
   rollTreasurePavilionSlot,
   randomTreasureIdByStar,
   rollPieceAmount,
+  rollUniversalFragmentAmount,
 } from './treasure-pavilion.js'
 export type { PavilionSlotType } from './treasure-pavilion.js'

@@ -36,7 +36,19 @@ export class SaveService {
           h.instanceId = randomUUID()
           patched = true
         }
+        // 装备槽里的宝具副本缺 id (老逻辑会删 id) → 补 uuid, 否则工坊强化/前端 key 都会失效
+        const ts = h.treasures ?? { main: [], sub: [] }
+        for (const slot of ['main', 'sub'] as const) {
+          for (const t of (ts[slot] ?? [])) {
+            if (t && !t.id) {
+              t.id = randomUUID()
+              patched = true
+            }
+          }
+        }
       }
+      // mongoose 对内嵌 sub-document 新增字段的变更跟踪可能失效, 强制标记
+      if (patched) (save as any).markModified?.('heroes')
     }
     if (!save.heroStones) {
       save.heroStones = [] as any
