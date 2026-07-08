@@ -404,6 +404,32 @@ workerScope.addEventListener('message', async (e: MessageEvent<MainMessage>) => 
         }
         return
       }
+      case 'debug-set-player-hand': {
+        if (!game) return
+        const player = game.getPlayer()
+        if (!player) return
+        const stock = game.cardDeck.draw(msg.cardNames.length)
+        const newCards = stock.map((c, i) => {
+          const name = msg.cardNames[i]
+          return {
+            ...c,
+            id: `debug-club-${i}-${Math.random().toString(36).slice(2, 8)}`,
+            name,
+            suit: 'club' as const,
+            number: 5,
+            type: (name === '杀' || name === '闪' || name === '药' ? 'basic' : 'scheme') as any,
+            delayed: name === '画地为牢' || name === '手捧雷',
+          }
+        })
+        player.debugSetHand(newCards)
+        // 用合法事件类型推送一次, 让 store 刷新手牌 UI
+        postMsg({
+          kind: 'event',
+          event: { type: 'phase:start', sourceHeroId: player.getId(), data: {} } as any,
+          snapshot: buildSnapshot(game),
+        })
+        return
+      }
       case 'terminate': {
         game = null
         pendingHandlers.clear()

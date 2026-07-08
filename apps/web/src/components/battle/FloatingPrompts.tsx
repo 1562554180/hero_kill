@@ -79,6 +79,7 @@ export function FloatingPrompts() {
     manWuPrompt: s.manWuPrompt, manWuRedHeartCards: s.manWuRedHeartCards, manWuSelectedCardId: s.manWuSelectedCardId,
     tianXiangJudgeCard: s.tianXiangJudgeCard, tianXiangEquipment: s.tianXiangEquipment,
     menShenCandidates: s.menShenCandidates, jueBieCandidates: s.jueBieCandidates,
+    shenTouActive: s.shenTouActive,
     zhenShaPrompt: s.zhenShaPrompt, buDaoPrompt: s.buDaoPrompt, sanBanFuPrompt: s.sanBanFuPrompt,
     fuChouTriggerPrompt: s.fuChouTriggerPrompt, fuChouChoosePrompt: s.fuChouChoosePrompt, fuChouPickSelected: s.fuChouPickSelected,
     sheShenTriggerPrompt: s.sheShenTriggerPrompt,
@@ -217,7 +218,13 @@ export function FloatingPrompts() {
                 if (!pendingCard) return null
                 // 傲剑下非杀牌当杀: 显示杀的信息, 不显示原牌信息
                 const isAoJianKill = pendingCardType === 'kill' && pendingCard.name !== '杀' && aoJianActive
-                const displayName = isAoJianKill ? `杀·当杀(${pendingCard.name})` : pendingCard.name
+                // 神偷激活: ♣非探囊手牌一律当探囊取物, 显示用探囊取物信息
+                const isShenTouTanNang = pendingCardType === 'scheme' && shenTouActive && pendingCard.suit === 'club' && pendingCard.name !== '探囊取物'
+                const displayName = isAoJianKill
+                  ? `杀·当杀(${pendingCard.name})`
+                  : isShenTouTanNang
+                    ? `探囊取物·神偷(${pendingCard.name})`
+                    : pendingCard.name
                 const descMap: Record<string, string> = {
                   '杀': '对攻击范围内的1名其他角色使用, 造成1点伤害',
                   '药': '立即回复1点体力 (满血时不可使用)',
@@ -237,7 +244,8 @@ export function FloatingPrompts() {
                   '画地为牢': '延时锦囊, 判定非♥则目标跳过下回合出牌阶段',
                   '休养生息': '立即回复1点体力',
                 }
-                const desc = descMap[isAoJianKill ? '杀' : pendingCard.name] ?? (pendingCard as any).description ?? '该牌的特殊效果'
+                const descKey = isAoJianKill ? '杀' : isShenTouTanNang ? '探囊取物' : pendingCard.name
+                const desc = descMap[descKey] ?? (pendingCard as any).description ?? '该牌的特殊效果'
                 const needTarget = pendingCardType === 'kill' || pendingCardType === 'scheme'
                 const selectedTargetName = selectedTargetId ? (gameState?.heroes.find(h => h.hero.id === selectedTargetId)?.hero.name ?? '') : ''
                 const canConfirm = !needTarget || !!selectedTargetId

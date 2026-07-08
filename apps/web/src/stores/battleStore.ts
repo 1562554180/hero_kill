@@ -1449,28 +1449,9 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
     const game = new GameProxy()
     gameRef = game
-    // [DEBUG] 临时暴露 game 到 window, 供测试脚本替换手牌
-    ;(globalThis as any).__game = game
+    // [DEBUG] 临时暴露: 供测试脚本替换玩家手牌为梅花各种牌
     ;(globalThis as any).__setPlayerHand = (names: string[]) => {
-      const g = gameRef as any
-      if (!g || !g.game) return false
-      const realGame = g.game
-      const player = realGame.getPlayer()
-      if (!player) return false
-      // 构造调试牌: 全部♣花色, 指定 name
-      const stock = realGame.cardDeck.draw(names.length)
-      const newCards = stock.map((c: any, i: number) => ({ ...c, id: `debug-club-${i}-${Math.random().toString(36).slice(2,8)}`, name: names[i], suit: 'club', type: names[i] === '杀' || names[i] === '闪' || names[i] === '药' ? 'basic' : 'scheme', delayed: names[i] === '画地为牢' || names[i] === '手捧雷' }))
-      // 把原手牌塞回牌堆底
-      const old = player.getHand()
-      player.setHand?.(newCards)
-      if (!player.setHand) {
-        // 没有 setter, 用 internal 方式
-        ;(player as any).hand = newCards
-      }
-      realGame.cardDeck.discard?.(old)
-      // 触发 store 刷新
-      set({ playerHand: newCards })
-      return true
+      engineProxy?.debugSetPlayerHand(names)
     }
 
     // 飘字入队: 转发到 animationStore, 让高频动画状态脱离 battleStore

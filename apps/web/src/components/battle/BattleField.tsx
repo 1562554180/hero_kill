@@ -28,6 +28,7 @@ export function BattleField() {
     treasureTargetIds: s.treasureTargetIds,
     xiaDanActive: s.xiaDanActive,
     sheShenSelectedCardIds: s.sheShenSelectedCardIds,
+    shenTouActive: s.shenTouActive,
     derived: s.derived,
     confirmTarget: s.confirmTarget, toggleTarget: s.toggleTarget, toggleKillMultiTarget: s.toggleKillMultiTarget,
     selectLuYeQiangTarget: s.selectLuYeQiangTarget, selectTanNangTarget: s.selectTanNangTarget, selectFudiTarget: s.selectFudiTarget,
@@ -75,7 +76,10 @@ export function BattleField() {
   const pendingSchemeName = (() => {
     if (pendingCardType !== 'scheme' || !pendingCardId) return null
     if (pendingCardId === '__jieDaoStep2__') return '借刀杀人'
-    return playerHand.find(c => c.id === pendingCardId)?.name ?? null
+    const card = playerHand.find(c => c.id === pendingCardId)
+    // 神偷激活: ♣非探囊手牌一律视为探囊取物 (UI 提示与目标合法性判定统一)
+    if (shenTouActive && card?.suit === 'club' && card.name !== '探囊取物') return '探囊取物'
+    return card?.name ?? null
   })()
   const pendingSchemeCard = (() => {
     if (pendingCardType !== 'scheme' || !pendingCardId) return null

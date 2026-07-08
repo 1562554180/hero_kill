@@ -108,6 +108,7 @@ export type MainMessage =
   | { kind: 'action'; id: number; name: EngineMethodName; args: EngineMethodArgsMap[EngineMethodName] }
   | { kind: 'handler-response'; id: number; result: unknown }
   | { kind: 'terminate' }
+  | { kind: 'debug-set-player-hand'; cardNames: string[] }
 
 // engine 方法分派: 把所有主线程需要调的 engine method 名字 + 参数 + 返回类型列出来
 // 注意: 原 engine API 收 Player 实例, Worker 内部按 playerId 重新 lookup.

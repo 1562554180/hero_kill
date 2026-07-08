@@ -37,6 +37,11 @@ export class Player {
   getMaxHp(): number { return this.hero.maxHp }
   getHand(): Card[] { return [...this.handCards] }
   getHandSize(): number { return this.handCards.length }
+  /** [DEBUG] 测试用: 强制替换玩家手牌 */
+  debugSetHand(cards: Card[]): void {
+    this.handCards = [...cards]
+    this.hero.handCards = this.handCards.map(c => c.id)
+  }
 
   getHandLimit(): number {
     let limit = this.hero.currentHp

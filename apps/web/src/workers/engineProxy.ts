@@ -89,6 +89,11 @@ export class EngineProxy {
     this.handlerImpls.set(name, impl)
   }
 
+  /** [DEBUG] 强制替换玩家手牌为指定♣花色牌 (调试神偷用) */
+  debugSetPlayerHand(cardNames: string[]): void {
+    this.worker.postMessage({ kind: 'debug-set-player-hand', cardNames } satisfies MainMessage)
+  }
+
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
