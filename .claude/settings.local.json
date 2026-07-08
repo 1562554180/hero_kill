@@ -140,7 +140,9 @@
       "Bash(taskkill *)",
       "Bash(cmd.exe *)",
       "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_network_requests",
-      "Bash(mongosh --quiet --eval 'db.getMongo\\(\\).getDBNames\\(\\)')"
+      "Bash(mongosh --quiet --eval 'db.getMongo\\(\\).getDBNames\\(\\)')",
+      "Bash(mongosh *)",
+      "Bash(powershell *)"
     ]
   }
 }
