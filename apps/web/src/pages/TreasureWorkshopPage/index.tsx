@@ -9,6 +9,20 @@ import { useWorkshopKeyframes } from './animations'
 
 const API = '/api'
 
+/** 跨背包 + 所有英雄装备槽查找指定 treasureId 的宝具副本 */
+function findTreasureAcrossSlots(save: any, treasureId: string): Treasure | undefined {
+  const inBag = save?.treasures?.find((x: Treasure) => x.id === treasureId)
+  if (inBag) return inBag
+  for (const h of save?.heroes ?? []) {
+    const ts = h.treasures ?? { main: [], sub: [] }
+    const inMain = ts.main?.find((x: Treasure | null) => x?.id === treasureId)
+    if (inMain) return inMain
+    const inSub = ts.sub?.find((x: Treasure | null) => x?.id === treasureId)
+    if (inSub) return inSub
+  }
+  return undefined
+}
+
 interface SaveData {
   treasures: Treasure[]
   materials: Material[]
@@ -88,6 +102,16 @@ export function TreasureWorkshopPage() {
     && (selectedTreasure.enhanceCount ?? 0) < 50
     && (selectedTreasure.level ?? 0) < 45
 
+  /** 一键拉满: 选中宝具存在 + 至少还有 1 次剩余 + 未满级 */
+  const canUpgradeMax = (() => {
+    if (!canUpgrade || !selectedTreasure) return false
+    const remaining = 50 - (selectedTreasure.enhanceCount ?? 0)
+    return remaining > 0 && (selectedTreasure.level ?? 0) < 45
+  })()
+  const upgradeMaxRemaining = selectedTreasure
+    ? Math.max(0, 50 - (selectedTreasure.enhanceCount ?? 0))
+    : 0
+
   const handleUpgrade = async () => {
     if (!canUpgrade || !selectedTreasure) return
     setPhase('upgrading')
@@ -138,17 +162,7 @@ export function TreasureWorkshopPage() {
       for (let i = 0; i < 10; i++) {
         // 每轮重新拉取最新存档, 判断资源/等级/次数是否允许继续
         const fresh = await fetch(`${API}/save/${userId}`).then(r => r.json())
-        // 跨位置查找: 背包 + 所有英雄的装备槽 (装备中的辅印也能十连)
-        let t: Treasure | undefined = (fresh.treasures as Treasure[])?.find(x => x.id === selectedTreasure.id)
-        if (!t) {
-          for (const h of (fresh.heroes as HeroInstance[]) ?? []) {
-            const ts = h.treasures ?? { main: [], sub: [] }
-            const inMain = ts.main?.find(x => x?.id === selectedTreasure.id)
-            if (inMain) { t = inMain; break }
-            const inSub = ts.sub?.find(x => x?.id === selectedTreasure.id)
-            if (inSub) { t = inSub; break }
-          }
-        }
+        const t = findTreasureAcrossSlots(fresh, selectedTreasure.id)
         const talisman = (fresh.materials as Material[])?.find(m => m.type === 'enhancementTalisman')?.amount ?? 0
         const lucky = (fresh.materials as Material[])?.find(m => m.type === 'luckyStone')?.amount ?? 0
         const gold = (fresh.materials as Material[])?.find(m => m.type === 'gold')?.amount ?? 0
@@ -179,6 +193,77 @@ export function TreasureWorkshopPage() {
         oldLevel,
         newLevel,
         message: `十连完成: 成功 ${successCount} / 失败 ${failCount}${luckyCount > 0 ? ` / 欧皇 ${luckyCount}` : ''}${stoppedReason ? ` / 提前停止: ${stoppedReason}` : ''}`,
+      })
+      setPhase('revealed')
+      setTimeout(() => {
+        setResult(null)
+        setPhase('idle')
+        refresh()
+      }, 2800)
+    } catch (e: any) {
+      setToast('网络错误: ' + (e?.message ?? ''))
+      setTimeout(() => setToast(''), 3000)
+      setPhase('idle')
+    }
+  }
+
+  /**
+   * 一键拉满: 用完所有剩余强化次数 (50 - currentEnhanceCount).
+   * 资源/等级/次数上限遇任一限制时提前停止.
+   */
+  const handleUpgradeMax = async () => {
+    if (!canUpgrade || !selectedTreasure) return
+    setPhase('upgrading')
+    let successCount = 0
+    let luckyCount = 0
+    let failCount = 0
+    let oldLevel = selectedTreasure.level ?? 0
+    let newLevel = oldLevel
+    let stoppedReason = ''
+
+    try {
+      // 第一次拉存档确定本次循环上限
+      const initial = await fetch(`${API}/save/${userId}`).then(r => r.json())
+      const initialT = findTreasureAcrossSlots(initial, selectedTreasure.id)
+      if (!initialT) {
+        stoppedReason = '辅印不存在'
+      }
+      const remaining = Math.max(0, 50 - (initialT?.enhanceCount ?? 0))
+
+      for (let i = 0; i < remaining; i++) {
+        const fresh = await fetch(`${API}/save/${userId}`).then(r => r.json())
+        const t = findTreasureAcrossSlots(fresh, selectedTreasure.id)
+        const talisman = (fresh.materials as Material[])?.find(m => m.type === 'enhancementTalisman')?.amount ?? 0
+        const lucky = (fresh.materials as Material[])?.find(m => m.type === 'luckyStone')?.amount ?? 0
+        const gold = (fresh.materials as Material[])?.find(m => m.type === 'gold')?.amount ?? 0
+        if (!t) { stoppedReason = '辅印不存在'; break }
+        const lvl = t.level ?? 0
+        const cnt = t.enhanceCount ?? 0
+        const cost = 100 * (lvl + 1)
+        if (lvl >= 45) { stoppedReason = '已满级'; break }
+        if (cnt >= 50) { stoppedReason = '已达强化次数上限'; break }
+        if (talisman < 1) { stoppedReason = '强化符不足'; break }
+        if (lucky < luckyStones) { stoppedReason = '幸运石不足'; break }
+        if (gold < cost) { stoppedReason = '金币不足'; break }
+        const res = await fetch(`${API}/treasure/upgrade/${userId}/${encodeURIComponent(selectedTreasure.id)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ luckyStones }),
+        })
+        const data = await res.json()
+        if (!res.ok || data.error) { stoppedReason = data.error ?? data.message ?? `${res.status}`; break }
+        if (data.success) successCount++
+        else failCount++
+        if (data.lucky) luckyCount++
+        newLevel = data.newLevel as number
+      }
+
+      setResult({
+        success: successCount > 0,
+        lucky: luckyCount > 0,
+        oldLevel,
+        newLevel,
+        message: `一键拉满完成: 成功 ${successCount} / 失败 ${failCount}${luckyCount > 0 ? ` / 欧皇 ${luckyCount}` : ''}${stoppedReason ? ` / 提前停止: ${stoppedReason}` : ''}`,
       })
       setPhase('revealed')
       setTimeout(() => {
@@ -349,6 +434,19 @@ export function TreasureWorkshopPage() {
           disabled={!canUpgrade}
           style={{ padding: '10px 20px', fontSize: '15px', opacity: canUpgrade ? 1 : 0.4 }}>
           {phase === 'upgrading' ? '强化中...' : '强化十次'}
+        </button>
+        <button onClick={handleUpgradeMax}
+          disabled={!canUpgradeMax || phase !== 'idle'}
+          style={{
+            padding: '10px 20px', fontSize: '15px', fontWeight: 'bold',
+            color: 'var(--text-gold)',
+            border: `1px solid ${canUpgradeMax ? 'var(--text-gold)' : '#555'}`,
+            background: 'transparent',
+            borderRadius: '4px',
+            cursor: canUpgradeMax ? 'pointer' : 'not-allowed',
+            opacity: canUpgradeMax ? 1 : 0.4,
+          }}>
+          {phase === 'upgrading' ? '拉满中...' : `一键拉满 (${upgradeMaxRemaining}次)`}
         </button>
       </div>
 
