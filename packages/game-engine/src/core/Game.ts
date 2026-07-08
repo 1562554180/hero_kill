@@ -2709,7 +2709,8 @@ export class Game {
     }
     // 神偷: 梅花手牌可当探囊取物 — 需激活
     if (isShenTou) {
-      effectiveCard = { ...card, name: '探囊取物' } as Card
+      // 覆盖 name 同时清掉 delayed 标记 (避免 ♣画地为牢/手捧雷 仍走延时锦囊分支进判定区)
+      effectiveCard = { ...card, name: '探囊取物', delayed: false } as Card
       usedAsSkill = '神偷'
     }
 
@@ -2778,13 +2779,15 @@ export class Game {
     const aoeSchemeNames = ['万箭齐发', '南蛮入侵', '烽火狼烟', '五谷丰登', '休养生息']
     const isAoe = aoeSchemeNames.includes(effectiveCard.name)
     const schemeTarget = targetId ? this.players.find(p => p.getId() === targetId) : undefined
-    const schemeNullified = isAoe ? false : await this.checkNullification(player, schemeTarget, card)
+    // 神偷/魅惑转换后的牌, 提示与 AI 判定都用转换后的 name (effectiveCard.name), 不暴露原 card.name
+    const schemeNullified = isAoe ? false : await this.checkNullification(player, schemeTarget, effectiveCard)
     if (schemeNullified) {
       // 被抵消, 不执行效果
     } else {
       // 妙计: 立即摸1张 (放在效果执行前, 决斗等长效果也能立即触发)
       // 釜底抽薪/借刀 在各自的execute函数中触发, 这里跳过避免重复
-      if (player.hasSkillOrTreasure('miao-ji') && card.name !== '釜底抽薪' && card.name !== '借刀杀人') {
+      // 神偷转换后的探囊取物仍触发妙计 (用 effectiveCard.name 判定, 不再排除 ♣借刀杀人)
+      if (player.hasSkillOrTreasure('miao-ji') && effectiveCard.name !== '釜底抽薪' && effectiveCard.name !== '借刀杀人') {
         const drawn = this.cardDeck.draw(1)
         player.drawCards(drawn)
         this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')

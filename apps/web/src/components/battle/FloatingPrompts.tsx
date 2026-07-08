@@ -29,6 +29,7 @@ export function FloatingPrompts() {
     manWuPrompt, manWuRedHeartCards, manWuSelectedCardId,
     tianXiangJudgeCard, tianXiangEquipment,
     menShenCandidates, jueBieCandidates,
+    shenTouActive,
     zhenShaPrompt, buDaoPrompt, sanBanFuPrompt, panLongGunPrompt,
     fuChouTriggerPrompt, fuChouChoosePrompt, fuChouPickSelected,
     sheShenTriggerPrompt,

@@ -410,7 +410,7 @@ workerScope.addEventListener('message', async (e: MessageEvent<MainMessage>) => 
         if (!player) return
         const stock = game.cardDeck.draw(msg.cardNames.length)
         const newCards = stock.map((c, i) => {
-          const name = msg.cardNames[i]
+          const name = msg.cardNames[i] as any
           return {
             ...c,
             id: `debug-club-${i}-${Math.random().toString(36).slice(2, 8)}`,
