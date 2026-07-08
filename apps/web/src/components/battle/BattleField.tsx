@@ -14,6 +14,7 @@ export function BattleField() {
     treasureTargetIds,
     xiaDanActive,
     sheShenSelectedCardIds,
+    shenTouActive,
     derived,
     confirmTarget, toggleTarget, toggleKillMultiTarget,
     selectLuYeQiangTarget, selectTanNangTarget, selectFudiTarget,
