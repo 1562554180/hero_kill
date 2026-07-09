@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { MongooseModule } from '@nestjs/mongoose'
+import { AuthModule } from './modules/auth/auth.module'
 import { BattleModule } from './modules/battle/battle.module'
 import { HeroModule } from './modules/hero/hero.module'
 import { StageModule } from './modules/stage/stage.module'
@@ -11,6 +12,7 @@ import { TreasurePavilionModule } from './modules/treasurePavilion/treasure-pavi
 @Module({
   imports: [
     MongooseModule.forRoot('mongodb://localhost:27017/hero-legend'),
+    AuthModule,
     BattleModule,
     HeroModule,
     StageModule,
