@@ -1,6 +1,9 @@
-import { Controller, Post, Body } from '@nestjs/common'
+import { Controller, Post, Body, UseGuards } from '@nestjs/common'
 import { BattleService } from './battle.service'
+import { AuthGuard } from '../auth/auth.guard'
+import { CurrentUserId } from '../auth/current-user.decorator'
 
+@UseGuards(AuthGuard)
 @Controller('battle')
 export class BattleController {
   constructor(private battleService: BattleService) {}
@@ -16,13 +19,12 @@ export class BattleController {
   }
 
   @Post('result')
-  async saveResult(@Body() body: {
-    userId: string
+  async saveResult(@CurrentUserId() userId: string, @Body() body: {
     stageId: string
     battleIdx: number
     result: any
     playerHeroId?: string
   }) {
-    return this.battleService.saveResult(body)
+    return this.battleService.saveResult({ ...body, userId })
   }
 }

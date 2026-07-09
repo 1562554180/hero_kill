@@ -1,30 +1,33 @@
-import { Controller, Post, Param, Body } from '@nestjs/common'
+import { Controller, Post, Param, Body, UseGuards } from '@nestjs/common'
 import { TreasureService } from './treasure.service'
+import { AuthGuard } from '../auth/auth.guard'
+import { CurrentUserId } from '../auth/current-user.decorator'
 
+@UseGuards(AuthGuard)
 @Controller('treasure')
 export class TreasureController {
   constructor(private treasureService: TreasureService) {}
 
-  @Post('upgrade/:userId/:treasureId')
+  @Post('upgrade/:treasureId')
   async upgrade(
-    @Param('userId') userId: string,
+    @CurrentUserId() userId: string,
     @Param('treasureId') treasureId: string,
     @Body() body: { luckyStones?: number },
   ) {
     return this.treasureService.upgrade(userId, treasureId, body.luckyStones ?? 0)
   }
 
-  @Post('transfer-level/:userId')
+  @Post('transfer-level')
   async transfer(
-    @Param('userId') userId: string,
+    @CurrentUserId() userId: string,
     @Body() body: { fromTreasureId: string; toTreasureId: string },
   ) {
     return this.treasureService.transferLevel(userId, body.fromTreasureId, body.toTreasureId)
   }
 
-  @Post('decompose/:userId/:treasureId')
+  @Post('decompose/:treasureId')
   async decompose(
-    @Param('userId') userId: string,
+    @CurrentUserId() userId: string,
     @Param('treasureId') treasureId: string,
   ) {
     return this.treasureService.decompose(userId, treasureId)
