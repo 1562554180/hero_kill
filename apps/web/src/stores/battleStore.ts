@@ -986,7 +986,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           set({ resolveWuguPick: resolve })
         })
         // 玩家选完后不关弹框 — 让 card:gain 事件和 wuguPicks 跟踪后续 AI 选牌
-        set({ resolveWuguPick: null, phase: 'playing' })
+        // 选了牌: phase='waiting' 锁手牌, 等 engine 动画跑完再回 playing; 取消: 'playing'
+        set({ resolveWuguPick: null, phase: cardId === null ? 'playing' : 'waiting' })
         return cardId
       },
       jieDaoTargetHandler: async (ctx: JieDaoTargetCtx) => {
@@ -998,7 +999,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         const holderId = await new Promise<string | null>(resolve => {
           set({ resolveJieDaoHolder: resolve })
         })
-        set({ resolveJieDaoHolder: null, jieDaoHolders: [], phase: 'playing' })
+        set({ resolveJieDaoHolder: null, jieDaoHolders: [], phase: holderId === null ? 'playing' : 'waiting' })
         return holderId
       },
       jieDaoAttackTargetHandler: async (ctx: JieDaoAttackTargetCtx) => {
@@ -1016,7 +1017,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         const targetId = await new Promise<string | null>(resolve => {
           set({ resolveJieDaoTarget: resolve })
         })
-        set({ resolveJieDaoTarget: null, jieDaoCandidates: [], phase: 'playing', pendingCardId: null, pendingCardType: null, pendingCardFromPos: null })
+        set({ resolveJieDaoTarget: null, jieDaoCandidates: [], phase: targetId === null ? 'playing' : 'waiting', pendingCardId: null, pendingCardType: null, pendingCardFromPos: null })
         return targetId
       },
       tanNangTargetHandler: async (ctx: TanNangTargetCtx) => {
@@ -1029,7 +1030,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         const targetId = await new Promise<string | null>(resolve => {
           set({ resolveTanNangTarget: resolve })
         })
-        set({ resolveTanNangTarget: null, phase: 'playing', tanNangCandidates: [] })
+        set({ resolveTanNangTarget: null, phase: targetId === null ? 'playing' : 'waiting', tanNangCandidates: [] })
         return targetId
       },
       tanNangPickHandler: async (ctx: TanNangPickCtx) => {
@@ -1048,7 +1049,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         const cardId = await new Promise<string | null>(resolve => {
           set({ resolveTanNangPick: resolve })
         })
-        set({ resolveTanNangPick: null, tanNangTargetInfo: null, phase: 'playing' })
+        set({ resolveTanNangPick: null, tanNangTargetInfo: null, phase: cardId === null ? 'playing' : 'waiting' })
         return cardId
       },
       fudiTargetHandler: async (ctx: FudiTargetCtx) => {
@@ -1060,7 +1061,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         const targetId = await new Promise<string | null>(resolve => {
           set({ resolveFudiTarget: resolve })
         })
-        set({ resolveFudiTarget: null, phase: 'playing' })
+        set({ resolveFudiTarget: null, phase: targetId === null ? 'playing' : 'waiting' })
         return targetId
       },
       fudiPickHandler: async (ctx: FudiPickCtx) => {
@@ -1079,7 +1080,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         const cardId = await new Promise<string | null>(resolve => {
           set({ resolveFudiPick: resolve })
         })
-        set({ resolveFudiPick: null, fudiTargetInfo: null, phase: 'playing' })
+        set({ resolveFudiPick: null, fudiTargetInfo: null, phase: cardId === null ? 'playing' : 'waiting' })
         return cardId
       },
       faJiaPickHandler: async (ctx: FaJiaPickCtx) => {
@@ -1098,7 +1099,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         const cardId = await new Promise<string | null>(resolve => {
           set({ resolveFaJiaPick: resolve })
         })
-        set({ resolveFaJiaPick: null, faJiaTargetInfo: null, phase: 'playing' })
+        set({ resolveFaJiaPick: null, faJiaTargetInfo: null, phase: cardId === null ? 'playing' : 'waiting' })
         return cardId
       },
       discardPickHandler: async (ctx: DiscardPickCtx) => {
@@ -2104,7 +2105,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     const { resolveMultiTarget, selectedTargets } = get()
     if (!resolveMultiTarget) return
     resolveMultiTarget(selectedTargets)
-    set({ resolveMultiTarget: null, multiTargetCandidates: [], selectedTargets: [], phase: 'playing' })
+    // 真选了目标 → 等 engine 动画跑完; 没选 (空数组) = 取消 → 回 playing
+    set({ resolveMultiTarget: null, multiTargetCandidates: [], selectedTargets: [], phase: selectedTargets.length === 0 ? 'playing' : 'waiting' })
   },
   cancelMultiTarget: () => {
     const { resolveMultiTarget } = get()
@@ -2173,7 +2175,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveDualCard: null,
       selectedDualCards: [],
       luYeQiangKillCardId: selectedDualCards[0],
-      phase: 'playing',
+      phase: 'waiting',
     })
   },
   cancelDualCards: () => {
@@ -2186,7 +2188,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     const { resolveLuYeQiangTarget } = get()
     if (!resolveLuYeQiangTarget) return
     resolveLuYeQiangTarget(targetId)
-    set({ resolveLuYeQiangTarget: null, luYeQiangCandidates: [], luYeQiangKillCardId: null, phase: 'playing' })
+    // 真选了目标 → 等 engine 动画跑完; cancelLuYeQiangTarget 才回 playing
+    set({ resolveLuYeQiangTarget: null, luYeQiangCandidates: [], luYeQiangKillCardId: null, phase: 'waiting' })
   },
   cancelLuYeQiangTarget: () => {
     const { resolveLuYeQiangTarget } = get()
@@ -2208,7 +2211,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     const { resolveLongLin, longLinSelectedCards } = get()
     if (!resolveLongLin || longLinSelectedCards.length === 0) return
     resolveLongLin(longLinSelectedCards)
-    set({ resolveLongLin: null, longLinTargetInfo: null, longLinSelectedCards: [], phase: 'playing' })
+    // 真选了牌 → 等 engine 动画跑完; cancel 才回 playing
+    set({ resolveLongLin: null, longLinTargetInfo: null, longLinSelectedCards: [], phase: 'waiting' })
   },
   cancelLongLinPick: () => {
     const { resolveLongLin } = get()
