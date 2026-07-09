@@ -64,12 +64,12 @@ export function BattleBoard() {
           minHeight: '140px',
           overflow: 'visible',
         }}>
-          <FloatingPrompts />
-
           <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '12px', alignItems: 'stretch' }}>
             <PlayerHeroCard />
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, gap: '6px' }}>
+            {/* 右侧手牌+技能栏列: FloatingPrompts 移到这里, 使所有浮层宽度与手牌一致 */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, gap: '6px', position: 'relative' }}>
+              <FloatingPrompts />
               <PlayerHand />
               <SkillBar />
             </div>

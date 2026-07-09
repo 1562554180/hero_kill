@@ -260,8 +260,8 @@ export function FloatingPrompts() {
                 return (
                   <div style={{
                     pointerEvents: 'auto',
-                    width: '70%',
-                    margin: '0 auto',
+                    width: '100%',
+                    margin: '0',
                     padding: '5px 8px',
                     background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                     borderRadius: '6px',
@@ -297,8 +297,8 @@ export function FloatingPrompts() {
               {phase === 'selectFuChouDiscard' && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(244,67,54,0.18), rgba(183,28,28,0.18))',
                   borderRadius: '6px',
@@ -340,8 +340,8 @@ export function FloatingPrompts() {
               {phase === 'awaitingResponse' && responsePrompt && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(255,152,0,0.18), rgba(230,81,0,0.18))',
                   borderRadius: '6px',
@@ -359,8 +359,8 @@ export function FloatingPrompts() {
               {xiaDanActive && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                   borderRadius: '6px',
@@ -378,8 +378,8 @@ export function FloatingPrompts() {
               {treasureSkill === 'yu-ren' && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                   borderRadius: '6px',
@@ -407,8 +407,8 @@ export function FloatingPrompts() {
               {treasureSkill === 'liao-shang' && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                   borderRadius: '6px',
@@ -426,8 +426,8 @@ export function FloatingPrompts() {
               {treasureSkill === 'zhi-yu' && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                   borderRadius: '6px',
@@ -445,8 +445,8 @@ export function FloatingPrompts() {
               {treasureSkill === 'feng-huo' && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(255,152,0,0.18), rgba(230,81,0,0.18))',
                   borderRadius: '6px',
@@ -488,8 +488,8 @@ export function FloatingPrompts() {
               {phase === 'xiaDanPickCard' && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                   borderRadius: '6px',
@@ -545,8 +545,8 @@ export function FloatingPrompts() {
               {yuRuYiPrompt && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'rgba(255,235,59,0.12)', borderRadius: '6px',
                   border: '1px solid rgba(255,235,59,0.3)',
@@ -737,8 +737,8 @@ export function FloatingPrompts() {
               {panLongGunPrompt && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '6px 10px',
                   background: 'linear-gradient(135deg, rgba(120,80,40,0.18), rgba(60,30,15,0.18))',
                   borderRadius: '6px',
@@ -759,8 +759,8 @@ export function FloatingPrompts() {
               {fuChouTriggerPrompt && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(244,67,54,0.18), rgba(183,28,28,0.18))',
                   borderRadius: '6px',
@@ -781,8 +781,8 @@ export function FloatingPrompts() {
               {sheShenTriggerPrompt && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(183,69,58,0.18))',
                   borderRadius: '6px',
@@ -803,8 +803,8 @@ export function FloatingPrompts() {
               {fuChouChoosePrompt && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(244,67,54,0.18), rgba(183,28,28,0.18))',
                   borderRadius: '6px',
@@ -900,8 +900,8 @@ export function FloatingPrompts() {
               {phase === 'dyingRescue' && dyingRescuePrompt && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(244,67,54,0.18), rgba(183,28,28,0.18))',
                   borderRadius: '6px',
@@ -921,8 +921,8 @@ export function FloatingPrompts() {
               {phase === 'selectDualCards' && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                   borderRadius: '6px',
@@ -953,8 +953,8 @@ export function FloatingPrompts() {
               {phase === 'selectLuYeQiangTarget' && luYeQiangKillCardId && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(211,47,47,0.18), rgba(183,28,28,0.18))',
                   borderRadius: '6px',
@@ -1037,8 +1037,8 @@ export function FloatingPrompts() {
               {phase === 'qiYiPrompt' && qiYiDecision && qiYiStep === 'confirm' && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '5px 8px',
                   background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                   borderRadius: '6px',
@@ -1061,8 +1061,8 @@ export function FloatingPrompts() {
               {phase === 'qiYiPrompt' && qiYiDecision && qiYiStep === 'pickTargets' && (
                 <div style={{
                   pointerEvents: 'auto',
-                  width: '70%',
-                  margin: '0 auto',
+                  width: '100%',
+                  margin: '0',
                   padding: '8px 10px',
                   background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                   borderRadius: '6px',
@@ -1124,8 +1124,8 @@ export function FloatingPrompts() {
                 return (
                   <div style={{
                     pointerEvents: 'auto',
-                    width: '70%',
-                    margin: '0 auto',
+                    width: '100%',
+                    margin: '0',
                     padding: '8px 10px',
                     background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                     borderRadius: '6px',
