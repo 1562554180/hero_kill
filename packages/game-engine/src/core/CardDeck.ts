@@ -3,10 +3,22 @@ import type { Card } from '@hero-legend/shared-types'
 export class CardDeck {
   private drawPile: Card[] = []
   private discardPile: Card[] = []
+  /** [DEBUG] 全部抽到的牌强制变♣ (神偷测试用) */
+  private forceClubSuit = false
 
   constructor(cards: Card[]) {
     this.drawPile = [...cards]
     this.shuffle()
+  }
+
+  /** [DEBUG] 开启: 之后所有抽到的牌 suit 都改为 club */
+  enableForceClubSuit(): void {
+    this.forceClubSuit = true
+  }
+
+  /** [DEBUG] 关闭 */
+  disableForceClubSuit(): void {
+    this.forceClubSuit = false
   }
 
   shuffle(): void {
@@ -23,7 +35,8 @@ export class CardDeck {
         this.reshuffleDiscard()
       }
       if (this.drawPile.length === 0) break
-      drawn.push(this.drawPile.pop()!)
+      const card = this.drawPile.pop()!
+      drawn.push(this.forceClubSuit ? { ...card, suit: 'club' as const } : card)
     }
     return drawn
   }

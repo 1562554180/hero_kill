@@ -430,6 +430,12 @@ workerScope.addEventListener('message', async (e: MessageEvent<MainMessage>) => 
         })
         return
       }
+      case 'debug-set-force-club': {
+        if (!game) return
+        if (msg.enabled) game.cardDeck.enableForceClubSuit()
+        else game.cardDeck.disableForceClubSuit()
+        return
+      }
       case 'terminate': {
         game = null
         pendingHandlers.clear()

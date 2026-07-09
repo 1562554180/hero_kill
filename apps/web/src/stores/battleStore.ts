@@ -1453,6 +1453,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     ;(globalThis as any).__setPlayerHand = (names: string[]) => {
       engineProxy?.debugSetPlayerHand(names)
     }
+    // [DEBUG] 临时暴露: 开启后所有抽到的牌 suit 强制变 ♣ (神偷测试: 默认出牌都当探囊取物)
+    ;(globalThis as any).__forceClubMode = (enabled: boolean) => {
+      engineProxy?.debugSetForceClubSuit(enabled)
+    }
 
     // 飘字入队: 转发到 animationStore, 让高频动画状态脱离 battleStore
     const pushFloater = (entry: { heroId: string; amount: number; type: 'damage' | 'heal' | 'dodge' | 'response-kill' }) => {
