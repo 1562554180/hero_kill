@@ -3143,14 +3143,13 @@ export class Game {
   /** 疏财: 将手牌给其他角色 (本回合无使用次数限制, 累加出牌≥2时回复1点体力, 每回合最多回复1次) */
   playerShuCai(player: Player, cardIds: string[], targetId: string): void {
     if (!player.hasSkillOrTreasure('shu-cai')) return
-    // 不限制使用次数, 但 skill 用作"是否拥有此技能"的判定
-    if (!player.hasSkillOrTreasure('shu-cai')) return
     const target = this.getPlayerById(targetId)
     if (!target) return
     for (const cid of cardIds) {
       const card = this.removeHandCard(player,cid)
       if (card) target.drawCards([card])
     }
+    // 累积: 本回合所有疏财发牌数累加, 达2张自回1血 (每回合最多1次)
     this.shuCaiCardsGivenThisTurn += cardIds.length
     if (!this.shuCaiHealedThisTurn && this.shuCaiCardsGivenThisTurn >= 2 && player.getCurrentHp() < player.getMaxHp()) {
       player.heal(1)

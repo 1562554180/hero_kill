@@ -195,7 +195,7 @@ export const heroes: Hero[] = [
     id: 'song-jiang', name: '宋江', faction: '民', starLevel: 2, baseHp: 4,
     description: '及时雨，梁山之主',
     skills: [
-      { id: 'shu-cai', name: '疏财', type: 'active', description: '出牌阶段可将手牌发给任意角色，发出两张或以上时自己恢复1点体力（每回合最多恢复1点）' },
+      { id: 'shu-cai', name: '疏财', type: 'active', description: '出牌阶段可将手牌发给任意角色, 无次数限制; 本回合累计发出2张或以上时自己恢复1点体力 (每回合最多恢复1次)' },
     ],
   },
   {
