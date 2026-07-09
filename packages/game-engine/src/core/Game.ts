@@ -1275,6 +1275,12 @@ export class Game {
       this.emitSkillTrigger(attacker, skillName, `${killCard.name}当杀`)
     }
 
+    // 傲剑: 牌出去立即关闭激活状态 (激活一次使用一次), 早于黑杀盾/红杀盾免疫等任何提前 return
+    if (skillName === '傲剑' || usedAoJian) {
+      this.aoJianActive.delete(attacker.getId())
+      this.emitSkillTrigger(attacker, '傲剑', '已关闭激活')
+    }
+
     this.lastPlayedCardName = '杀'
 
     // 黑杀盾/红杀盾: 30%几率免疫对方黑色/红色杀（判定前生效）
@@ -1566,12 +1572,6 @@ export class Game {
           }
         }
       }
-    }
-
-    // 傲剑: 出杀后自动关闭激活状态 (激活一次使用一次). 触发一次 emit 让 UI 快照刷新
-    if (skillName === '傲剑' || usedAoJian) {
-      this.aoJianActive.delete(attacker.getId())
-      this.emitSkillTrigger(attacker, '傲剑', '已关闭激活')
     }
   }
 
