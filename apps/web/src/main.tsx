@@ -5,6 +5,7 @@ import './styles/global.css'
 
 // 路由懒加载: 每个页面单独 chunk, 首屏只加载当前路由
 const MainPage = lazy(() => import('./pages/MainPage').then(m => ({ default: m.MainPage })))
+const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })))
 const StageSelectPage = lazy(() => import('./pages/StageSelectPage').then(m => ({ default: m.StageSelectPage })))
 const BattlePage = lazy(() => import('./pages/BattlePage').then(m => ({ default: m.BattlePage })))
 const HeroPage = lazy(() => import('./pages/HeroPage').then(m => ({ default: m.HeroPage })))
@@ -28,6 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<MainPage />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/stages" element={<StageSelectPage />} />
           <Route path="/battle/:stageId" element={<BattlePage />} />
           <Route path="/heroes" element={<HeroPage />} />

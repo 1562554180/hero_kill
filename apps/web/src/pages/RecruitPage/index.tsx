@@ -53,16 +53,15 @@ export function RecruitPage() {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [countdown, setCountdown] = useState('')
-  const userId = localStorage.getItem('hero-legend-userId') || ''
 
   const refreshSave = useCallback(async () => {
-    const data = await fetch(`${API}/save/${userId}`).then(r => r.json())
+    const data = await fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json())
     setSave(data)
-  }, [userId])
+  }, [])
 
   useEffect(() => {
     refreshSave()
-    fetch(`${API}/hero`).then(r => r.json()).then(d => setAllHeroes(d.heroes ?? []))
+    fetch(`${API}/hero`, { credentials: 'include' }).then(r => r.json()).then(d => setAllHeroes(d.heroes ?? []))
   }, [refreshSave])
 
   // 倒计时 (每 1s 更新)
@@ -84,9 +83,10 @@ export function RecruitPage() {
     setBusy(true)
     setMessage('')
     try {
-      const res = await fetch(`${API}/recruit/draw/${userId}/${tab}`, {
+      const res = await fetch(`${API}/recruit/draw/${tab}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ count }),
       })
       const data = await res.json()

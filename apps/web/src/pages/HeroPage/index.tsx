@@ -42,7 +42,6 @@ export function HeroPage() {
   const [allHeroes, setAllHeroes] = useState<Hero[]>([])
   const [myHeroes, setMyHeroes] = useState<HeroInstance[]>([])
   const [inventory, setInventory] = useState<Treasure[]>([])
-  const [userId, setUserId] = useState<string>('')
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   // 镶嵌凹槽选中状态: 点击槽位时展开可镶嵌列表
@@ -59,12 +58,9 @@ export function HeroPage() {
   }>({ open: false, instanceId: null, heroName: '', heroLevel: 0, heroStar: 0, faction: '', returnedCount: 0 })
 
   useEffect(() => {
-    const uid = localStorage.getItem('hero-legend-userId') || ''
-    setUserId(uid)
-
     Promise.all([
-      fetch(`${API}/hero`).then(r => r.json()),
-      fetch(`${API}/save/${uid}`).then(r => r.json()),
+      fetch(`${API}/hero`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json()),
     ]).then(([heroData, saveData]) => {
       setAllHeroes(heroData.heroes ?? [])
       setMyHeroes(saveData?.heroes ?? [])
@@ -73,7 +69,7 @@ export function HeroPage() {
   }, [])
 
   const refreshSave = async () => {
-    const res = await fetch(`${API}/save/${userId}`)
+    const res = await fetch(`${API}/save`, { credentials: 'include' })
     const data = await res.json()
     setMyHeroes(data?.heroes ?? [])
     setInventory(data?.treasures ?? [])
@@ -82,9 +78,10 @@ export function HeroPage() {
   const getStarDisplay = (level: number) => '★'.repeat(level) + '☆'.repeat(5 - level)
 
   const equipTreasure = async (instanceId: string, slotType: 'main' | 'sub', slotIndex: number, treasureId: string) => {
-    const res = await fetch(`${API}/hero/equip-treasure/${userId}/${instanceId}`, {
+    const res = await fetch(`${API}/hero/equip-treasure/${instanceId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ slotType, slotIndex, treasureId }),
     })
     const data = await res.json()
@@ -98,9 +95,10 @@ export function HeroPage() {
   }
 
   const unequipTreasure = async (instanceId: string, slotType: 'main' | 'sub', slotIndex: number) => {
-    const res = await fetch(`${API}/hero/unequip-treasure/${userId}/${instanceId}`, {
+    const res = await fetch(`${API}/hero/unequip-treasure/${instanceId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ slotType, slotIndex }),
     })
     const data = await res.json()
@@ -130,7 +128,7 @@ export function HeroPage() {
   }
 
   const fetchBanish = async (instanceId: string) => {
-    const res = await fetch(`${API}/hero/banish/${userId}/${instanceId}`, { method: 'POST' })
+    const res = await fetch(`${API}/hero/banish/${instanceId}`, { method: 'POST', credentials: 'include' })
     const data = await res.json()
     if (!res.ok || data.error) throw new Error(data.error ?? data.message ?? `HTTP ${res.status}`)
     return data as { success: true; removedInstanceId: string; heroId: string; heroName: string; returnedTreasures: number }

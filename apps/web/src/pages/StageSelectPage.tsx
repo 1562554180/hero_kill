@@ -12,10 +12,9 @@ export function StageSelectPage() {
   const [progress, setProgress] = useState<Record<string, any>>({})
 
   useEffect(() => {
-    const userId = localStorage.getItem('hero-legend-userId')
     Promise.all([
-      fetch('/api/stage').then(r => r.json()),
-      fetch(`/api/save/${userId}`).then(r => r.json()).catch(() => null),
+      fetch('/api/stage', { credentials: 'include' }).then(r => r.json()),
+      fetch(`/api/save`, { credentials: 'include' }).then(r => r.json()).catch(() => null),
     ]).then(([stageData, saveData]) => {
       setStages(stageData.stages ?? [])
       if (saveData?.stageProgress) {

@@ -87,17 +87,14 @@ export function BackpackPage() {
   const [stones, setStones] = useState<HeroStone[]>([])
   const [materials, setMaterials] = useState<Material[]>([])
   const [treasures, setTreasures] = useState<Treasure[]>([])
-  const [userId, setUserId] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmDecompose, setConfirmDecompose] = useState<null | { treasureIds: string[]; fragments: number }>(null)
 
   const refresh = useCallback(async () => {
-    const uid = localStorage.getItem('hero-legend-userId') || ''
-    setUserId(uid)
     const [save, heroData] = await Promise.all([
-      fetch(`${API}/save/${uid}`).then(r => r.json()),
-      fetch(`${API}/hero`).then(r => r.json()),
+      fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`${API}/hero`, { credentials: 'include' }).then(r => r.json()),
     ])
     setAllHeroes(heroData.heroes ?? [])
     setHeroInstances(save?.heroes ?? [])
@@ -143,7 +140,7 @@ export function BackpackPage() {
     setBusy(true)
     setMessage('')
     try {
-      const res = await fetch(`${API}/hero/use-stone/${userId}/${stoneId}`, { method: 'POST' })
+      const res = await fetch(`${API}/hero/use-stone/${stoneId}`, { method: 'POST', credentials: 'include' })
       const data = await res.json()
       if (data.error) {
         setMessage(data.error)
@@ -170,7 +167,7 @@ export function BackpackPage() {
     let failed = 0
     try {
       for (const id of ids) {
-        const res = await fetch(`${API}/treasure/decompose/${userId}/${encodeURIComponent(id)}`, { method: 'POST' })
+        const res = await fetch(`${API}/treasure/decompose/${encodeURIComponent(id)}`, { method: 'POST', credentials: 'include' })
         const data = await res.json()
         if (!res.ok || data.error) {
           failed++

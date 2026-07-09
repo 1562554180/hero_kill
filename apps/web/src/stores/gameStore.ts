@@ -1,27 +1,31 @@
 import { create } from 'zustand'
 
+interface Account {
+  userId: string
+  username: string
+}
+
 interface GameState {
-  userId: string | null
+  account: Account | null
   save: any | null
   currentBattle: any | null
   isLoading: boolean
 
-  setUserId: (id: string) => void
+  setAccount: (a: Account | null) => void
+  clearAccount: () => void
   setSave: (save: any) => void
   setCurrentBattle: (battle: any) => void
   setLoading: (loading: boolean) => void
 }
 
 export const useGameStore = create<GameState>((set) => ({
-  userId: localStorage.getItem('hero-legend-userId'),
+  account: null,
   save: null,
   currentBattle: null,
   isLoading: false,
 
-  setUserId: (id) => {
-    localStorage.setItem('hero-legend-userId', id)
-    set({ userId: id })
-  },
+  setAccount: (a) => set({ account: a }),
+  clearAccount: () => set({ account: null }),
   setSave: (save) => set({ save }),
   setCurrentBattle: (battle) => set({ currentBattle: battle }),
   setLoading: (isLoading) => set({ isLoading }),

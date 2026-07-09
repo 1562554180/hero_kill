@@ -51,15 +51,14 @@ export function TreasurePavilionPage() {
   const [drawing, setDrawing] = useState<{ items: DrawItem[]; count: 1 | 10 } | null>(null)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
-  const userId = localStorage.getItem('hero-legend-userId') || ''
 
   const refresh = useCallback(async () => {
-    const r = await fetch(`${API}/treasure-pavilion/info/${userId}`)
+    const r = await fetch(`${API}/treasure-pavilion/info`, { credentials: 'include' })
     const data = await r.json()
     setTicket(data.ticket ?? 0)
     setUniversal(data.universalFragment ?? 0)
     setPieces(data.treasurePiece ?? [])
-  }, [userId])
+  }, [])
 
   useEffect(() => { refresh() }, [refresh])
 
@@ -69,8 +68,9 @@ export function TreasurePavilionPage() {
     try {
       const cost = count === 10 ? 9 : 1
       if (ticket < cost) { setMessage(`宝具券不足 (需 ${cost})`); return }
-      const res = await fetch(`${API}/treasure-pavilion/draw/${userId}`, {
+      const res = await fetch(`${API}/treasure-pavilion/draw`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ count }),
       })
       const data = await res.json()
@@ -88,8 +88,9 @@ export function TreasurePavilionPage() {
     if (busy) return
     setBusy(true); setMessage('')
     try {
-      const res = await fetch(`${API}/treasure-pavilion/compose/${userId}`, {
+      const res = await fetch(`${API}/treasure-pavilion/compose`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ treasureId }),
       })
       const data = await res.json()
@@ -105,8 +106,9 @@ export function TreasurePavilionPage() {
     if (busy) return
     setBusy(true); setMessage('')
     try {
-      const res = await fetch(`${API}/treasure-pavilion/exchange/${userId}`, {
+      const res = await fetch(`${API}/treasure-pavilion/exchange`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ treasureId }),
       })
       const data = await res.json()

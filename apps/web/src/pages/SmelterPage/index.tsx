@@ -13,7 +13,6 @@ type Phase = 'idle' | 'brewing' | 'revealed'
 export function SmelterPage() {
   useSmelterKeyframes()
   const navigate = useNavigate()
-  const userId = localStorage.getItem('hero-legend-userId') || ''
   const [stones, setStones] = useState<HeroStone[]>([])
   const [allHeroes, setAllHeroes] = useState<Hero[]>([])
   const [slots, setSlots] = useState<Array<CauldronSlot | null>>([null, null, null])
@@ -29,17 +28,16 @@ export function SmelterPage() {
 
   const refresh = useCallback(async () => {
     const [save, heroData] = await Promise.all([
-      fetch(`${API}/save/${userId}`).then(r => r.json()),
-      fetch(`${API}/hero`).then(r => r.json()),
+      fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`${API}/hero`, { credentials: 'include' }).then(r => r.json()),
     ])
     setStones(save?.heroStones ?? [])
     setAllHeroes(heroData.heroes ?? [])
-  }, [userId])
+  }, [])
 
   useEffect(() => {
-    if (!userId) { navigate('/'); return }
     refresh()
-  }, [userId, refresh])
+  }, [refresh])
 
   const heroMap = useMemo(() => new Map(allHeroes.map(h => [h.id, h])), [allHeroes])
 
@@ -136,9 +134,10 @@ export function SmelterPage() {
     setBusy(true)
     try {
       const stoneIds = slots.filter(Boolean).map(s => s!.stoneId)
-      const res = await fetch(`${API}/recruit/smelt/${userId}`, {
+      const res = await fetch(`${API}/recruit/smelt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ stoneIds }),
       })
       const data = await res.json()
@@ -210,7 +209,7 @@ export function SmelterPage() {
   const oneClickFuse = async () => {
     if (batchFusing || busy) return
     // 直接拉一次最新服务端数据, 避免依赖 React state 的异步更新
-    const saveData = await fetch(`${API}/save/${userId}`).then(r => r.json())
+    const saveData = await fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json())
     const freshStones: HeroStone[] = saveData?.heroStones ?? []
     const eligible = freshStones.filter(s => s.starLevel <= 3)
 
@@ -287,9 +286,10 @@ export function SmelterPage() {
       // 3) 调 API
       const stoneIds = picked.map(s => s.stoneId)
       try {
-        const res = await fetch(`${API}/recruit/smelt/${userId}`, {
+        const res = await fetch(`${API}/recruit/smelt`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ stoneIds }),
         })
         const data = await res.json()

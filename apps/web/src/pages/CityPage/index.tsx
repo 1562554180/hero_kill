@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useGameStore } from '../../stores/gameStore'
 
 const API = '/api'
 
@@ -23,13 +24,22 @@ export function CityPage() {
   const navigate = useNavigate()
   const [save, setSave] = useState<SaveData | null>(null)
   const [message, setMessage] = useState('')
-
-  const userId = localStorage.getItem('hero-legend-userId') || ''
+  const account = useGameStore((s) => s.account)
+  const clearAccount = useGameStore((s) => s.clearAccount)
 
   useEffect(() => {
-    if (!userId) { navigate('/'); return }
-    fetch(`${API}/save/${userId}`).then(r => r.json()).then(setSave)
-  }, [userId])
+    fetch(`${API}/save`, { credentials: 'include' }).then(r => {
+      if (r.status === 401) { navigate('/login'); return null }
+      return r.json()
+    }).then(d => { if (d) setSave(d) })
+  }, [navigate])
+
+  const handleLogout = async () => {
+    if (!confirm('确定要退出登录吗?')) return
+    await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' })
+    clearAccount()
+    navigate('/login')
+  }
 
   const upgradeBuilding = async (type: string) => {
     const gold = save?.materials?.find(m => m.type === 'gold')?.amount ?? 0
@@ -43,14 +53,15 @@ export function CityPage() {
       m.type === 'gold' ? { ...m, amount: m.amount - cost } : m
     )
 
-    const res = await fetch(`${API}/save/${userId}`, {
+    const res = await fetch(`${API}/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ buildings, materials }),
     })
     if (!res.ok) { setMessage('升级失败'); return }
     // 重新拉取完整存档, 避免响应缺少字段
-    const fresh = await fetch(`${API}/save/${userId}`).then(r => r.json())
+    const fresh = await fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json())
     setSave(fresh)
     setMessage(`${buildingNames[type]} 升级成功!`)
   }
@@ -145,6 +156,18 @@ export function CityPage() {
             进入珍宝阁
           </button>
         </div>
+      </div>
+
+      <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
+        <button
+          onClick={handleLogout}
+          style={{
+            padding: '6px 14px', fontSize: '12px',
+            background: 'transparent', color: 'var(--text-muted)',
+            border: '1px solid var(--border-wood)', borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >退出登录 ({account?.username})</button>
       </div>
     </div>
   )

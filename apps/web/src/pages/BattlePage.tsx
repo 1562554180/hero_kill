@@ -45,8 +45,6 @@ export function BattlePage() {
     return () => { useBattleStore.getState().cleanupBattle() }
   }, [])
 
-  const userId = localStorage.getItem('hero-legend-userId') || ''
-
   // 计算当前关卡中作为敌人的英雄id集合, 玩家不能选这些英雄
   const currentBattle = stage?.battles?.[battleIdx]
   const forbiddenHeroIds = useMemo(
@@ -79,10 +77,9 @@ export function BattlePage() {
   }, [selectedHeroIdx, selectedAllyIdx, save])
 
   useEffect(() => {
-    if (!userId) { navigate('/'); return }
     Promise.all([
       fetch(`${API}/stage`).then(r => r.json()),
-      fetch(`${API}/save/${userId}`).then(r => r.json()),
+      fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json()),
       fetch(`${API}/hero`).then(r => r.json()),
     ]).then(([stageData, saveData, heroData]) => {
       const s = stageData.stages?.find((st: any) => st.id === stageId)
@@ -90,7 +87,7 @@ export function BattlePage() {
       setSave(saveData)
       setAllHeroes(heroData.heroes ?? [])
     })
-  }, [stageId, userId])
+  }, [stageId])
 
   if (!stage || !save) return <div style={{ padding: 40, textAlign: 'center' }}>加载中...</div>
 
@@ -133,8 +130,8 @@ export function BattlePage() {
       await fetch(`${API}/battle/result`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          userId,
           stageId: stage.id,
           battleIdx,
           result: battleResult,
@@ -143,7 +140,7 @@ export function BattlePage() {
       })
 
       // Refresh save data
-      const freshSave = await fetch(`${API}/save/${userId}`).then(r => r.json())
+      const freshSave = await fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json())
       setSave(freshSave)
     } catch (e) {
       console.error('Battle error:', e)

@@ -34,7 +34,6 @@ type Phase = 'idle' | 'upgrading' | 'revealed'
 export function TreasureWorkshopPage() {
   useWorkshopKeyframes()
   const navigate = useNavigate()
-  const userId = localStorage.getItem('hero-legend-userId') || ''
   const [save, setSave] = useState<SaveData | null>(null)
   const [allHeroes, setAllHeroes] = useState<Hero[]>([])
   const [selectedTreasureId, setSelectedTreasureId] = useState<string | null>(null)
@@ -46,17 +45,16 @@ export function TreasureWorkshopPage() {
 
   const refresh = useCallback(async () => {
     const [data, heroData] = await Promise.all([
-      fetch(`${API}/save/${userId}`).then(r => r.json()),
-      fetch(`${API}/hero`).then(r => r.json()),
+      fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`${API}/hero`, { credentials: 'include' }).then(r => r.json()),
     ])
     setSave(data)
     setAllHeroes(heroData.heroes ?? [])
-  }, [userId])
+  }, [])
 
   useEffect(() => {
-    if (!userId) { navigate('/'); return }
     refresh()
-  }, [userId, navigate, refresh])
+  }, [refresh])
 
   // 工坊列表 = 背包里的辅印 + 已镶嵌在英雄身上的辅印 (按 id 去重)
   const subs = useMemo(() => {
@@ -116,9 +114,10 @@ export function TreasureWorkshopPage() {
     if (!canUpgrade || !selectedTreasure) return
     setPhase('upgrading')
     try {
-      const res = await fetch(`${API}/treasure/upgrade/${userId}/${encodeURIComponent(selectedTreasure.id)}`, {
+      const res = await fetch(`${API}/treasure/upgrade/${encodeURIComponent(selectedTreasure.id)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ luckyStones }),
       })
       const data = await res.json()
@@ -161,7 +160,7 @@ export function TreasureWorkshopPage() {
     try {
       for (let i = 0; i < 10; i++) {
         // 每轮重新拉取最新存档, 判断资源/等级/次数是否允许继续
-        const fresh = await fetch(`${API}/save/${userId}`).then(r => r.json())
+        const fresh = await fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json())
         const t = findTreasureAcrossSlots(fresh, selectedTreasure.id)
         const talisman = (fresh.materials as Material[])?.find(m => m.type === 'enhancementTalisman')?.amount ?? 0
         const lucky = (fresh.materials as Material[])?.find(m => m.type === 'luckyStone')?.amount ?? 0
@@ -175,9 +174,10 @@ export function TreasureWorkshopPage() {
         if (talisman < 1) { stoppedReason = '强化符不足'; break }
         if (lucky < luckyStones) { stoppedReason = '幸运石不足'; break }
         if (gold < cost) { stoppedReason = '金币不足'; break }
-        const res = await fetch(`${API}/treasure/upgrade/${userId}/${encodeURIComponent(selectedTreasure.id)}`, {
+        const res = await fetch(`${API}/treasure/upgrade/${encodeURIComponent(selectedTreasure.id)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ luckyStones }),
         })
         const data = await res.json()
@@ -223,7 +223,7 @@ export function TreasureWorkshopPage() {
 
     try {
       // 第一次拉存档确定本次循环上限
-      const initial = await fetch(`${API}/save/${userId}`).then(r => r.json())
+      const initial = await fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json())
       const initialT = findTreasureAcrossSlots(initial, selectedTreasure.id)
       if (!initialT) {
         stoppedReason = '辅印不存在'
@@ -231,7 +231,7 @@ export function TreasureWorkshopPage() {
       const remaining = Math.max(0, 50 - (initialT?.enhanceCount ?? 0))
 
       for (let i = 0; i < remaining; i++) {
-        const fresh = await fetch(`${API}/save/${userId}`).then(r => r.json())
+        const fresh = await fetch(`${API}/save`, { credentials: 'include' }).then(r => r.json())
         const t = findTreasureAcrossSlots(fresh, selectedTreasure.id)
         const talisman = (fresh.materials as Material[])?.find(m => m.type === 'enhancementTalisman')?.amount ?? 0
         const lucky = (fresh.materials as Material[])?.find(m => m.type === 'luckyStone')?.amount ?? 0
@@ -245,9 +245,10 @@ export function TreasureWorkshopPage() {
         if (talisman < 1) { stoppedReason = '强化符不足'; break }
         if (lucky < luckyStones) { stoppedReason = '幸运石不足'; break }
         if (gold < cost) { stoppedReason = '金币不足'; break }
-        const res = await fetch(`${API}/treasure/upgrade/${userId}/${encodeURIComponent(selectedTreasure.id)}`, {
+        const res = await fetch(`${API}/treasure/upgrade/${encodeURIComponent(selectedTreasure.id)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ luckyStones }),
         })
         const data = await res.json()
@@ -284,9 +285,10 @@ export function TreasureWorkshopPage() {
 
   const handleTransfer = async (fromId: string, toId: string) => {
     try {
-      const res = await fetch(`${API}/treasure/transfer-level/${userId}`, {
+      const res = await fetch(`${API}/treasure/transfer-level`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ fromTreasureId: fromId, toTreasureId: toId }),
       })
       const data = await res.json()
