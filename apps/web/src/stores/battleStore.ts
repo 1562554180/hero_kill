@@ -1362,10 +1362,26 @@ export const useBattleStore = create<BattleState>((set, get) => ({
             set({ resolveAction: resolve, pendingCardId: null })
           })
 
-          if (!action || action === 'endPhase') {
-            set({ phase: 'waiting', aoJianActive: false, shenTouActive: false })
+          if (!action) {
+            // 取消: 清掉回调, 留在 playing 阶段继续等下一次输入
+            set({ resolveAction: null })
+            continue
+          }
+
+          if (action === 'endPhase') {
+            set({ phase: 'waiting', aoJianActive: false, shenTouActive: false, resolveAction: null })
             return null
           }
+
+          // 真实动作: 先把 phase 切到 waiting, 阻止 engine awaitUI 期间(飞行动画等)用户乱点
+          // 否则下一次循环 setState 会把 pendingCardId 清掉, 卡片闪一下又复位
+          set({
+            phase: 'waiting',
+            aoJianActive: engineAoJianActive,
+            shenTouActive: engineShenTouActive,
+            pendingCardId: null,
+            resolveAction: null,
+          })
 
           if (action.startsWith('kill:')) {
             const [, cardId, targetId] = action.split(':')
