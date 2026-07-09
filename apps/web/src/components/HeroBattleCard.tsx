@@ -462,7 +462,7 @@ function TreasureSlot({ treasure, type, locked, heroStarLevel }: { treasure: Tre
         <span style={{
           position: 'absolute', top: '0', right: '0',
           background: 'rgba(0,0,0,0.74)', color: '#aa5a5a',
-          fontSize: '11px', fontWeight: 'bold', padding: '0 5px',
+          fontSize: '8px', fontWeight: 'bold', padding: '0 1px',
           lineHeight: '14px', borderRadius: '7px',
           pointerEvents: 'none',
           zIndex: 2,
