@@ -92,13 +92,19 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
   )
 
   // 选牌模式(弃牌/侠胆/曼舞/天香/补刀/超脱/treasure/...)整张牌都不加阴影, 玩家正在做选择
+  const canHuiChun = huiChunAvailable && card.suit === 'heart' && !isFullHp && !!onHuiChunHeal
+
+  // 神偷: 时迁的梅花手牌 (非探囊取物本身) 可当探囊取物 — 视为 scheme 打出
+  const canUseAsTanNang = shenTouActive && card.suit === 'club' && card.name !== '探囊取物' && !!onPlayScheme && hasValidSchemeTarget
+
   // 傲剑下红色牌当杀: canUseAsKill=true 也不再视为"不可用" (药满血/雷已在判定区/无懈可击/...)
   // 响应阶段: 不能用来响应的牌也加阴影 (例如被杀响应时, 除闪以外的牌都变灰)
+  // 神偷激活时 ♣ 闪 / ♣ 无懈可击 / ♣ 药 都可当探囊取物出 → 不应阴影
   const isShadowedByRule = shadowed || (
     !isHandCardSelect && (
       isResponse
         ? !canRespond
-        : (
+        : !canUseAsTanNang && (
           (isDodge && !canUseAsKill) ||
           (isWuXie && !canUseAsKill) ||
           (isHeal && isFullHp && !canUseAsKill) ||
@@ -106,11 +112,6 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
         )
     )
   )
-
-  const canHuiChun = huiChunAvailable && card.suit === 'heart' && !isFullHp && !!onHuiChunHeal
-
-  // 神偷: 时迁的梅花手牌 (非探囊取物本身) 可当探囊取物 — 视为 scheme 打出
-  const canUseAsTanNang = shenTouActive && card.suit === 'club' && card.name !== '探囊取物' && !!onPlayScheme && hasValidSchemeTarget
 
   const canUse = !disabled && !treasureSelectMode && !selectDualMode && !selectDiscardMode && (
     isJudgeReplace ||
