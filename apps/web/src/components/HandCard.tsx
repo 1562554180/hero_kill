@@ -29,6 +29,8 @@ interface Props {
   isLuYeQiangKillCard?: boolean
   /** 任一"选手牌"模式: 弃牌/侠胆/曼舞/天香/补刀/超脱/treasure/... 此模式下整张牌都不可加阴影 */
   isHandCardSelect?: boolean
+  /** 疏财: 选中模式下不能 play, 仅作 toggle selection 用 */
+  shuCaiSelectMode?: boolean
   hasValidSchemeTarget?: boolean
   huiChunAvailable?: boolean
   /** 神偷: 时迁的梅花手牌可作探囊取物 */
@@ -62,7 +64,7 @@ const TYPE_LABEL: Record<string, string> = {
 const suitFontColor = (suit: string) => (suit === 'heart' || suit === 'diamond') ? '#c62828' : '#212121'
 const suitWaterColor = (suit: string) => (suit === 'heart' || suit === 'diamond') ? 'rgba(198,40,40,0.10)' : 'rgba(33,33,33,0.10)'
 
-function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, responseType, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, isHandCardSelect, isLuYeQiangKillCard, hasValidSchemeTarget = true, huiChunAvailable, shenTouActive = false, shadowed = false, hasLeiInJudge = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
+function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, hasHongZhuang, isResponse, responseType, isJudgeReplace, isPending, isLifted, treasureSelectMode, selectDualMode, selectDiscardMode, isHandCardSelect, isLuYeQiangKillCard, hasValidSchemeTarget = true, huiChunAvailable, shenTouActive = false, shadowed = false, hasLeiInJudge = false, shuCaiSelectMode = false, onPlayKill, onPlayHeal, onEquip, onPlayScheme, onPlaySchemeSelf, onJudgeReplace, onRespondWithCard, onHuiChunHeal }: Props) {
   const cardRef = useRef<HTMLDivElement>(null)
   const clickPos = (): { x: number; y: number } | undefined => {
     const el = cardRef.current
@@ -113,7 +115,7 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
     )
   )
 
-  const canUse = !disabled && !treasureSelectMode && !selectDualMode && !selectDiscardMode && (
+  const canUse = !disabled && !treasureSelectMode && !selectDualMode && !selectDiscardMode && !shuCaiSelectMode && (
     isJudgeReplace ||
     canRespond ||
     canUseAsKillNow ||
@@ -186,8 +188,8 @@ function HandCardInner({ card, disabled, canPlayKill, isFullHp, aoJianActive, ha
         border: cardImg ? 'none' : `1.5px solid ${theme.border}`,
         borderRadius: '4px',
         boxShadow: cardImg ? 'none' : '0 3px 6px rgba(0,0,0,0.5), inset 0 0 8px rgba(139,105,20,0.2)',
-        cursor: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode || isHandCardSelect) ? 'pointer' : 'default',
-        opacity: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode || isHandCardSelect) ? (isShadowedByRule && !isHandCardSelect ? 0.5 : 1) : 0.45,
+        cursor: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode || isHandCardSelect || shuCaiSelectMode) ? 'pointer' : 'default',
+        opacity: (canUse || treasureSelectMode || selectDualMode || selectDiscardMode || isHandCardSelect || shuCaiSelectMode) ? (isShadowedByRule && !isHandCardSelect ? 0.5 : 1) : 0.45,
         filter: (isShadowedByRule && !isHandCardSelect) ? 'grayscale(0.4) brightness(0.85)' : 'none',
         transition: 'transform 0.15s, opacity 0.15s, box-shadow 0.15s, filter 0.15s',
         userSelect: 'none',

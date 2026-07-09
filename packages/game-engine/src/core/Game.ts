@@ -142,8 +142,8 @@ export class Game {
   private zuijiuActive = false  // 醉酒：本回合杀/决斗伤害+1
   private skipNextTurnPlayerId: string | null = null  // 蓄谋：跳过指定玩家的下一回合
   private skipCurrentTurnPlayerId: string | null = null  // 画地为牢：跳过指定玩家的当前回合
-  private aoJianActive = new Set<string>()  // 傲剑主动模式: 玩家id集合, 回合结束清空
-  private shenTouActive = new Set<string>()  // 神偷主动模式: 玩家id集合, 回合结束清空
+  /** 统一可激活技能状态: playerId → 激活的技能 id (互斥, 同玩家同时只有一个技能处于激活态) */
+  private activeSkillByPlayer = new Map<string, string>()
   /** 无懈可击决策上下文: 当前正在被抵消的锦囊目标 id, 让 AI 知道"被攻击者是不是我队友" */
   private nullifyContextTargetId: string | null = null
   private emittedDie = new Set<string>()   // 已emit过 'die' 的玩家id, 防止强化/补刀等递归伤害重复emit
@@ -152,6 +152,9 @@ export class Game {
   private xiaDanLossThisTurn = new Set<string>()             // 输了侠胆的玩家集合
   private xiaDanUsedThisTurn = new Set<string>()             // 本回合已尝试拼点的玩家 (限1次)
   private skipDrawThisTurn = false                            // 起义: 跳过本回合摸牌
+  // 疏财: 本回合通过疏财给出去的牌数 (累加, 跨多次使用). ≥2 且本回合未回复时回复1点
+  private shuCaiCardsGivenThisTurn = 0
+  private shuCaiHealedThisTurn = false                        // 疏财: 本回合是否已因疏财回血 (至多1次)
   // 起义: 摸牌前的决策解析器 (Promise resolver). 摸牌前若玩家有起义且有合法目标, 引擎会暂停并等待 web 端 resolve
   private qiYiResolver: ((decision: { useIt: boolean; targetIds?: string[]; cardMap?: Record<string, string> } | null) => void) | null = null
   // 门神: 秦琼 → 受保护的目标ID (回合结束指定, 下回合开始失效)
@@ -184,26 +187,40 @@ export class Game {
     return false
   }
 
-  // 傲剑主动模式: UI点击时调用
-  activateAoJian(playerId: string): void {
-    this.aoJianActive.add(playerId)
+  // 统一可激活技能状态: UI toggle 时调用. 同一玩家已有激活态会被新 skillId 覆盖 (互斥)
+  activateSkill(playerId: string, skillId: string): void {
+    this.activeSkillByPlayer.set(playerId, skillId)
   }
-  deactivateAoJian(playerId: string): void {
-    this.aoJianActive.delete(playerId)
+  deactivateSkill(playerId: string): void {
+    this.activeSkillByPlayer.delete(playerId)
   }
-  isAoJianActive(playerId: string): boolean {
-    return this.aoJianActive.has(playerId)
+  getActiveSkill(playerId: string): string | null {
+    return this.activeSkillByPlayer.get(playerId) ?? null
+  }
+  isSkillActive(playerId: string, skillId: string): boolean {
+    return this.activeSkillByPlayer.get(playerId) === skillId
   }
 
-  // 神偷主动模式: UI点击激活/取消
+  // 傲剑主动模式: 兼容旧 API (tests), 内部走 activeSkillByPlayer
+  activateAoJian(playerId: string): void {
+    this.activateSkill(playerId, 'ao-jian')
+  }
+  deactivateAoJian(playerId: string): void {
+    this.deactivateSkill(playerId)
+  }
+  isAoJianActive(playerId: string): boolean {
+    return this.isSkillActive(playerId, 'ao-jian')
+  }
+
+  // 神偷主动模式: 兼容旧 API, 走 activeSkillByPlayer
   activateShenTou(playerId: string): void {
-    this.shenTouActive.add(playerId)
+    this.activateSkill(playerId, 'shen-tou')
   }
   deactivateShenTou(playerId: string): void {
-    this.shenTouActive.delete(playerId)
+    this.deactivateSkill(playerId)
   }
   isShenTouActive(playerId: string): boolean {
-    return this.shenTouActive.has(playerId)
+    return this.isSkillActive(playerId, 'shen-tou')
   }
 
   /** 妙计: 锦囊打出且未被无懈可击取消时, 立即摸1张 */
@@ -226,6 +243,7 @@ export class Game {
         canPlayKill: false,
         aoJianActive: false,
         shenTouActive: false,
+        activeSkillId: null,
         hasLeiInJudge: false,
         jueJiUsedCount: 0,
         playerHasEquipment: false,
@@ -319,8 +337,9 @@ export class Game {
 
     return {
       canPlayKill: this.canPlayKill,
-      aoJianActive: this.aoJianActive.has(pid),
-      shenTouActive: this.shenTouActive.has(pid),
+      aoJianActive: this.isSkillActive(pid, 'ao-jian'),
+      shenTouActive: this.isSkillActive(pid, 'shen-tou'),
+      activeSkillId: this.getActiveSkill(pid),
       hasLeiInJudge,
       jueJiUsedCount,
       playerHasEquipment,
@@ -488,7 +507,7 @@ export class Game {
   private canUseAsKill(card: Card, player: Player): boolean {
     if (card.name === '杀') return true
     // 傲剑 (主动模式): 红色牌当杀, 包括手牌和装备
-    if (player.hasSkillOrTreasure('ao-jian') && this.aoJianActive.has(player.getId()) && this.isEffectivelyRed(card, player)) return true
+    if (player.hasSkillOrTreasure('ao-jian') && this.isSkillActive(player.getId(), 'ao-jian') && this.isEffectivelyRed(card, player)) return true
     // 武穆: 闪当杀
     if (player.hasSkillOrTreasure('wu-mu') && card.name === '闪') return true
     return false
@@ -888,8 +907,7 @@ export class Game {
     this.killsMaxThisTurn = 1
     this.lastPlayedCardName = null
     this.zuijiuActive = false
-    this.aoJianActive.clear()  // 傲剑主动模式: 每个玩家回合开始时清空
-    this.shenTouActive.clear()  // 神偷主动模式: 每个玩家回合开始时清空
+    this.activeSkillByPlayer.clear()  // 统一清空所有玩家的可激活技能状态 (傲剑/神偷/侠胆等, 回合开始时重置)
     this.emittedDie.clear()     // 重置死亡去重集合 (为可能的复活机制留余地)
     // 门神: 秦琼的下回合开始时清除自己上回合指定的保护
     this.menShenMap.delete(player.getId())
@@ -898,6 +916,9 @@ export class Game {
     this.xiaDanLossThisTurn.delete(player.getId())
     this.xiaDanUsedThisTurn.delete(player.getId())
     this.skipDrawThisTurn = false
+    // 疏财: 回合开始重置
+    this.shuCaiCardsGivenThisTurn = 0
+    this.shuCaiHealedThisTurn = false
     const ctx = { player, cardDeck: this.cardDeck, eventBus: this.eventBus, game: this }
 
     this.eventBus.emit({ type: 'turn:start', sourceHeroId: player.getId(), data: { turn: this.turnNumber } })
@@ -1267,7 +1288,7 @@ export class Game {
       else if (attacker.hasSkillOrTreasure('ao-jian')) skillName = '傲剑'
     }
     // 傲剑: 即使出的是普通【杀】, 只要激活了就触发
-    if (!skillName && attacker.hasSkillOrTreasure('ao-jian') && this.aoJianActive.has(attacker.getId()) && this.isEffectivelyRed(killCard, attacker)) {
+    if (!skillName && attacker.hasSkillOrTreasure('ao-jian') && this.isSkillActive(attacker.getId(), 'ao-jian') && this.isEffectivelyRed(killCard, attacker)) {
       skillName = '傲剑'
       usedAoJian = true
     }
@@ -1285,7 +1306,7 @@ export class Game {
 
     // 傲剑: 牌出去立即关闭激活状态 (激活一次使用一次), 早于黑杀盾/红杀盾免疫等任何提前 return
     if (skillName === '傲剑' || usedAoJian) {
-      this.aoJianActive.delete(attacker.getId())
+      this.deactivateSkill(attacker.getId())
       this.emitSkillTrigger(attacker, '傲剑', '已关闭激活')
     }
 
@@ -1584,7 +1605,7 @@ export class Game {
   }
 
   /** 受伤后的被动技能触发 */
-  private async onDamageReceived(victim: Player, attacker: Player, sourceCard?: Card, sourceAction?: string, damage: number = 1, skipFuChou: boolean = false): Promise<void> {
+  private async onDamageReceived(victim: Player, attacker: Player, sourceCard?: Card, sourceAction?: string, damage: number = 1, skipFuChou: boolean = false, skipSheShen: boolean = false): Promise<void> {
     // 濒死救援: HP≤0 时先进入濒死阶段 (鸩杀→救援→诀别). 若未救活则不再走下面的技能触发
     if (victim.getCurrentHp() <= 0 && victim.isAlive()) {
       const saved = await this.rescueDyingPlayer(victim)
@@ -1607,7 +1628,7 @@ export class Game {
     }
 
     // 舍身: 每掉1血摸2张, 可分给其他存活角色 (玩家先选是否发动, 再弹分配 UI; AI 默认发动, 全给同阵营队友)
-    if (victim.hasSkillOrTreasure('she-shen')) {
+    if (victim.hasSkillOrTreasure('she-shen') && !skipSheShen) {
       // 1. 玩家先确认是否发动 (AI 直接发动)
       let triggered = true
       if (victim.getRole() === 'player' && this.config.sheShenTriggerHandler) {
@@ -2416,6 +2437,8 @@ export class Game {
       skipOnDamageReceived?: boolean
       /** 只跳过复仇 (避免死循环), 仍触发舍身/法家/集权等其他受伤技能. 用于复仇反弹/绝击/伤之仇等场景 */
       skipFuChouOnly?: boolean
+      /** 跳过舍身触发. 用于负荆主动掉血等"主动失去体力"场景 (按官方规则不应触发舍身) */
+      skipSheShen?: boolean
       afterOnDamageReceived?: () => Promise<void>
       sourceAction?: 'kill' | 'dodge' | 'scheme' | 'judge' | 'mount' | string
     }
@@ -2454,7 +2477,7 @@ export class Game {
     }
 
     if (!options?.skipOnDamageReceived) {
-      await this.onDamageReceived(defender, attacker, sourceCard, options?.sourceAction, actual, !!options?.skipFuChouOnly)
+      await this.onDamageReceived(defender, attacker, sourceCard, options?.sourceAction, actual, !!options?.skipFuChouOnly, !!options?.skipSheShen)
     }
 
     if (!defender.isAlive() && !this.emittedDie.has(defender.getId())) {
@@ -2637,7 +2660,7 @@ export class Game {
     while (continueKill && guanYu.isAlive() && victim.isAlive()) {
       if (!this.isInAttackRange(guanYu, victim)) break
       // 补刀时若有傲剑, 自动激活 (executeKill 每次出杀后会 deactivate, 所以每轮重新激活)
-      if (hasAoJian) this.aoJianActive.add(guanYu.getId())
+      if (hasAoJian) this.activateSkill(guanYu.getId(), 'ao-jian')
       // 玩家: 询问是否补刀 + 选卡; AI: 自动
       let killCardId: string | null = null
       if (guanYu.getRole() === 'player' && this.config.buDaoHandler) {
@@ -2709,7 +2732,7 @@ export class Game {
     const card = player.getHand().find(c => c.id === cardId)
     if (!card) return
     // 神偷: 梅花手牌可作为探囊取物 (允许非 scheme 卡) — 需激活
-    const isShenTou = player.hasSkillOrTreasure('shen-tou') && this.shenTouActive.has(player.getId()) && card.suit === 'club' && card.name !== '探囊取物'
+    const isShenTou = player.hasSkillOrTreasure('shen-tou') && this.isSkillActive(player.getId(), 'shen-tou') && card.suit === 'club' && card.name !== '探囊取物'
     if (card.type !== 'scheme' && !isShenTou) return
 
     // 魅惑: 方块牌可当画地为牢
@@ -2744,7 +2767,7 @@ export class Game {
     if (usedAsSkill === '神偷') {
       this.emitSkillTrigger(player, '神偷', `${card.name}当探囊取物`)
       // 神偷: 使用一次后自动关闭激活状态 (与傲剑一致, 需再次点击才能再用)
-      this.shenTouActive.delete(player.getId())
+      this.deactivateSkill(player.getId())
     }
 
     // 延时锦囊：放到目标判定区 (使用时不支持无懈可击, 判定前才响应)
@@ -3117,18 +3140,21 @@ export class Game {
     this.emitSkillTrigger(player, '醉酒', '本回合杀伤害+1')
   }
 
-  /** 疏财: 将手牌给其他角色 */
+  /** 疏财: 将手牌给其他角色 (本回合无使用次数限制, 累加出牌≥2时回复1点体力, 每回合最多回复1次) */
   playerShuCai(player: Player, cardIds: string[], targetId: string): void {
     if (!player.hasSkillOrTreasure('shu-cai')) return
-    if (!player.useSkill('shu-cai')) return
+    // 不限制使用次数, 但 skill 用作"是否拥有此技能"的判定
+    if (!player.hasSkillOrTreasure('shu-cai')) return
     const target = this.getPlayerById(targetId)
     if (!target) return
     for (const cid of cardIds) {
       const card = this.removeHandCard(player,cid)
       if (card) target.drawCards([card])
     }
-    if (cardIds.length >= 2 && player.getCurrentHp() < player.getMaxHp()) {
+    this.shuCaiCardsGivenThisTurn += cardIds.length
+    if (!this.shuCaiHealedThisTurn && this.shuCaiCardsGivenThisTurn >= 2 && player.getCurrentHp() < player.getMaxHp()) {
       player.heal(1)
+      this.shuCaiHealedThisTurn = true
       this.eventBus.emit({ type: 'heal', sourceHeroId: player.getId(), data: { amount: 1 } })
     }
     this.emitSkillTrigger(player, '疏财', `给${target.getName()} ${cardIds.length}张牌`)
@@ -3440,7 +3466,7 @@ export class Game {
   async playerFuJing(player: Player): Promise<void> {
     if (!player.hasSkillOrTreasure('fu-jing')) return
     if (!player.useSkill('fu-jing')) return
-    await this.applyDamage(player, player, 1, undefined, { skipFuChouOnly: true })
+    await this.applyDamage(player, player, 1, undefined, { skipFuChouOnly: true, skipSheShen: true })
     // 濒死结算完毕: 若仍存活则摸2张
     if (!player.isAlive()) return
     const drawn = this.cardDeck.draw(2)

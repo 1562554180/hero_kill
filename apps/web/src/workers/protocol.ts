@@ -131,6 +131,7 @@ export type EngineMethodName =
   | 'playerQiYi'
   | 'playerShiQuan'
   | 'playerYuRen'
+  | 'playerShuCai'
   | 'playerHuiChunHeal'
   | 'resolveQiYiDecision'
   | 'activateAoJian'
@@ -139,6 +140,8 @@ export type EngineMethodName =
   | 'activateShenTou'
   | 'deactivateShenTou'
   | 'isShenTouActive'
+  | 'activateSkill'
+  | 'deactivateSkill'
   | 'getMaxTargetsPerKill'
   | 'canPlayerUseAsKill'
   | 'runPendingWuguContinuation'
@@ -161,6 +164,7 @@ export interface EngineMethodArgsMap {
   playerQiYi: [playerId: string, targetIds: string[], cardMap: Record<string, string>]
   playerShiQuan: [playerId: string, cardId: string]
   playerYuRen: [playerId: string, cardIds: string[]]
+  playerShuCai: [playerId: string, cardIds: string[], targetId: string]
   playerHuiChunHeal: [playerId: string, cardId: string]
   resolveQiYiDecision: [decision: { useIt: boolean; targetIds?: string[]; cardMap?: Record<string, string> } | null]
   activateAoJian: [playerId: string]
@@ -169,6 +173,8 @@ export interface EngineMethodArgsMap {
   activateShenTou: [playerId: string]
   deactivateShenTou: [playerId: string]
   isShenTouActive: [playerId: string]
+  activateSkill: [playerId: string, skillId: string]
+  deactivateSkill: [playerId: string]
   getMaxTargetsPerKill: []
   canPlayerUseAsKill: [cardId: string]
   runPendingWuguContinuation: []
@@ -192,6 +198,7 @@ export interface EngineMethodReturnMap {
   playerQiYi: void
   playerShiQuan: void
   playerYuRen: void
+  playerShuCai: void
   playerHuiChunHeal: void
   resolveQiYiDecision: void
   activateAoJian: void
@@ -200,6 +207,8 @@ export interface EngineMethodReturnMap {
   activateShenTou: void
   deactivateShenTou: void
   isShenTouActive: boolean
+  activateSkill: void
+  deactivateSkill: void
   getMaxTargetsPerKill: number
   canPlayerUseAsKill: boolean
   runPendingWuguContinuation: void
@@ -238,10 +247,12 @@ export interface WorkerSnapshot {
   heroNames: Record<string, string>
   /** 每个 hero 实际手牌 Card[] (handler 实现 manWu/tianXiang 等需要按花色过滤) */
   handsByHero: Record<string, Card[]>
-  /** 玩家是否激活 aoJian (与 derived.aoJianActive 重复, 但保留以便 store 同步) */
+  /** @deprecated 由 derived.activeSkillId 统一表达; 保留为派生 boolean 给旧组件读取 */
   aoJianActive: boolean
-  /** 玩家是否激活神偷 (derived.shenTouActive 透传, 用于 SkillBar toggle 显示) */
+  /** @deprecated 同上 */
   shenTouActive: boolean
+  /** 玩家当前激活的可激活技能 id (互斥, 同时只有一个); null=无激活. 取代 aoJianActive/shenTouActive */
+  activeSkillId: string | null
   /** 玩家是否可出杀 (替代 game.canPlayKill) */
   canPlayKill: boolean
   /** jueJi 已用次数 (替代 SkillBar 引擎读取) */

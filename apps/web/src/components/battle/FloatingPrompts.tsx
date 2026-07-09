@@ -39,6 +39,8 @@ export function FloatingPrompts() {
     xiaDanActive, xiaDanTargetName,
     yuRenCardIds,
     selectedDualCards,
+    shuCaiActive, shuCaiSelectedCardIds, shuCaiTargetId,
+    confirmShuCai, deactivateShuCai,
     confirmPlay, cancelPlay,
     judgeCard, respondWithCard, cancelXiaDan,
     confirmDualCards, cancelDualCards,
@@ -66,7 +68,7 @@ export function FloatingPrompts() {
     selectHouZhuTarget,
     pickXiaDanCard, cancelXiaDanCard,
     pickQiYiDecisionTarget, pickQiYiDecisionCard, confirmQiYiDecision, cancelQiYiDecision,
-    pickTreasureCard, confirmTreasureTargets, cancelTreasureSkill, confirmYuRenCards, pickQiYiCard, confirmQiYiCards,
+    pickTreasureCard, confirmTreasureTargets, cancelTreasureSkill, confirmYuRenCards, pickQiYiCard, cancelQiYiCards,
     toggleDiscardCard, confirmDiscardCards, cancelDiscardCards,
     discardCount, selectedDiscardCards,
     playerJueJiSelf,
@@ -91,6 +93,8 @@ export function FloatingPrompts() {
     xiaDanActive: s.xiaDanActive, xiaDanTargetName: s.xiaDanTargetName,
     yuRenCardIds: s.yuRenCardIds,
     selectedDualCards: s.selectedDualCards,
+    shuCaiActive: s.shuCaiActive, shuCaiSelectedCardIds: s.shuCaiSelectedCardIds, shuCaiTargetId: s.shuCaiTargetId,
+    confirmShuCai: s.confirmShuCai, deactivateShuCai: s.deactivateShuCai,
     confirmPlay: s.confirmPlay, cancelPlay: s.cancelPlay,
     judgeCard: s.judgeCard, respondWithCard: s.respondWithCard, cancelXiaDan: s.cancelXiaDan,
     confirmDualCards: s.confirmDualCards, cancelDualCards: s.cancelDualCards,
@@ -119,7 +123,7 @@ export function FloatingPrompts() {
     selectHouZhuTarget: s.selectHouZhuTarget,
     pickXiaDanCard: s.pickXiaDanCard, cancelXiaDanCard: s.cancelXiaDanCard,
     pickQiYiDecisionTarget: s.pickQiYiDecisionTarget, pickQiYiDecisionCard: s.pickQiYiDecisionCard, confirmQiYiDecision: s.confirmQiYiDecision, cancelQiYiDecision: s.cancelQiYiDecision,
-    pickTreasureCard: s.pickTreasureCard, confirmTreasureTargets: s.confirmTreasureTargets, cancelTreasureSkill: s.cancelTreasureSkill, confirmYuRenCards: s.confirmYuRenCards, pickQiYiCard: s.pickQiYiCard, confirmQiYiCards: s.confirmQiYiCards,
+    pickTreasureCard: s.pickTreasureCard, confirmTreasureTargets: s.confirmTreasureTargets, cancelTreasureSkill: s.cancelTreasureSkill, confirmYuRenCards: s.confirmYuRenCards, pickQiYiCard: s.pickQiYiCard, cancelQiYiCards: s.cancelQiYiCards,
     toggleDiscardCard: s.toggleDiscardCard, confirmDiscardCards: s.confirmDiscardCards, cancelDiscardCards: s.cancelDiscardCards,
     discardCount: s.discardCount, selectedDiscardCards: s.selectedDiscardCards,
     playerJueJiSelf: s.playerJueJiSelf,
@@ -164,7 +168,8 @@ export function FloatingPrompts() {
     || phase === 'selectMultiTargets'
     || phase === 'selectKillMultiTargets'
     || (phase === 'qiYiPrompt' && !!qiYiDecision)
-  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, qiangLuePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, sheShenTriggerPrompt, buDaoPrompt, dyingRescuePrompt, qiYiDecision, panLongGunPrompt])
+    || shuCaiActive
+  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, qiangLuePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, sheShenTriggerPrompt, buDaoPrompt, dyingRescuePrompt, qiYiDecision, panLongGunPrompt, shuCaiActive])
 
   const killMultiCardId = useBattleStore(s => s.killMultiCardId)
   const [wolfFangPromptRect, setWolfFangPromptRect] = useState<{ left: number; top: number; width: number } | null>(null)
@@ -1157,6 +1162,46 @@ export function FloatingPrompts() {
                           </button>
                         )
                       })}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* 31. 疏财 — 选手牌 → 选英雄 → 确认 */}
+              {shuCaiActive && (() => {
+                const targetName = shuCaiTargetId ? (gameState?.heroes.find(h => h.hero.id === shuCaiTargetId)?.hero.name ?? '') : ''
+                return (
+                  <div style={{
+                    pointerEvents: 'auto',
+                    width: '70%',
+                    margin: '0 auto',
+                    padding: '5px 8px',
+                    background: 'linear-gradient(135deg, rgba(255,152,0,0.18), rgba(230,81,0,0.18))',
+                    borderRadius: '6px',
+                    border: '2px solid #ff9800',
+                    color: '#ffb74d', fontSize: '13px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                    boxShadow: '0 2px 12px rgba(255,152,0,0.4)',
+                  }}>
+                    <span style={{ flex: 1 }}>
+                      🎁 <b style={{ fontSize: '14px' }}>疏财</b> —
+                      {shuCaiSelectedCardIds.length === 0
+                        ? <span>点击手牌选择要发出的牌</span>
+                        : shuCaiTargetId
+                          ? <span>已选 {shuCaiSelectedCardIds.length} 张 → 目标 <b>{targetName}</b>, 出2张或以上自己回1血</span>
+                          : <span>已选 {shuCaiSelectedCardIds.length} 张, 请点击场上角色选择目标</span>
+                      }
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button style={treasureBtnStyle} onClick={deactivateShuCai}>取消</button>
+                      <button
+                        className="primary"
+                        style={{ ...treasureBtnStyle, opacity: (shuCaiSelectedCardIds.length > 0 && !!shuCaiTargetId) ? 1 : 0.5 }}
+                        disabled={shuCaiSelectedCardIds.length === 0 || !shuCaiTargetId}
+                        onClick={confirmShuCai}
+                      >
+                        确认发送
+                      </button>
                     </div>
                   </div>
                 )

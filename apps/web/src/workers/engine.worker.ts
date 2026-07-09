@@ -97,6 +97,7 @@ function buildSnapshot(game: Game): WorkerSnapshot {
     heroNames,
     aoJianActive: player ? game.isAoJianActive(playerId) : false,
     shenTouActive: player ? game.isShenTouActive(playerId) : false,
+    activeSkillId: player ? game.getActiveSkill(playerId) : null,
     canPlayKill: game.canPlayKill,
     jueJiUsedCount: derived.jueJiUsedCount,
     xiaDanMultiTargetPerKill,
@@ -302,6 +303,12 @@ async function handleAction(name: EngineMethodName, args: EngineMethodArgsMap[En
       if (p) g.playerYuRen(p, cids)
       return
     }
+    case 'playerShuCai': {
+      const [pid, cids, tid] = args as EngineMethodArgsMap['playerShuCai']
+      const p = lookup(pid)
+      if (p) g.playerShuCai(p, cids, tid)
+      return
+    }
     case 'playerHuiChunHeal': {
       const [pid, cid] = args as EngineMethodArgsMap['playerHuiChunHeal']
       const p = lookup(pid)
@@ -344,6 +351,18 @@ async function handleAction(name: EngineMethodName, args: EngineMethodArgsMap[En
     case 'isShenTouActive': {
       const [pid] = args as EngineMethodArgsMap['isShenTouActive']
       return g.isShenTouActive(pid)
+    }
+    case 'activateSkill': {
+      const [pid, sid] = args as EngineMethodArgsMap['activateSkill']
+      g.activateSkill(pid, sid)
+      postMsg({ kind: 'event', event: { type: 'phase:end', timestamp: Date.now(), data: { phase: 'activatableSkillToggle' } }, snapshot: buildSnapshot(g) })
+      return
+    }
+    case 'deactivateSkill': {
+      const [pid] = args as EngineMethodArgsMap['deactivateSkill']
+      g.deactivateSkill(pid)
+      postMsg({ kind: 'event', event: { type: 'phase:end', timestamp: Date.now(), data: { phase: 'activatableSkillToggle' } }, snapshot: buildSnapshot(g) })
+      return
     }
     case 'getMaxTargetsPerKill': {
       return g.getMaxTargetsPerKill()

@@ -13,9 +13,11 @@ export function PlayerHand() {
     fuChouTriggerPrompt, fuChouChoosePrompt,
     dyingRescuePrompt,
     derived,
+    shuCaiActive, shuCaiSelectedCardIds,
     toggleDualCard, toggleDiscardCard, toggleFuChouPick,
     pickTreasureCard, pickXiaDanCard,
     selectTianXiangCard, selectManWuCard, selectBuDaoCard,
+    toggleShuCaiCard,
     confirmDyingRescue,
     playKill, playHeal, equipCard, playScheme, playSchemeSelf,
     judgeReplace, respondWithCard, huiChunHeal,
@@ -29,9 +31,11 @@ export function PlayerHand() {
     fuChouTriggerPrompt: s.fuChouTriggerPrompt, fuChouChoosePrompt: s.fuChouChoosePrompt,
     dyingRescuePrompt: s.dyingRescuePrompt,
     derived: s.derived,
+    shuCaiActive: s.shuCaiActive, shuCaiSelectedCardIds: s.shuCaiSelectedCardIds,
     toggleDualCard: s.toggleDualCard, toggleDiscardCard: s.toggleDiscardCard, toggleFuChouPick: s.toggleFuChouPick,
     pickTreasureCard: s.pickTreasureCard, pickXiaDanCard: s.pickXiaDanCard,
     selectTianXiangCard: s.selectTianXiangCard, selectManWuCard: s.selectManWuCard, selectBuDaoCard: s.selectBuDaoCard,
+    toggleShuCaiCard: s.toggleShuCaiCard,
     confirmDyingRescue: s.confirmDyingRescue,
     playKill: s.playKill, playHeal: s.playHeal, equipCard: s.equipCard, playScheme: s.playScheme, playSchemeSelf: s.playSchemeSelf,
     judgeReplace: s.judgeReplace, respondWithCard: s.respondWithCard, huiChunHeal: s.huiChunHeal,
@@ -93,15 +97,20 @@ export function PlayerHand() {
         const isSelectedDiscard = selectedDiscardCards.includes(card.id)
         const isSelectedFuChou = phase === 'selectFuChouDiscard' && fuChouPickSelected.includes(card.id)
         const isSelectedManWu = manWuSelectedCardId === card.id
+        const isSelectedShuCai = shuCaiActive && shuCaiSelectedCardIds.includes(card.id)
         const isPending = pendingCardId === card.id
         const isLuYeQiangKillCard = luYeQiangKillCardId === card.id
         // 统一: 所有选中状态都用上移表达, 不再用 outline
-        const isLifted = isPending || isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu
+        const isLifted = isPending || isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu || isSelectedShuCai
         return (
           <div
             key={card.id}
             data-card-id={card.id}
             onClick={() => {
+              if (shuCaiActive) {
+                toggleShuCaiCard(card.id)
+                return
+              }
               if (phase === 'selectDualCards') toggleDualCard(card.id)
               else if (phase === 'selectDiscardCards') toggleDiscardCard(card.id)
               else if (phase === 'selectFuChouDiscard') toggleFuChouPick(card.id)
@@ -126,7 +135,7 @@ export function PlayerHand() {
               alignSelf: 'flex-end',
               outline: 'none',
               borderRadius: '4px',
-              cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || (phase === 'treasureSelectWeapon' && card.type === 'equipment' && (card as any).slot === 'weapon') || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || phase === 'dyingRescue' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
+              cursor: (shuCaiActive || phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || (phase === 'treasureSelectWeapon' && card.type === 'equipment' && (card as any).slot === 'weapon') || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || phase === 'dyingRescue' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
               zIndex: isPending ? 2 : (isLifted ? 1 : 0),
               position: 'relative',
               transform: isLifted ? 'translateY(-12px)' : 'translateY(0)',
@@ -156,6 +165,7 @@ export function PlayerHand() {
                 || phase === 'dyingRescue'
                 || manWuRedHeartCards.length > 0 || phase === 'chaoTuoPick'
               }
+              shuCaiSelectMode={shuCaiActive}
               isLuYeQiangKillCard={isLuYeQiangKillCard}
               hasValidSchemeTarget={hasValidSchemeTarget(card.name, card.suit)}
               shenTouActive={shenTouActive}

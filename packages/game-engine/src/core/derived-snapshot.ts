@@ -26,10 +26,12 @@ import type { Card } from '@hero-legend/shared-types'
 export interface DerivedSnapshot {
   /** 玩家本回合是否还可出杀 (受回合/侠胆负/天狼虎符/已用次数限制) */
   canPlayKill: boolean
-  /** 玩家傲剑主动模式是否激活 (用于红色牌/装备当杀点击高亮) */
+  /** 玩家傲剑主动模式是否激活 (派生自 activeSkillId, 兼容旧 UI 高亮判定) */
   aoJianActive: boolean
-  /** 玩家神偷主动模式是否激活 (用于梅花手牌当探囊取物) */
+  /** 玩家神偷主动模式是否激活 (派生自 activeSkillId, 兼容旧 UI 高亮判定) */
   shenTouActive: boolean
+  /** 玩家当前激活的可激活技能 id (互斥, 同时只有一个); null = 无激活. UI 通用高亮判定优先用此字段 */
+  activeSkillId: string | null
   /** 玩家是否在判定区有"手捧雷" (SkillBar/PlayerHand hasLeiInJudge) */
   hasLeiInJudge: boolean
   /** 玩家本回合"绝击"已用次数 (SkillBar 烽火/绝击 disabled) */

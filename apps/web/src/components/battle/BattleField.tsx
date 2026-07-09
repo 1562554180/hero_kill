@@ -15,6 +15,8 @@ export function BattleField() {
     xiaDanActive,
     sheShenSelectedCardIds,
     shenTouActive,
+    shuCaiActive, shuCaiTargetId,
+    selectShuCaiTarget,
     derived,
     confirmTarget, toggleTarget, toggleKillMultiTarget,
     selectLuYeQiangTarget, selectTanNangTarget, selectFudiTarget,
@@ -30,6 +32,8 @@ export function BattleField() {
     xiaDanActive: s.xiaDanActive,
     sheShenSelectedCardIds: s.sheShenSelectedCardIds,
     shenTouActive: s.shenTouActive,
+    shuCaiActive: s.shuCaiActive, shuCaiTargetId: s.shuCaiTargetId,
+    selectShuCaiTarget: s.selectShuCaiTarget,
     derived: s.derived,
     confirmTarget: s.confirmTarget, toggleTarget: s.toggleTarget, toggleKillMultiTarget: s.toggleKillMultiTarget,
     selectLuYeQiangTarget: s.selectLuYeQiangTarget, selectTanNangTarget: s.selectTanNangTarget, selectFudiTarget: s.selectFudiTarget,
@@ -160,12 +164,17 @@ export function BattleField() {
             (phase === 'treasureSelectTargets') ||
             (phase === 'selectFudiTarget' && isValidTarget(h.hero.id)) ||
             (phase === 'sheShenDistribute' && h.currentHp > 0) ||
-            (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id))
+            (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id)) ||
+            (shuCaiActive && h.currentHp > 0)
           )
         }
-        isSelected={selectedTargetId === h.hero.id || selectedTargets.includes(h.hero.id)}
+        isSelected={selectedTargetId === h.hero.id || selectedTargets.includes(h.hero.id) || (shuCaiActive && shuCaiTargetId === h.hero.id)}
         dimmed={(!!dimInvalid && !isValidTarget(h.hero.id)) || (shouldDimInvalidTargets && !isValidTarget(h.hero.id))}
         onClick={() => {
+          if (shuCaiActive) {
+            if (h.currentHp > 0) selectShuCaiTarget(h.hero.id)
+            return
+          }
           if (phase === 'sheShenDistribute') {
             if (sheShenSelectedCardIds.length > 0 && h.currentHp > 0) assignSheShenCard(h.hero.id)
             return
