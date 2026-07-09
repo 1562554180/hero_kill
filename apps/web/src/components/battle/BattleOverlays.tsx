@@ -484,7 +484,7 @@ export function BattleOverlays() {
         </div>
       )}
 
-      {/* 起义 (陈胜 摸牌前) Step 3: 单独弹框从已选目标手牌中抽 1 张, 类似探囊取物 */}
+      {/* 起义 (陈胜 摸牌前) Step 3: 单独弹框从已选目标手牌中抽 1 张, 与探囊取物手牌样式一致 (看不到牌内容) */}
       {phase === 'qiYiPrompt' && qiYiDecision && qiYiStep === 'pickCards' && (() => {
         const currentTid = treasureTargetIds.find(tid => !qiYiCardMap[tid])
         if (!currentTid) return null
@@ -502,33 +502,33 @@ export function BattleOverlays() {
               borderRadius: '12px', padding: '24px', minWidth: '420px', maxWidth: '720px', maxHeight: '80vh', overflow: 'auto',
               boxShadow: '0 4px 24px rgba(255,213,79,0.4)',
             }}>
-              <h2 style={{ color: '#ffd54f', fontSize: '22px', marginBottom: '16px', textAlign: 'center' }}>
+              <h2 style={{ color: '#ffd54f', fontSize: '22px', marginBottom: '12px', textAlign: 'center' }}>
                 ⚔️ 起义 — 从 {cand.name} 的手牌中抽 1 张
               </h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', marginBottom: '12px' }}>
                 已抽 {pickedCount}/{treasureTargetIds.length}
               </p>
               {cand.hand.length > 0 ? (
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                  {cand.hand.map((c: Card, idx: number) => {
-                    const suitColor = c.suit === 'heart' || c.suit === 'diamond' ? '#e57373' : 'var(--text-light)'
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => pickQiYiDecisionCard(currentTid, c.id)}
-                        style={{
-                          padding: '6px 12px', fontSize: '13px',
-                          background: 'var(--bg-dark)',
-                          border: '1px solid #b8860b',
-                          color: suitColor, borderRadius: '4px', cursor: 'pointer',
-                          minWidth: '72px',
-                        }}
-                      >
-                        【{c.name}】{c.suit === 'heart' ? '♥' : c.suit === 'diamond' ? '♦' : c.suit === 'spade' ? '♠' : '♣'}{c.number === 1 ? 'A' : c.number > 10 ? ['J','Q','K'][c.number - 11] : c.number}
-                      </button>
-                    )
-                  })}
-                </div>
+                <>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '6px', textAlign: 'center' }}>手牌</div>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    {cand.hand.map((card: Card, idx: number) => (
+                      <div key={card.id} onClick={() => pickQiYiDecisionCard(currentTid, card.id)} style={{
+                        cursor: 'pointer',
+                        width: '61px', height: '82px',
+                        background: 'var(--bg-dark)',
+                        border: '1px solid #8b6914',
+                        borderRadius: '4px',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        textAlign: 'center',
+                        userSelect: 'none',
+                      }}>
+                        <div style={{ color: 'var(--text-light)', fontSize: '22px', fontWeight: 'bold' }}>{idx + 1}</div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '9px', marginTop: '2px' }}>手牌</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <p style={{ color: 'var(--text-muted)', textAlign: 'center' }}>该角色无手牌可抽</p>
               )}
