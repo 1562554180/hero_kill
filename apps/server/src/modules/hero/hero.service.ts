@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, BadRequestException } from '@nestjs/common'
 import { randomUUID } from 'crypto'
 import { SaveService } from '../save/save.service'
 import { heroes } from '@hero-legend/game-data'
@@ -125,5 +125,45 @@ export class HeroService {
   /** 使用一颗英雄石, 生成 HeroInstance */
   async useHeroStone(userId: string, stoneId: string) {
     return this.saveService.useHeroStone(userId, stoneId)
+  }
+
+  /**
+   * 放逐英雄: 删除 HeroInstance 并把装备副本（含强化等级）全部推回背包.
+   * 单文档原子写 (getSave + save.save). 找不到 instanceId 抛 BadRequestException.
+   */
+  async banish(userId: string, instanceId: string) {
+    const save = await this.saveService.getSave(userId)
+    if (!save) throw new BadRequestException('存档不存在')
+
+    const idx = (save.heroes as HeroInstance[]).findIndex(h => h.instanceId === instanceId)
+    if (idx === -1) throw new BadRequestException('INVALID_HERO')
+    const victim = save.heroes[idx]
+
+    // 收集非空装备副本
+    const returned: Treasure[] = []
+    for (const t of (victim.treasures?.main ?? [])) {
+      if (t) returned.push(t)
+    }
+    for (const t of (victim.treasures?.sub ?? [])) {
+      if (t) returned.push(t)
+    }
+
+    // 从 heroes 数组移除该实例
+    save.heroes.splice(idx, 1)
+    // 装备副本推回背包 (在末尾追加, 保留独立副本语义)
+    if (returned.length > 0) {
+      save.treasures.push(...returned)
+    }
+
+    await save.save()
+
+    const heroDef = heroes.find(h => h.id === victim.heroId)
+    return {
+      success: true,
+      removedInstanceId: instanceId,
+      heroId: victim.heroId,
+      heroName: heroDef?.name ?? victim.heroId,
+      returnedTreasures: returned.length,
+    }
   }
 }
