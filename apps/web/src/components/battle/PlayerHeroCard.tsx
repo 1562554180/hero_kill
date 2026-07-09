@@ -8,12 +8,16 @@ export function PlayerHeroCard() {
     gameState, phase, pendingCardId, pendingCardType, playerHand,
     selectedTargetId, jieDaoCandidates, jieDaoHolders,
     sheShenSelectedCardIds,
+    shuCaiActive, shuCaiTargetId,
+    selectShuCaiTarget,
     derived,
     confirmTarget, playKill, respondWithCard, assignSheShenCard,
   } = useBattleStore(useShallow(s => ({
     gameState: s.gameState, phase: s.phase, pendingCardId: s.pendingCardId, pendingCardType: s.pendingCardType, playerHand: s.playerHand,
     selectedTargetId: s.selectedTargetId, jieDaoCandidates: s.jieDaoCandidates, jieDaoHolders: s.jieDaoHolders,
     sheShenSelectedCardIds: s.sheShenSelectedCardIds,
+    shuCaiActive: s.shuCaiActive, shuCaiTargetId: s.shuCaiTargetId,
+    selectShuCaiTarget: s.selectShuCaiTarget,
     derived: s.derived,
     confirmTarget: s.confirmTarget, playKill: s.playKill, respondWithCard: s.respondWithCard,
     assignSheShenCard: s.assignSheShenCard,
@@ -69,10 +73,14 @@ export function PlayerHeroCard() {
       isCurrentTurn={isPlayerTurn}
       isDying={isDying}
       isDead={isDead}
-      isSelectable={(isPendingTargeting && jieDaoCandidates.length > 0 && isPlayerValidTarget) || (phase === 'sheShenDistribute' && player.currentHp > 0) || isHealTargetable}
+      isSelectable={(isPendingTargeting && jieDaoCandidates.length > 0 && isPlayerValidTarget) || (phase === 'sheShenDistribute' && player.currentHp > 0) || isHealTargetable || (shuCaiActive && player.currentHp > 0)}
       dimmed={isHealTargetable === false && phase === 'treasureSelectTarget' && (tSkill === 'liao-shang' || tSkill === 'zhi-yu') && player.currentHp > 0}
-      isSelected={selectedTargetId === player.hero.id}
+      isSelected={selectedTargetId === player.hero.id || (shuCaiActive && shuCaiTargetId === player.hero.id)}
       onClick={() => {
+        if (shuCaiActive) {
+          if (player.currentHp > 0) selectShuCaiTarget(player.hero.id)
+          return
+        }
         if (phase === 'sheShenDistribute') {
           if (sheShenSelectedCardIds.length > 0 && player.currentHp > 0) assignSheShenCard(player.hero.id)
           return

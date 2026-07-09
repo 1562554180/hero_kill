@@ -97,6 +97,7 @@ function buildSnapshot(game: Game): WorkerSnapshot {
     heroNames,
     aoJianActive: player ? game.isAoJianActive(playerId) : false,
     shenTouActive: player ? game.isShenTouActive(playerId) : false,
+    activeSkillId: player ? game.getActiveSkill(playerId) : null,
     canPlayKill: game.canPlayKill,
     jueJiUsedCount: derived.jueJiUsedCount,
     xiaDanMultiTargetPerKill,
@@ -302,6 +303,12 @@ async function handleAction(name: EngineMethodName, args: EngineMethodArgsMap[En
       if (p) g.playerYuRen(p, cids)
       return
     }
+    case 'playerShuCai': {
+      const [pid, cids, tid] = args as EngineMethodArgsMap['playerShuCai']
+      const p = lookup(pid)
+      if (p) g.playerShuCai(p, cids, tid)
+      return
+    }
     case 'playerHuiChunHeal': {
       const [pid, cid] = args as EngineMethodArgsMap['playerHuiChunHeal']
       const p = lookup(pid)
@@ -344,6 +351,18 @@ async function handleAction(name: EngineMethodName, args: EngineMethodArgsMap[En
     case 'isShenTouActive': {
       const [pid] = args as EngineMethodArgsMap['isShenTouActive']
       return g.isShenTouActive(pid)
+    }
+    case 'activateSkill': {
+      const [pid, sid] = args as EngineMethodArgsMap['activateSkill']
+      g.activateSkill(pid, sid)
+      postMsg({ kind: 'event', event: { type: 'phase:end', timestamp: Date.now(), data: { phase: 'activatableSkillToggle' } }, snapshot: buildSnapshot(g) })
+      return
+    }
+    case 'deactivateSkill': {
+      const [pid] = args as EngineMethodArgsMap['deactivateSkill']
+      g.deactivateSkill(pid)
+      postMsg({ kind: 'event', event: { type: 'phase:end', timestamp: Date.now(), data: { phase: 'activatableSkillToggle' } }, snapshot: buildSnapshot(g) })
+      return
     }
     case 'getMaxTargetsPerKill': {
       return g.getMaxTargetsPerKill()
@@ -410,7 +429,7 @@ workerScope.addEventListener('message', async (e: MessageEvent<MainMessage>) => 
         if (!player) return
         const stock = game.cardDeck.draw(msg.cardNames.length)
         const newCards = stock.map((c, i) => {
-          const name = msg.cardNames[i]
+          const name = msg.cardNames[i] as any
           return {
             ...c,
             id: `debug-club-${i}-${Math.random().toString(36).slice(2, 8)}`,
@@ -428,6 +447,12 @@ workerScope.addEventListener('message', async (e: MessageEvent<MainMessage>) => 
           event: { type: 'phase:start', sourceHeroId: player.getId(), data: {} } as any,
           snapshot: buildSnapshot(game),
         })
+        return
+      }
+      case 'debug-set-force-club': {
+        if (!game) return
+        if (msg.enabled) game.cardDeck.enableForceClubSuit()
+        else game.cardDeck.disableForceClubSuit()
         return
       }
       case 'terminate': {

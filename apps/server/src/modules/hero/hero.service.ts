@@ -5,6 +5,13 @@ import { heroes } from '@hero-legend/game-data'
 import type { HeroInstance, Treasure } from '@hero-legend/shared-types'
 import { getMaxLevelByStar } from '@hero-legend/shared-types'
 
+/** 宝具族 id — 去掉 id 末尾的 _N 或 -N 星级后缀, 用于"同族不可重复镶嵌"判定.
+ *  e.g. treasure-qiang-hua-3 → treasure-qiang-hua, main_shengqiang_5 → main_shengqiang */
+function getTreasureFamilyId(t: Treasure | Partial<Treasure> | null | undefined): string | null {
+  if (!t || typeof t.id !== 'string') return null
+  return t.id.replace(/[-_]\d+$/, '')
+}
+
 /** 比较两个宝具是否同一类 (按 name+type+starLevel+triggerRate), 用于合并堆叠 */
 function isSameTreasureKind(a: Treasure, b: Partial<Treasure>): boolean {
   return a.name === b.name
@@ -63,8 +70,11 @@ export class HeroService {
     if (stackIdx < 0) return { error: '宝具不存在' }
     const stack: Treasure = save.treasures[stackIdx]
 
-    // 校验: 该 skill.id 不能与英雄自身技能或已装备槽位重复
+    // 校验: 不能与英雄自身技能 / 已装备槽位的同族宝具重复
+    //   - 英雄技能用 skill.id 精确匹配 (杨延昭不能装天狼主印)
+    //   - 同族宝具用 family id: 同族不同星 (如 强化·壹 / 强化·叁) 视为同一族, 不可重复镶嵌
     const newSkillId = stack.skill?.id
+    const newFamilyId = getTreasureFamilyId(stack)
     if (newSkillId) {
       // 1) 英雄自身技能 (例: 杨延昭有"天狼"技能, 不能再装天狼主印)
       const heroDef = heroes.find(h => h.id === heroInstance.heroId)
@@ -72,15 +82,17 @@ export class HeroService {
       if (heroSkillIds.includes(newSkillId)) {
         return { error: '与英雄自身技能重复, 不能镶嵌' }
       }
+    }
+    if (newFamilyId) {
       // 2) 已装备槽位 (排除即将被替换的当前槽)
       const mainSlots = heroInstance.treasures.main
       const subSlots = heroInstance.treasures.sub
       const conflictInMain = mainSlots.some((t, i) =>
-        i !== (slotType === 'main' ? slotIndex : -1) && t?.skill?.id === newSkillId)
+        i !== (slotType === 'main' ? slotIndex : -1) && getTreasureFamilyId(t) === newFamilyId)
       const conflictInSub = subSlots.some((t, i) =>
-        i !== (slotType === 'sub' ? slotIndex : -1) && t?.skill?.id === newSkillId)
+        i !== (slotType === 'sub' ? slotIndex : -1) && getTreasureFamilyId(t) === newFamilyId)
       if (conflictInMain || conflictInSub) {
-        return { error: '已有相同技能的宝具, 不能重复镶嵌' }
+        return { error: '已镶嵌同族宝具, 不能重复镶嵌' }
       }
     }
 

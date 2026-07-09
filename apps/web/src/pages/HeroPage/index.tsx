@@ -437,24 +437,29 @@ export function HeroPage() {
                         const ratePercent = Math.round(actualRate * 100)
                         const rateColor = actualRate >= 0.5 ? '#7ec850' : actualRate >= 0.3 ? 'var(--text-gold)' : actualRate >= 0.15 ? '#ff9e3a' : '#ff6b6b'
                         const icon = getSkillIcon(t.skill?.name ?? t.name)
-                        // 校验: 与英雄自身技能/已装备槽位 skill.id 重复 → 禁用
+                        // 校验: 与英雄自身技能 / 已装备槽位的同族宝具重复 → 禁用
+                        //   - 英雄技能用 skill.id 精确匹配 (杨延昭不能装天狼主印)
+                        //   - 同族宝具用 family id: 同族不同星 (强化·壹 / 强化·叁) 视为同一族, 不可重复镶嵌
+                        const newFamilyId = (t.id ?? '').replace(/[-_]\d+$/, '')
                         const conflictWithHero = (selectedConfig?.skills ?? []).some(s => s.id === t.skill?.id)
-                        const conflictEquipped = [
-                          ...selectedInstance.treasures.main,
-                          ...selectedInstance.treasures.sub,
-                        ].some((tt, idx) => {
-                          if (!tt) return false
-                          // 排除当前正在替换的槽
-                          if (idx === (activeSlot.slotType === 'main'
-                            ? activeSlot.slotIndex
-                            : selectedInstance.treasures.main.length + activeSlot.slotIndex)) return false
-                          return tt.skill?.id === t.skill?.id
-                        })
+                        const conflictEquipped = (() => {
+                          const mainArr = selectedInstance.treasures?.main ?? []
+                          const subArr = selectedInstance.treasures?.sub ?? []
+                          const isMain = activeSlot.slotType === 'main'
+                          const sameSlot = (slotArr: typeof mainArr, idx: number) =>
+                            isMain === (slotArr === mainArr) && idx === activeSlot.slotIndex
+                          const checkArr = (arr: typeof mainArr) => arr.some((tt, i) => {
+                            if (!tt || sameSlot(arr, i)) return false
+                            const ttFamily = (tt.id ?? '').replace(/[-_]\d+$/, '')
+                            return ttFamily !== '' && ttFamily === newFamilyId
+                          })
+                          return checkArr(mainArr) || checkArr(subArr)
+                        })()
                         const isDisabled = conflictWithHero || conflictEquipped
                         const conflictReason = conflictWithHero
                           ? '与英雄自身技能重复'
                           : conflictEquipped
-                            ? '已有相同技能的宝具'
+                            ? '已镶嵌同族宝具'
                             : ''
                         const titleText = `${t.name} ×${n}\n★${t.starLevel} ${t.type === 'main' ? '主印' : '辅印'}\n基础触发: ${Math.round(baseRate * 100)}%${t.type === 'sub' ? `\n强化 Lv.${lvl}/45 次数 ${cnt}/50\n强化后触发: ${ratePercent}%${starBonus > 0 ? ` (含星5 +10%)` : ''}${atMaxLevel ? '\n已满级' : ''}${outOfAttempts ? '\n次数用尽' : ''}` : ''}${isDisabled ? `\n${conflictReason} - 不可镶嵌` : '\n双击镶嵌'}\n${t.skill.description}`
                         return (

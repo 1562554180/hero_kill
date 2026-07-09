@@ -94,6 +94,11 @@ export class EngineProxy {
     this.worker.postMessage({ kind: 'debug-set-player-hand', cardNames } satisfies MainMessage)
   }
 
+  /** [DEBUG] 开启/关闭: 之后所有抽到的牌 suit 都强制 club (神偷测试) */
+  debugSetForceClubSuit(enabled: boolean): void {
+    this.worker.postMessage({ kind: 'debug-set-force-club', enabled } satisfies MainMessage)
+  }
+
   dispose(): void {
     if (this.disposed) return
     this.disposed = true

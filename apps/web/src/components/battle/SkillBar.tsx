@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useBattleStore } from '../../stores/battleStore'
+import { useBattleStore, ACTIVATABLE_SKILLS } from '../../stores/battleStore'
 import { useShallow } from 'zustand/react/shallow'
 
 const treasureBtnStyle = {
@@ -21,15 +21,18 @@ export function SkillBar() {
     pendingCardId: st.pendingCardId,
     pendingCardType: st.pendingCardType,
     equippedCards: st.equippedCards,
-    xiaDanActive: st.xiaDanActive,
+    xiaDanActive: st.activeSkillId === 'xia-dan',
     xiaDanUsedThisTurn: st.xiaDanUsedThisTurn,
     yuRenUsedThisTurn: st.yuRenUsedThisTurn,
     yuRenCardIds: st.yuRenCardIds,
     derived: st.derived,
-    aoJianActive: st.aoJianActive,
-    toggleAoJian: st.toggleAoJian,
-    toggleShenTou: st.toggleShenTou,
+    aoJianActive: st.activeSkillId === 'ao-jian',
+    shenTouActiveLocal: st.activeSkillId === 'shen-tou',
+    shuCaiActive: st.shuCaiActive,
+    toggleActivatableSkill: st.toggleActivatableSkill,
     useTreasureSkill: st.useTreasureSkill,
+    activateShuCai: st.activateShuCai,
+    deactivateShuCai: st.deactivateShuCai,
     endPlayPhase: st.endPlayPhase,
   })))
 
@@ -37,7 +40,8 @@ export function SkillBar() {
     phase, treasureSkill, playerHand, gameState,
     pendingCardId, pendingCardType, equippedCards,
     xiaDanActive, xiaDanUsedThisTurn, yuRenUsedThisTurn, yuRenCardIds,
-    derived, aoJianActive, toggleAoJian, toggleShenTou, useTreasureSkill, endPlayPhase,
+    derived, aoJianActive, shenTouActiveLocal, shuCaiActive,
+    toggleActivatableSkill, useTreasureSkill, activateShuCai, deactivateShuCai, endPlayPhase,
   } = s
 
   const player = useMemo(() => gameState?.heroes.find(h => h.role === 'player'), [gameState])
@@ -55,6 +59,8 @@ export function SkillBar() {
   const hasSkillOrTreasure = (id: string) =>
     allSkills.some(sk => sk.id === id) || allTreasures.some(t => t?.skill.id === id || t?.skill.id === `treasure-${id}`)
 
+  const hasShuCai = hasSkillOrTreasure('shu-cai')
+
   const hasAoJian = hasSkillOrTreasure('ao-jian')
   const hasLiaoShang = hasSkillOrTreasure('liao-shang')
   const hasZhiYu = hasSkillOrTreasure('zhi-yu')
@@ -65,7 +71,8 @@ export function SkillBar() {
   const hasXiaDan = hasSkillOrTreasure('xia-dan')
   const hasFuJing = hasSkillOrTreasure('fu-jing')
   const hasShenTou = hasSkillOrTreasure('shen-tou')
-  const shenTouActive = derived?.shenTouActive ?? false
+  // 优先用 store.activeSkillId (用户最近的 toggle), 派生值作为 fallback
+  const shenTouActive = shenTouActiveLocal || (derived?.shenTouActive ?? false)
 
   const playerWeaponName = (() => {
     const weaponId = player?.equipment?.weapon
@@ -86,7 +93,7 @@ export function SkillBar() {
           <span style={{ color: 'var(--text-gold)', fontSize: '12px', fontWeight: 'bold' }}>你的回合</span>
         )}
 
-        {allSkills.filter(sk => sk.type === 'active').map(skill => (
+        {allSkills.filter(sk => sk.type === 'active' && !(ACTIVATABLE_SKILLS as readonly string[]).includes(sk.id) && sk.id !== 'shu-cai').map(skill => (
           <button
             key={skill.id}
             title={skill.description}
@@ -121,7 +128,7 @@ export function SkillBar() {
 
         {hasAoJian && (
           <button
-            onClick={toggleAoJian}
+            onClick={() => toggleActivatableSkill('ao-jian')}
             style={{
               fontSize: '11px', padding: '4px 10px',
               background: aoJianActive ? '#e57373' : 'var(--bg-dark)',
@@ -227,7 +234,7 @@ export function SkillBar() {
         )}
         {hasShenTou && (
           <button
-            onClick={toggleShenTou}
+            onClick={() => toggleActivatableSkill('shen-tou')}
             style={{
               fontSize: '11px', padding: '4px 10px',
               background: shenTouActive ? '#7ec850' : 'var(--bg-dark)',
@@ -240,6 +247,26 @@ export function SkillBar() {
             title="神偷: 激活后所有♣梅花手牌都当【探囊取物】使用"
           >
             {shenTouActive ? '🃏 神偷·激活' : '🃏 神偷'}
+          </button>
+        )}
+        {hasShuCai && (
+          <button
+            onClick={() => shuCaiActive ? deactivateShuCai() : activateShuCai()}
+            disabled={!shuCaiActive && playerHand.length === 0}
+            style={{
+              fontSize: '11px', padding: '4px 10px',
+              background: shuCaiActive ? '#ff9800' : (playerHand.length === 0 ? '#444' : 'var(--bg-dark)'),
+              color: shuCaiActive ? '#fff' : (playerHand.length === 0 ? '#888' : 'var(--text-light)'),
+              border: shuCaiActive ? '1px solid #ff9800' : '1px solid var(--border-wood)',
+              borderRadius: '4px',
+              fontWeight: shuCaiActive ? 'bold' : 'normal',
+              cursor: (!shuCaiActive && playerHand.length === 0) ? 'not-allowed' : 'pointer',
+              opacity: (!shuCaiActive && playerHand.length === 0) ? 0.5 : 1,
+              boxShadow: shuCaiActive ? '0 0 12px rgba(255,152,0,0.7)' : undefined,
+            }}
+            title={playerHand.length === 0 ? '疏财: 无手牌可发' : '疏财: 激活后选手牌→选英雄→确认, 无次数限制'}
+          >
+            🎁 疏财{shuCaiActive ? ' ·激活' : ''}
           </button>
         )}
         {hasXiaDan && (

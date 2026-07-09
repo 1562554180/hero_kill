@@ -164,7 +164,10 @@ export function BattlePage() {
         result: null,
         pendingCardId: null,
         pendingCardType: null,
+        activeSkillId: null,
         aoJianActive: false,
+        shenTouActive: false,
+        xiaDanActive: false,
         responsePrompt: null,
         equippedCards: {},
         multiTargetCandidates: [],
@@ -208,10 +211,19 @@ export function BattlePage() {
       ? { position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg-dark, #1a1a1a)' }
       : { padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
       {!isBattleActive && (
-        <h2 style={{ textAlign: 'center', color: 'var(--text-gold)', marginBottom: '12px' }}>
-          {stage.name} - 第 {battleIdx + 1} 战
-          {currentBattle.isBoss && ' (BOSS)'}
-        </h2>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: '12px',
+        }}>
+          <h2 style={{ color: 'var(--text-gold)' }}>
+            {stage.name} - 第 {battleIdx + 1} 战
+            {currentBattle.isBoss && ' (BOSS)'}
+          </h2>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => navigate('/stages')}>返回关卡</button>
+            <button onClick={() => navigate('/city')}>主城</button>
+          </div>
+        </div>
       )}
 
       {!isBattleActive && (

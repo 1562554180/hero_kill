@@ -460,14 +460,13 @@ function TreasureSlot({ treasure, type, locked, heroStarLevel }: { treasure: Tre
       {icon ? <img src={icon} alt={treasure.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : displayChar}
       {type === 'sub' && lvl > 0 && (
         <span style={{
-          position: 'absolute', top: '-4px', right: '-4px',
-          background: 'rgba(0,0,0,0.85)', color: 'var(--text-gold)',
-          fontSize: '8px', fontWeight: 'bold', padding: '0 4px',
-          lineHeight: '11px', borderRadius: '6px',
-          border: '1px solid rgba(255,213,79,0.5)',
+          position: 'absolute', top: '0', right: '0',
+          background: 'rgba(0,0,0,0.74)', color: '#aa5a5a',
+          fontSize: '8px', fontWeight: 'bold', padding: '0 1px',
+          lineHeight: '14px', borderRadius: '7px',
           pointerEvents: 'none',
           zIndex: 2,
-        }}>+{lvl}</span>
+        }}>{lvl}</span>
       )}
     </div>
   )

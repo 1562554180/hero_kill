@@ -13,9 +13,11 @@ export function PlayerHand() {
     fuChouTriggerPrompt, fuChouChoosePrompt,
     dyingRescuePrompt,
     derived,
+    shuCaiActive, shuCaiSelectedCardIds,
     toggleDualCard, toggleDiscardCard, toggleFuChouPick,
     pickTreasureCard, pickXiaDanCard,
     selectTianXiangCard, selectManWuCard, selectBuDaoCard,
+    toggleShuCaiCard,
     confirmDyingRescue,
     playKill, playHeal, equipCard, playScheme, playSchemeSelf,
     judgeReplace, respondWithCard, huiChunHeal,
@@ -29,9 +31,11 @@ export function PlayerHand() {
     fuChouTriggerPrompt: s.fuChouTriggerPrompt, fuChouChoosePrompt: s.fuChouChoosePrompt,
     dyingRescuePrompt: s.dyingRescuePrompt,
     derived: s.derived,
+    shuCaiActive: s.shuCaiActive, shuCaiSelectedCardIds: s.shuCaiSelectedCardIds,
     toggleDualCard: s.toggleDualCard, toggleDiscardCard: s.toggleDiscardCard, toggleFuChouPick: s.toggleFuChouPick,
     pickTreasureCard: s.pickTreasureCard, pickXiaDanCard: s.pickXiaDanCard,
     selectTianXiangCard: s.selectTianXiangCard, selectManWuCard: s.selectManWuCard, selectBuDaoCard: s.selectBuDaoCard,
+    toggleShuCaiCard: s.toggleShuCaiCard,
     confirmDyingRescue: s.confirmDyingRescue,
     playKill: s.playKill, playHeal: s.playHeal, equipCard: s.equipCard, playScheme: s.playScheme, playSchemeSelf: s.playSchemeSelf,
     judgeReplace: s.judgeReplace, respondWithCard: s.respondWithCard, huiChunHeal: s.huiChunHeal,
@@ -93,20 +97,24 @@ export function PlayerHand() {
         const isSelectedDiscard = selectedDiscardCards.includes(card.id)
         const isSelectedFuChou = phase === 'selectFuChouDiscard' && fuChouPickSelected.includes(card.id)
         const isSelectedManWu = manWuSelectedCardId === card.id
+        const isSelectedShuCai = shuCaiActive && shuCaiSelectedCardIds.includes(card.id)
         const isPending = pendingCardId === card.id
         const isLuYeQiangKillCard = luYeQiangKillCardId === card.id
         // 统一: 所有选中状态都用上移表达, 不再用 outline
-        const isLifted = isPending || isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu
+        const isLifted = isPending || isSelectedDual || isSelectedTreasure || isSelectedYuRen || isSelectedDiscard || isSelectedFuChou || isSelectedManWu || isSelectedShuCai
         return (
           <div
             key={card.id}
             data-card-id={card.id}
             onClick={() => {
+              if (shuCaiActive) {
+                toggleShuCaiCard(card.id)
+                return
+              }
               if (phase === 'selectDualCards') toggleDualCard(card.id)
               else if (phase === 'selectDiscardCards') toggleDiscardCard(card.id)
               else if (phase === 'selectFuChouDiscard') toggleFuChouPick(card.id)
               else if (phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards') pickTreasureCard(card.id)
-              else if (phase === 'treasureSelectEquipment' && card.type === 'equipment') pickTreasureCard(card.id)
               else if (phase === 'treasureSelectWeapon' && card.type === 'equipment' && (card as any).slot === 'weapon') {
                 playerJueJiSelf(card.id)
               } else if (phase === 'xiaDanPickCard') {
@@ -127,7 +135,7 @@ export function PlayerHand() {
               alignSelf: 'flex-end',
               outline: 'none',
               borderRadius: '4px',
-              cursor: (phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || phase === 'dyingRescue' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
+              cursor: (shuCaiActive || phase === 'selectDualCards' || phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || (phase === 'treasureSelectWeapon' && card.type === 'equipment' && (card as any).slot === 'weapon') || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || phase === 'dyingRescue' || manWuRedHeartCards.length > 0) ? 'pointer' : undefined,
               zIndex: isPending ? 2 : (isLifted ? 1 : 0),
               position: 'relative',
               transform: isLifted ? 'translateY(-12px)' : 'translateY(0)',
@@ -136,7 +144,7 @@ export function PlayerHand() {
           >
             <HandCard
               card={card}
-              disabled={!(isPlayerTurn || phase === 'judgeReplace' || phase === 'awaitingResponse' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'treasureSelectWeapon' || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || phase === 'dyingRescue' || phase === 'selectFuChouDiscard' || huiChunAvailable) || !!fuChouTriggerPrompt || !!fuChouChoosePrompt}
+              disabled={!(isPlayerTurn || phase === 'judgeReplace' || phase === 'awaitingResponse' || phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || (phase === 'treasureSelectWeapon' && card.type === 'equipment' && (card as any).slot === 'weapon') || phase === 'xiaDanPickCard' || phase === 'tianXiang' || phase === 'buDaoKill' || phase === 'dyingRescue' || phase === 'selectFuChouDiscard' || huiChunAvailable) || !!fuChouTriggerPrompt || !!fuChouChoosePrompt}
               canPlayKill={canPlayKill}
               isFullHp={isFullHp}
               aoJianActive={aoJianActive}
@@ -147,16 +155,17 @@ export function PlayerHand() {
               isJudgeReplace={phase === 'judgeReplace'}
               isPending={isPending}
               isLifted={isLifted}
-              treasureSelectMode={phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment' || phase === 'xiaDanPickCard'}
+              treasureSelectMode={phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'xiaDanPickCard'}
               selectDualMode={phase === 'selectDualCards'}
               selectDiscardMode={phase === 'selectDiscardCards' || phase === 'selectFuChouDiscard'}
               isHandCardSelect={
-                phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards' || phase === 'treasureSelectEquipment'
+                phase === 'treasureSelectCard' || phase === 'treasureSelect2Cards'
                 || phase === 'xiaDanPickCard' || phase === 'selectDualCards' || phase === 'selectDiscardCards'
                 || phase === 'selectFuChouDiscard' || phase === 'tianXiang' || phase === 'buDaoKill'
                 || phase === 'dyingRescue'
                 || manWuRedHeartCards.length > 0 || phase === 'chaoTuoPick'
               }
+              shuCaiSelectMode={shuCaiActive}
               isLuYeQiangKillCard={isLuYeQiangKillCard}
               hasValidSchemeTarget={hasValidSchemeTarget(card.name, card.suit)}
               shenTouActive={shenTouActive}
