@@ -303,10 +303,19 @@ export function BattleOverlays() {
                       <HandCard card={card} disabled={true} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
                       {isPicked && (
                         <span style={{
-                          position: 'absolute', bottom: '-22px', left: '50%', transform: 'translateX(-50%)',
-                          background: '#ffd54f', color: '#000', fontSize: '11px', fontWeight: 'bold',
-                          padding: '2px 8px', borderRadius: '10px', whiteSpace: 'nowrap',
-                        }}>{pickerName} 已选</span>
+                          position: 'absolute',
+                          top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                          writingMode: 'vertical-rl',
+                          background: 'rgba(0,0,0,0.78)',
+                          color: '#ffd54f',
+                          fontSize: '13px', fontWeight: 'bold',
+                          padding: '10px 4px',
+                          borderRadius: '4px',
+                          letterSpacing: '2px',
+                          whiteSpace: 'nowrap',
+                          pointerEvents: 'none',
+                          boxShadow: '0 0 8px rgba(255,213,79,0.6)',
+                        }}>{pickerName}</span>
                       )}
                     </div>
                   )
