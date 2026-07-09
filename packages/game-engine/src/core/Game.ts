@@ -625,6 +625,11 @@ export class Game {
         this.emitSkillTrigger(victim, '伤之削', `弃置【${(card as any).name}】`)
       }
     }
+    // 石化: 30%几率令对方回合直接结束 (跳过对方下一回合)
+    if (this.rollSubTreasure(victim, 'treasure-shi-hua')) {
+      this.skipCurrentTurnPlayerId = attacker.getId()
+      this.emitSkillTrigger(victim, '石化', `${attacker.getName()}回合直接结束`)
+    }
   }
 
   private isMale(player: Player): boolean {
@@ -1321,6 +1326,15 @@ export class Game {
       this.emitSkillTrigger(defender, shieldName, '免疫杀')
       this.eventBus.emit({ type: 'damage:prevent', sourceHeroId: defender.getId(), data: { reason: shieldName } })
       return
+    }
+
+    // 黑杀御/红杀御: 30%几率成为目标时摸1张牌 (判定前生效, 无论是否闪/造成伤害)
+    if ((isBlackKill && this.rollSubTreasure(defender, 'treasure-hei-sha-yu')) ||
+        (isRedKill && this.rollSubTreasure(defender, 'treasure-hong-sha-yu'))) {
+      const yuName = isBlackKill ? '黑杀御' : '红杀御'
+      const drawn = this.cardDeck.draw(1)
+      defender.drawCards(drawn)
+      this.emitSkillTrigger(defender, yuName, '成为杀的目标-摸1张牌')
     }
 
     // 刺客: 询问发动 → 判定, 红色不可被闪, 黑色造成伤害后弃对方一张牌
@@ -2826,11 +2840,11 @@ export class Game {
       const drawn = this.cardDeck.draw(2)
       player.drawCards(drawn)
       this.eventBus.emit({ type: 'card:draw', sourceHeroId: player.getId(), data: { count: 2, reason: '无中生有' } })
-      // 生有: 30%几率额外摸1张
+      // 生有: 30%几率额外摸2张
       if (this.rollSubTreasure(player, 'treasure-sheng-you')) {
-        const extra = this.cardDeck.draw(1)
+        const extra = this.cardDeck.draw(2)
         player.drawCards(extra)
-        this.emitSkillTrigger(player, '生有', '额外摸1张')
+        this.emitSkillTrigger(player, '生有', '额外摸2张')
       }
     } else if (effectiveCard.name === '探囊取物') {
       // 选目标: 如未传targetId, 通过tanNangTargetHandler选
@@ -2885,6 +2899,31 @@ export class Game {
         }
       }
       if (pickedId) await this.takeCardFromTarget(player, target, pickedId, '探囊取物')
+      // 探囊: 30%几率额外拿1张牌 (再选1张)
+      if (this.rollSubTreasure(player, 'treasure-tan-nang')) {
+        // 目标至少还有1张牌 (手牌/装备/判定) 才能继续拿
+        const hasRemain = target.getHandSize() + this.collectEquipmentCards(target).length + target.getJudgeCards().length > 0
+        if (hasRemain) {
+          let extraId: string | null = null
+          if (player.getRole() === 'player' && this.config.tanNangPickHandler) {
+            extraId = await this.config.tanNangPickHandler({
+              attackerId: player.getId(),
+              targetId: target.getId(),
+              options: { hand: target.getHand(), judge: target.getJudgeCards(), equipment: this.collectEquipmentCards(target) },
+            })
+          }
+          if (!extraId) {
+            if (target.getHandSize() > 0) extraId = target.getHand()[0].id
+            else {
+              const eqs = this.collectEquipmentCards(target)
+              if (eqs.length > 0) extraId = eqs[0].id
+              else if (target.getJudgeCards().length > 0) extraId = target.getJudgeCards()[0].id
+            }
+          }
+          if (extraId) await this.takeCardFromTarget(player, target, extraId, '探囊')
+          this.emitSkillTrigger(player, '探囊', '额外拿1张牌')
+        }
+      }
     } else if (card.name === '釜底抽薪') {
       await this.executeFudiChouXin(player, targetId, card)
     } else if (card.name === '借刀杀人') {
@@ -3296,6 +3335,30 @@ export class Game {
       }
     }
     if (pickedId) await this.discardCardFromTarget(target, pickedId, '釜底抽薪')
+    // 抽薪: 30%几率额外弃对方1张牌 (再选1张)
+    if (this.rollSubTreasure(player, 'treasure-chou-xin')) {
+      const stillHas = target.getHandSize() + this.collectEquipmentCards(target).length + target.getJudgeCards().length > 0
+      if (stillHas) {
+        let extraId: string | null = null
+        if (player.getRole() === 'player' && this.config.fudiPickHandler) {
+          extraId = await this.config.fudiPickHandler({
+            attackerId: player.getId(),
+            targetId: target.getId(),
+            options: { hand: target.getHand(), judge: target.getJudgeCards(), equipment: this.collectEquipmentCards(target) },
+          })
+        }
+        if (!extraId) {
+          if (target.getHandSize() > 0) extraId = target.getHand()[0].id
+          else {
+            const eqs = this.collectEquipmentCards(target)
+            if (eqs.length > 0) extraId = eqs[0].id
+            else if (target.getJudgeCards().length > 0) extraId = target.getJudgeCards()[0].id
+          }
+        }
+        if (extraId) await this.discardCardFromTarget(target, extraId, '抽薪')
+        this.emitSkillTrigger(player, '抽薪', '额外弃对方1张牌')
+      }
+    }
   }
 
   private async executeFengHuoLangYan(player: Player): Promise<void> {

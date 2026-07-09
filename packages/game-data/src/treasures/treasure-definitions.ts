@@ -144,6 +144,24 @@ export const treasureDefinitions: TreasureDefinition[] = [
   { id: 'treasure-hong-sha-dun-4', name: '红杀盾·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到红色【杀】的伤害后，基础 30% 几率防止此伤害。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
   { id: 'treasure-hong-sha-dun-5', name: '红杀盾·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到红色【杀】的伤害后，基础 35% 几率防止此伤害。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
 
+  { id: 'treasure-hong-sha-yu', name: '红杀御', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你成为红色【杀】的目标后，基础 15% 几率获取一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
+  { id: 'treasure-hong-sha-yu-2', name: '红杀御·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你成为红色【杀】的目标后，基础 20% 几率获取一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
+  { id: 'treasure-hong-sha-yu-3', name: '红杀御·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你成为红色【杀】的目标后，基础 25% 几率获取一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
+  { id: 'treasure-hong-sha-yu-4', name: '红杀御·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你成为红色【杀】的目标后，基础 30% 几率获取一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
+  { id: 'treasure-hong-sha-yu-5', name: '红杀御·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你成为红色【杀】的目标后，基础 35% 几率获取一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
+
+  { id: 'treasure-hei-sha-yu', name: '黑杀御', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你成为黑色【杀】的目标后，基础 15% 几率获取一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
+  { id: 'treasure-hei-sha-yu-2', name: '黑杀御·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你成为黑色【杀】的目标后，基础 20% 几率获取一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
+  { id: 'treasure-hei-sha-yu-3', name: '黑杀御·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你成为黑色【杀】的目标后，基础 25% 几率获取一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
+  { id: 'treasure-hei-sha-yu-4', name: '黑杀御·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你成为黑色【杀】的目标后，基础 30% 几率获取一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
+  { id: 'treasure-hei-sha-yu-5', name: '黑杀御·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你成为黑色【杀】的目标后，基础 35% 几率获取一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
+
+  { id: 'treasure-shi-hua', name: '石化', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 15% 几率令对方回合直接结束。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
+  { id: 'treasure-shi-hua-2', name: '石化·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 20% 几率令对方回合直接结束。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
+  { id: 'treasure-shi-hua-3', name: '石化·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 25% 几率令对方回合直接结束。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
+  { id: 'treasure-shi-hua-4', name: '石化·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 30% 几率令对方回合直接结束。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
+  { id: 'treasure-shi-hua-5', name: '石化·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 35% 几率令对方回合直接结束。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
+
   { id: 'treasure-shang-zhi-xie', name: '伤之卸', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 15% 几率弃置伤害来源一张装备牌。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
   { id: 'treasure-shang-zhi-xie-2', name: '伤之卸·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 20% 几率弃置伤害来源一张装备牌。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
   { id: 'treasure-shang-zhi-xie-3', name: '伤之卸·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 25% 几率弃置伤害来源一张装备牌。', baseTriggerRate: 0.25, starLevel: 3, category: '防御' },
@@ -163,11 +181,23 @@ export const treasureDefinitions: TreasureDefinition[] = [
   { id: 'treasure-tan-shou-4', name: '贪手·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '摸牌阶段开始时，基础 30% 几率额外摸一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
   { id: 'treasure-tan-shou-5', name: '贪手·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '摸牌阶段开始时，基础 35% 几率额外摸一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
 
-  { id: 'treasure-sheng-you', name: '生有', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 15% 几率额外摸一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
-  { id: 'treasure-sheng-you-2', name: '生有·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 20% 几率额外摸一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
-  { id: 'treasure-sheng-you-3', name: '生有·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 25% 几率额外摸一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '锦囊' },
-  { id: 'treasure-sheng-you-4', name: '生有·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 30% 几率额外摸一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
-  { id: 'treasure-sheng-you-5', name: '生有·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 35% 几率额外摸一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
+  { id: 'treasure-sheng-you', name: '生有', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 15% 几率额外摸两张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
+  { id: 'treasure-sheng-you-2', name: '生有·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 20% 几率额外摸两张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
+  { id: 'treasure-sheng-you-3', name: '生有·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 25% 几率额外摸两张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '锦囊' },
+  { id: 'treasure-sheng-you-4', name: '生有·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 30% 几率额外摸两张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
+  { id: 'treasure-sheng-you-5', name: '生有·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无中生有】时，基础 35% 几率额外摸两张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
+
+  { id: 'treasure-tan-nang', name: '探囊', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【探囊取物】时，基础 15% 几率额外拿一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
+  { id: 'treasure-tan-nang-2', name: '探囊·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【探囊取物】时，基础 20% 几率额外拿一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
+  { id: 'treasure-tan-nang-3', name: '探囊·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【探囊取物】时，基础 25% 几率额外拿一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '锦囊' },
+  { id: 'treasure-tan-nang-4', name: '探囊·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【探囊取物】时，基础 30% 几率额外拿一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
+  { id: 'treasure-tan-nang-5', name: '探囊·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【探囊取物】时，基础 35% 几率额外拿一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
+
+  { id: 'treasure-chou-xin', name: '抽薪', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【釜底抽薪】时，基础 15% 几率额外弃对方一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
+  { id: 'treasure-chou-xin-2', name: '抽薪·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【釜底抽薪】时，基础 20% 几率额外弃对方一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
+  { id: 'treasure-chou-xin-3', name: '抽薪·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【釜底抽薪】时，基础 25% 几率额外弃对方一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '锦囊' },
+  { id: 'treasure-chou-xin-4', name: '抽薪·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【釜底抽薪】时，基础 30% 几率额外弃对方一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
+  { id: 'treasure-chou-xin-5', name: '抽薪·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【釜底抽薪】时，基础 35% 几率额外弃对方一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
 
   { id: 'treasure-lang-yan', name: '狼烟', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【烽火狼烟】时，基础 15% 几率使其伤害+1。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
   { id: 'treasure-lang-yan-2', name: '狼烟·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【烽火狼烟】时，基础 20% 几率使其伤害+1。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
