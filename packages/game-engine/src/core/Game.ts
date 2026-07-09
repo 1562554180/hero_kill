@@ -1681,9 +1681,12 @@ export class Game {
     }
 
     // 反击: 对来源出杀(红色不可被闪, 黑色正常可闪)
+    // 限制: 只能响应【杀】或【决斗】造成的伤害, 不能响应锦囊(万箭齐发/南蛮入侵等)造成的伤害
     // 使用反击 → 本次 onDamageReceived 的补刀被阻断(反击造成的伤害在新的 onDamageReceived 里走自己的补刀检查)
     let fanJiUsed = false
-    if (victim.hasSkillOrTreasure('fan-ji') && attacker.isAlive()) {
+    const isKillOrDuelDamage = sourceAction === 'kill' || sourceAction === 'duel' ||
+      sourceCard?.name === '杀' || sourceCard?.name === '决斗'
+    if (victim.hasSkillOrTreasure('fan-ji') && attacker.isAlive() && isKillOrDuelDamage) {
       const hasKillable = victim.getHand().some(c => this.canUseAsKill(c, victim))
       if (hasKillable) {
         // 复用 promptResponseKill: AI自动选, 玩家走响应UI (支持傲剑/武穆等)
@@ -2095,7 +2098,8 @@ export class Game {
       return
     }
     // 走统一伤害处理 (含濒死救援)
-    await this.applyDamage(source, loser, damage)
+    // 传 sourceAction:'duel' 让 反击/补刀等受伤触发技能能识别决斗伤害
+    await this.applyDamage(source, loser, damage, undefined, { sourceAction: 'duel' })
   }
 
   // --- 无懈可击 (锦囊抵消) ---
