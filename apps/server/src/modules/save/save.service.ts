@@ -9,7 +9,7 @@ import { getTreasureSlots } from '@hero-legend/shared-types'
 
 @Injectable()
 export class SaveService {
-  constructor(@InjectModel(SaveDoc.name) private saveModel: Model<SaveDoc>) {}
+  constructor(@InjectModel(SaveDoc.name) public saveModel: Model<SaveDoc>) {}
 
   async getSave(userId: string): Promise<SaveDoc | null> {
     const save = await this.saveModel.findOne({ userId }).exec()
@@ -195,6 +195,11 @@ export class SaveService {
       ],
     })
     return save.save()
+  }
+
+  /** 删除指定 userId 的 SaveDoc (用于 bind 时删除旧存档) */
+  async deleteByUserId(userId: string): Promise<void> {
+    await this.saveModel.deleteOne({ userId }).exec()
   }
 
   async updateSave(userId: string, update: Partial<SaveDoc>): Promise<SaveDoc | null> {
