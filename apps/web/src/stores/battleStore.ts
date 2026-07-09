@@ -1,10 +1,19 @@
 import { create } from 'zustand'
 import { type GameConfig, type DerivedSnapshot } from '@hero-legend/game-engine'
+
+/**
+ * 统一可激活技能清单 — 加入此数组的技能 id 走统一 toggle:
+ *   - 同一玩家只能有一个处于激活态 (互斥)
+ *   - 牌出去后 (或主动再次点击) 自动关闭激活
+ *   - 新加可激活技能 (英雄技能或主印/辅印触发) 只需在此加一行 + SkillBar 加按钮, 互斥不需要写代码
+ */
+export const ACTIVATABLE_SKILLS = ['ao-jian', 'shen-tou', 'xia-dan'] as const
+export type ActivatableSkillId = typeof ACTIVATABLE_SKILLS[number]
 import type {
   PlayerActionCtx, JudgeActionCtx, ChaoTuoCtx, ResponseActionCtx, XiaDanPlayerCardCtx,
   FudiTargetCtx, FudiPickCtx, TanNangTargetCtx, TanNangPickCtx, JieDaoTargetCtx, JieDaoAttackTargetCtx,
   WuguPickCtx, MultiTargetCtx, DualCardCtx, LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx,
-  FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, CiKeCtx, DieHunCtx,
+  FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
   HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
   SheShenCtx, SheShenTriggerCtx, PanLongGunCtx
@@ -130,6 +139,13 @@ class GameProxy {
   deactivateAoJian(playerId: string): void { void engineProxy?.action('deactivateAoJian', playerId) }
   activateShenTou(playerId: string): void { void engineProxy?.action('activateShenTou', playerId) }
   deactivateShenTou(playerId: string): void { void engineProxy?.action('deactivateShenTou', playerId) }
+  activateSkill(playerId: string, skillId: string): void { void engineProxy?.action('activateSkill', playerId, skillId) }
+  deactivateSkill(playerId: string): void { void engineProxy?.action('deactivateSkill', playerId) }
+  getActiveSkill(playerId: string): string | null {
+    // 同步读: 通过 latestSnapshot.activeSkillId 拿 (worker 每次 activate/deactivate 后会 build snapshot 广播)
+    const snap = (engineProxy as any)?.latestSnapshot
+    return snap?.playerId === playerId ? (snap?.activeSkillId ?? null) : null
+  }
   resolveQiYiDecision(decision: { useIt: boolean; targetIds?: string[]; cardMap?: Record<string, string> } | null): void {
     void engineProxy?.action('resolveQiYiDecision', decision)
   }
@@ -202,7 +218,11 @@ interface BattleState {
   pendingCardType: 'kill' | 'scheme' | 'schemeSelf' | 'heal' | 'equip' | null
   pendingCardFromPos: { x: number; y: number } | null  // 玩家点牌时手牌位置, 飞行卡起点用
   selectedTargetId: string | null  // pending 状态下选中的目标 (仅高亮, 不立即出牌)
+  /** 玩家当前激活的可激活技能 id (互斥, 同时只有一个); null = 无激活. 取代旧 aoJianActive/shenTouActive */
+  activeSkillId: string | null
+  /** @deprecated 保留字段以兼容旧组件读取; 与 activeSkillId === 'ao-jian' 同步 */
   aoJianActive: boolean
+  /** @deprecated 保留字段以兼容旧组件读取; 与 activeSkillId === 'shen-tou' 同步 */
   shenTouActive: boolean
   /** 引擎派生快照 (阶段 3 步骤 B): 由 event.data.derived merge, 子组件 render 期读它替代调 game.xxx() */
   derived: DerivedSnapshot | null
@@ -282,6 +302,9 @@ interface BattleState {
   // 刺客: 出杀后是否发动 (玩家专用)
   ciKePrompt: { defenderId: string; defenderName: string } | null
   resolveCiKe: ((use: boolean) => void) | null
+  // 强掠: 杀被闪后是否发动 (玩家专用)
+  qiangLuePrompt: { defenderId: string; defenderName: string } | null
+  resolveQiangLue: ((use: boolean) => void) | null
   // 玉如意/国色: 受到攻击时是否发动判定
   yuRuYiPrompt: { attackType: string; attackName: string } | null
   resolveYuRuYi: ((use: boolean) => void) | null
@@ -419,7 +442,9 @@ interface BattleState {
   // 侠胆: 玩家选自己拼点的牌
   pickXiaDanCard: (cardId: string) => void
   cancelXiaDanCard: () => void
-  // 侠胆: 已激活(待选目标), 无浮层, 按钮高亮
+  /** 统一的"主动激活态"管理: 切换/取消 (互斥, 同一玩家同时只有一个技能处于激活). 取代旧的独立 toggleAoJian/toggleShenTou + xiaDanActive set */
+  toggleActivatableSkill: (skillId: ActivatableSkillId) => void
+  /** 侠胆高亮 (兼容旧组件读取, 与 activeSkillId === 'xia-dan' 同步) */
   xiaDanActive: boolean
   cancelXiaDan: () => void
   // 侠胆: 本回合已使用过(成功后置true, 下回合重置)
@@ -437,6 +462,9 @@ interface BattleState {
   // 刺客
   confirmCiKe: () => void
   cancelCiKe: () => void
+  // 强掠
+  confirmQiangLue: () => void
+  cancelQiangLue: () => void
   // 玉如意
   confirmYuRuYi: () => void
   cancelYuRuYi: () => void
@@ -633,8 +661,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   pendingCardType: null,
   pendingCardFromPos: null,
   selectedTargetId: null,
+  activeSkillId: null,
   aoJianActive: false,
   shenTouActive: false,
+  xiaDanActive: false,
   derived: null,
   responsePrompt: null,
   responseType: null,
@@ -692,6 +722,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveBaWangMount: null,
   ciKePrompt: null,
   resolveCiKe: null,
+  qiangLuePrompt: null,
+  resolveQiangLue: null,
   yuRuYiPrompt: null,
   resolveYuRuYi: null,
   dieHunPrompt: null,
@@ -735,7 +767,6 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveChaoTuo: null,
   houZhuPrompt: null,
   resolveHouZhu: null,
-  xiaDanActive: false,
   xiaDanUsedThisTurn: false,
   yuRenCardIds: [],
   yuRenUsedThisTurn: false,
@@ -764,8 +795,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       pendingCardId: null,
       pendingCardType: null,
       selectedTargetId: null,
+      activeSkillId: null,
       aoJianActive: false,
       shenTouActive: false,
+      xiaDanActive: false,
       derived: null,
       responsePrompt: null,
       responseType: null,
@@ -806,7 +839,6 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveXiaDanCard: null,
       xiaDanOpponentCard: null,
       xiaDanTargetName: null,
-      xiaDanActive: false,
       xiaDanUsedThisTurn: false,
       yuRenCardIds: [],
       yuRenUsedThisTurn: false,
@@ -816,6 +848,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolveBaWangMount: null,
       ciKePrompt: null,
       resolveCiKe: null,
+      qiangLuePrompt: null,
+      resolveQiangLue: null,
       yuRuYiPrompt: null,
       resolveYuRuYi: null,
       dieHunPrompt: null,
@@ -1121,6 +1155,13 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           set({ resolveCiKe: resolve })
         })
       },
+      qiangLueHandler: async (ctx: QiangLueCtx) => {
+        const defender = P(ctx.defenderId)
+        set({ qiangLuePrompt: { defenderId: defender.getId(), defenderName: defender.getName() } })
+        return new Promise<boolean>(resolve => {
+          set({ resolveQiangLue: resolve })
+        })
+      },
       yuRuYiHandler: async (ctx: YuRuYiCtx) => {
         set({ yuRuYiPrompt: { attackType: ctx.attackName, attackName: ctx.attackName } })
         return new Promise<boolean>(resolve => {
@@ -1349,14 +1390,15 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         const player = P(ctx.playerId)
         while (true) {
           const state = game.getState()
-          const engineAoJianActive = game.isAoJianActive(player.getId())
-          const engineShenTouActive = game.isShenTouActive(player.getId())
+          const engineActiveSkillId = game.getActiveSkill(player.getId())
           set({
             gameState: state,
             playerHand: player.getHand(),
             phase: 'playing',
-            aoJianActive: engineAoJianActive,
-            shenTouActive: engineShenTouActive,
+            activeSkillId: engineActiveSkillId,
+            aoJianActive: engineActiveSkillId === 'ao-jian',
+            shenTouActive: engineActiveSkillId === 'shen-tou',
+            xiaDanActive: engineActiveSkillId === 'xia-dan',
           })
 
           const action = await new Promise<string | null>(resolve => {
@@ -1370,7 +1412,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           }
 
           if (action === 'endPhase') {
-            set({ phase: 'waiting', aoJianActive: false, shenTouActive: false, resolveAction: null })
+            set({ phase: 'waiting', activeSkillId: null, aoJianActive: false, shenTouActive: false, xiaDanActive: false, resolveAction: null })
             return null
           }
 
@@ -1378,8 +1420,10 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           // 否则下一次循环 setState 会把 pendingCardId 清掉, 卡片闪一下又复位
           set({
             phase: 'waiting',
-            aoJianActive: engineAoJianActive,
-            shenTouActive: engineShenTouActive,
+            activeSkillId: engineActiveSkillId,
+            aoJianActive: engineActiveSkillId === 'ao-jian',
+            shenTouActive: engineActiveSkillId === 'shen-tou',
+            xiaDanActive: engineActiveSkillId === 'xia-dan',
             pendingCardId: null,
             resolveAction: null,
           })
@@ -1764,12 +1808,15 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     engineProxy.onSnapshot = (snap) => {
       latestSnapshot = snap
       // 关键状态字段同步到 store, 子组件 render 期直接读 store
+      const activeSkillId = snap.activeSkillId
       set({
         gameState: snap.gameState,
         playerHand: snap.playerHand,
         equippedCards: snap.equippedCardsByHero,
-        aoJianActive: snap.aoJianActive,
-        shenTouActive: snap.shenTouActive,
+        activeSkillId,
+        aoJianActive: activeSkillId === 'ao-jian',
+        shenTouActive: activeSkillId === 'shen-tou',
+        xiaDanActive: activeSkillId === 'xia-dan',
       })
       Object.keys(snap.heroNames).forEach(k => { heroNames[k] = snap.heroNames[k] })
     }
@@ -1778,7 +1825,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       unsubs.push(engineProxy.on(et, handler))
     }
 
-    set({ phase: 'waiting', actionLog: [], result: null, aoJianActive: false, shenTouActive: false, selectedDiscardCards: [], discardCount: 0, resolveDiscard: null, baWangOptions: null, resolveBaWangMount: null })
+    set({ phase: 'waiting', actionLog: [], result: null, activeSkillId: null, aoJianActive: false, shenTouActive: false, xiaDanActive: false, selectedDiscardCards: [], discardCount: 0, resolveDiscard: null, baWangOptions: null, resolveBaWangMount: null })
 
     try {
       const result = await engineProxy.start({
@@ -1790,7 +1837,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         enemyInstances: config.enemyInstances,
       })
       const finalSnap = engineProxy.latestSnapshot
-      set({ phase: 'ended', result, gameState: finalSnap?.gameState ?? null, aoJianActive: false, shenTouActive: false })
+      set({ phase: 'ended', result, gameState: finalSnap?.gameState ?? null, activeSkillId: null, aoJianActive: false, shenTouActive: false, xiaDanActive: false })
       return result
     } catch (err) {
       // 战斗中 engine 抛错: 清理 + 传播
@@ -1871,7 +1918,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
   playScheme: (cardId: string, fromPos?: { x: number; y: number }) => {
     // 点击同一张pending牌 → 取消
-    const { pendingCardId, pendingCardType, playerHand, shenTouActive } = get()
+    const { pendingCardId, pendingCardType, playerHand, activeSkillId } = get()
+    const shenTouActive = activeSkillId === 'shen-tou'
     if (pendingCardId === cardId && pendingCardType === 'scheme') {
       set({ pendingCardId: null, pendingCardType: null, selectedTargetId: null, pendingCardFromPos: null })
       return
@@ -2055,36 +2103,49 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   toggleAoJian: () => {
-    const game = gameRef
-    const { phase } = get()
-    if (phase !== 'playing' && phase !== 'awaitingResponse') return
-    const player = game?.getPlayer()
-    if (!player || !player.hasSkillOrTreasure('ao-jian')) return
-    if (!game) return
-    if (game.isAoJianActive(player.getId())) {
-      game.deactivateAoJian(player.getId())
-      set({ aoJianActive: false })
-    } else {
-      game.activateAoJian(player.getId())
-      set({ aoJianActive: true })
-    }
+    get().toggleActivatableSkill('ao-jian')
   },
 
   toggleShenTou: () => {
-    const game = gameRef
-    const { phase } = get()
-    if (phase !== 'playing' && phase !== 'awaitingResponse') return
-    const player = game?.getPlayer()
-    if (!player || !player.hasSkillOrTreasure('shen-tou')) return
-    if (!game) return
-    if (game.isShenTouActive(player.getId())) {
-      game.deactivateShenTou(player.getId())
-      set({ shenTouActive: false })
-    } else {
-      game.activateShenTou(player.getId())
-      set({ shenTouActive: true })
-    }
+    get().toggleActivatableSkill('shen-tou')
   },
+
+  /**
+   * 统一的可激活技能 toggle — 取代原 toggleAoJian/toggleShenTou + useTreasureSkill('xia-dan') 的 set.
+   * 互斥由 engine 的 activeSkillByPlayer Map 自动保证 (赋值即覆盖), UI 端只需调本方法.
+   * 新加可激活技能 (英雄技能或主印/辅印触发) 只需把它加入 ACTIVATABLE_SKILLS + SkillBar 加按钮,
+   * 无需在任何 set 调用处手写互斥.
+   */
+  toggleActivatableSkill: (skillId) => {
+    const game = gameRef
+    if (!game) return
+    const { phase, activeSkillId } = get()
+    const player = game.getPlayer()
+    if (!player) return
+    const playerId = player.getId()
+    if (activeSkillId === skillId) {
+      // 已是激活态 → 关闭 (允许在任意 phase 关闭, 例如侠胆在 treasureSelectTarget 阶段再次点击取消)
+      game.deactivateSkill(playerId)
+      set({ activeSkillId: null, aoJianActive: false, shenTouActive: false, xiaDanActive: false })
+      return
+    }
+    // 激活受限 phase
+    if (phase !== 'playing' && phase !== 'awaitingResponse') return
+    if (!player.hasSkillOrTreasure(skillId)) return
+    game.activateSkill(playerId, skillId)
+    set({
+      activeSkillId: skillId,
+      aoJianActive: skillId === 'ao-jian',
+      shenTouActive: skillId === 'shen-tou',
+      xiaDanActive: skillId === 'xia-dan',
+    })
+  },
+
+  _toggleShenTou_legacy_unused_DROP: () => {
+    /* removed - merged into toggleActivatableSkill */
+  },
+
+
 
   respondWithCard: (cardId: string | null) => {
     const { resolveResponse } = get()
@@ -2330,7 +2391,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     const { playerHand } = get()
     const player = game?.getPlayer()
     if (!player) return
-    set({ treasureSkill: skill, treasureCardIds: [], treasureTargetIds: [], xiaDanActive: false })
+    set({ treasureSkill: skill, treasureCardIds: [], treasureTargetIds: [] })
     if (skill === 'liao-shang') {
       if (playerHand.length === 0) { set({ treasureSkill: null, treasurePrompt: '' }); return }
       set({ phase: 'treasureSelectCard', treasurePrompt: '【疗伤】选择1张手牌弃置' })
@@ -2363,18 +2424,17 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       if (!hasBlack && !hasEquip) { set({ treasureSkill: null, treasurePrompt: '无黑色手牌或装备可弃' }); return }
       set({ phase: 'treasureSelectCard', treasurePrompt: '【释权】选择1张黑色手牌或装备区的牌, 当釜底抽薪使用' })
     } else if (skill === 'xia-dan') {
-      // 侠胆: 仅内部标记状态, 不弹浮层; 玩家自己点有手牌的角色
-      if (playerHand.length === 0) { set({ treasureSkill: null, treasurePrompt: '无手牌' }); return }
-      const { xiaDanActive } = get()
-      if (xiaDanActive) {
-        // 再次点击 = 取消
-        set({ xiaDanActive: false, phase: 'playing', treasurePrompt: '' })
+      // 侠胆: 已激活 → 取消; 否则激活并进入选目标阶段 (走统一 toggle 流程)
+      if (get().activeSkillId === 'xia-dan') {
+        get().toggleActivatableSkill('xia-dan')
+        set({ phase: 'playing', treasurePrompt: '' })
         return
       }
+      if (playerHand.length === 0) { set({ treasureSkill: null, treasurePrompt: '无手牌' }); return }
       const candidates = game!.players.filter(p => p.getId() !== player.getId() && p.isAlive() && p.getHandSize() > 0)
       if (candidates.length === 0) { set({ treasureSkill: null, treasurePrompt: '无可拼点目标' }); return }
+      get().toggleActivatableSkill('xia-dan')  // 走统一 toggle (互斥 + engine sync)
       set({
-        xiaDanActive: true,
         phase: 'treasureSelectTarget',
         treasurePrompt: '',
         treasureCardIds: [],
@@ -2441,7 +2501,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
   pickTreasureTarget: async (targetId) => {
     const game = gameRef
-    const { treasureSkill, treasureCardIds, treasureTargetIds, xiaDanActive } = get()
+    const { treasureSkill, treasureCardIds, treasureTargetIds, activeSkillId } = get()
+    const xiaDanActive = activeSkillId === 'xia-dan'
     if (!treasureSkill && !xiaDanActive) return
     const player = game!.getPlayer()!
 
@@ -2471,6 +2532,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       const targetName = target?.getName() ?? targetId
       // 防御: 选中的目标无手牌则直接拒绝
       if (!target || target.getHandSize() === 0) return
+      // 关闭激活态 (走统一 toggle 完成 engine 同步)
+      if (get().activeSkillId === 'xia-dan') get().toggleActivatableSkill('xia-dan')
       set({ xiaDanTargetName: targetName, xiaDanActive: false, xiaDanUsedThisTurn: true })
       // 引擎内部双方同时选牌: target 通过 pinDianHandler, 玩家通过 xiaDanPlayerCardHandler
       game!.playerXiaDan(player, targetId).then(() => {
@@ -2654,7 +2717,8 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     resolveXiaDanCard(null)
   },
   cancelXiaDan: () => {
-    set({ xiaDanActive: false, phase: 'playing', treasurePrompt: '' })
+    if (get().activeSkillId === 'xia-dan') get().toggleActivatableSkill('xia-dan')
+    set({ phase: 'playing', treasurePrompt: '' })
   },
 
   // 弃牌阶段选牌
@@ -2702,6 +2766,20 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     if (!resolveCiKe) return
     resolveCiKe(false)
     set({ resolveCiKe: null, ciKePrompt: null })
+  },
+
+  // 强掠: 使用 / 不用
+  confirmQiangLue: () => {
+    const { resolveQiangLue } = get()
+    if (!resolveQiangLue) return
+    resolveQiangLue(true)
+    set({ resolveQiangLue: null, qiangLuePrompt: null })
+  },
+  cancelQiangLue: () => {
+    const { resolveQiangLue } = get()
+    if (!resolveQiangLue) return
+    resolveQiangLue(false)
+    set({ resolveQiangLue: null, qiangLuePrompt: null })
   },
 
   // 玉如意: 使用 / 不用

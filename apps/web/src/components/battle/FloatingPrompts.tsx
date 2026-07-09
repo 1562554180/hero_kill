@@ -35,7 +35,7 @@ export function FloatingPrompts() {
     sheShenTriggerPrompt,
     dyingRescuePrompt,
     chaoTuoPrompt, houZhuPrompt,
-    ciKePrompt, yuRuYiPrompt, dieHunPrompt,
+    ciKePrompt, qiangLuePrompt, yuRuYiPrompt, dieHunPrompt,
     xiaDanActive, xiaDanTargetName,
     yuRenCardIds,
     selectedDualCards,
@@ -46,6 +46,7 @@ export function FloatingPrompts() {
     confirmKillMultiTarget, cancelLuYeQiangTarget,
     toggleKillMultiTarget, cancelKillMultiTarget,
     confirmCiKe, cancelCiKe,
+    confirmQiangLue, cancelQiangLue,
     confirmYuRuYi, cancelYuRuYi,
     confirmDieHun, cancelDieHun,
     selectManWuCard, selectManWuTarget, confirmManWuCard, cancelManWu,
@@ -86,7 +87,7 @@ export function FloatingPrompts() {
     sheShenTriggerPrompt: s.sheShenTriggerPrompt,
     dyingRescuePrompt: s.dyingRescuePrompt,
     chaoTuoPrompt: s.chaoTuoPrompt, houZhuPrompt: s.houZhuPrompt,
-    ciKePrompt: s.ciKePrompt, yuRuYiPrompt: s.yuRuYiPrompt, dieHunPrompt: s.dieHunPrompt,
+    ciKePrompt: s.ciKePrompt, qiangLuePrompt: s.qiangLuePrompt, yuRuYiPrompt: s.yuRuYiPrompt, dieHunPrompt: s.dieHunPrompt,
     xiaDanActive: s.xiaDanActive, xiaDanTargetName: s.xiaDanTargetName,
     yuRenCardIds: s.yuRenCardIds,
     selectedDualCards: s.selectedDualCards,
@@ -97,6 +98,7 @@ export function FloatingPrompts() {
     confirmKillMultiTarget: s.confirmKillMultiTarget, cancelLuYeQiangTarget: s.cancelLuYeQiangTarget,
     toggleKillMultiTarget: s.toggleKillMultiTarget, cancelKillMultiTarget: s.cancelKillMultiTarget,
     confirmCiKe: s.confirmCiKe, cancelCiKe: s.cancelCiKe,
+    confirmQiangLue: s.confirmQiangLue, cancelQiangLue: s.cancelQiangLue,
     confirmYuRuYi: s.confirmYuRuYi, cancelYuRuYi: s.cancelYuRuYi,
     confirmDieHun: s.confirmDieHun, cancelDieHun: s.cancelDieHun,
     selectManWuCard: s.selectManWuCard, selectManWuTarget: s.selectManWuTarget, confirmManWuCard: s.confirmManWuCard, cancelManWu: s.cancelManWu,
@@ -140,6 +142,7 @@ export function FloatingPrompts() {
     || (treasureSkill === 'jue-ji' && phase === 'treasureSelectWeapon')
     || phase === 'xiaDanPickCard'
     || !!ciKePrompt
+    || !!qiangLuePrompt
     || !!yuRuYiPrompt
     || !!dieHunPrompt
     || manWuRedHeartCards.length > 0
@@ -161,7 +164,7 @@ export function FloatingPrompts() {
     || phase === 'selectMultiTargets'
     || phase === 'selectKillMultiTargets'
     || (phase === 'qiYiPrompt' && !!qiYiDecision)
-  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, sheShenTriggerPrompt, buDaoPrompt, dyingRescuePrompt, qiYiDecision, panLongGunPrompt])
+  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, qiangLuePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, sheShenTriggerPrompt, buDaoPrompt, dyingRescuePrompt, qiYiDecision, panLongGunPrompt])
 
   const killMultiCardId = useBattleStore(s => s.killMultiCardId)
   const [wolfFangPromptRect, setWolfFangPromptRect] = useState<{ left: number; top: number; width: number } | null>(null)
@@ -516,6 +519,24 @@ export function FloatingPrompts() {
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button style={treasureBtnStyle} onClick={cancelCiKe}>不用</button>
                     <button className="primary" style={treasureBtnStyle} onClick={confirmCiKe}>发动</button>
+                  </div>
+                </div>
+              )}
+
+              {/* 10b. 强掠 — 杀被闪后判定, 黑色抽对方1张 */}
+              {qiangLuePrompt && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  padding: '8px 12px',
+                  background: 'rgba(244,67,54,0.12)', borderRadius: '4px',
+                  border: '1px solid rgba(244,67,54,0.3)',
+                  color: '#ef9a9a', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px',
+                }}>
+                  <span>⚔️ 强掠 — 杀被 <b>{qiangLuePrompt.defenderName}</b> 闪避, 是否发动判定? (黑色 → 抽对方1张牌)</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button style={treasureBtnStyle} onClick={cancelQiangLue}>不用</button>
+                    <button className="primary" style={treasureBtnStyle} onClick={confirmQiangLue}>发动</button>
                   </div>
                 </div>
               )}
