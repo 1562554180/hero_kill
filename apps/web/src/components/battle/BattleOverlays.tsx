@@ -17,6 +17,8 @@ export function BattleOverlays() {
     treasureTargetIds: st.treasureTargetIds,
     qiYiCardMap: st.qiYiCardMap,
     qiYiCurrentTargetIndex: st.qiYiCurrentTargetIndex,
+    qiYiDecision: st.qiYiDecision,
+    qiYiStep: st.qiYiStep,
     xiaDanActive: st.xiaDanActive,
     longLinTargetInfo: st.longLinTargetInfo,
     longLinSelectedCards: st.longLinSelectedCards,
@@ -36,6 +38,7 @@ export function BattleOverlays() {
     pickQiYiCard: st.pickQiYiCard,
     skipQiYiCurrentTarget: st.skipQiYiCurrentTarget,
     cancelQiYiCards: st.cancelQiYiCards,
+    pickQiYiDecisionCard: st.pickQiYiDecisionCard,
     toggleLongLinCard: st.toggleLongLinCard,
     confirmLongLinPick: st.confirmLongLinPick,
     cancelLongLinPick: st.cancelLongLinPick,
@@ -53,12 +56,13 @@ export function BattleOverlays() {
 
   const {
     phase, gameState, treasureSkill, treasurePrompt, treasureTargetIds, qiYiCardMap,
-    qiYiCurrentTargetIndex,
+    qiYiCurrentTargetIndex, qiYiDecision, qiYiStep,
     xiaDanActive, longLinTargetInfo, longLinSelectedCards,
     wuguCandidates, wuguPicks, wuguTotalPickers, tanNangTargetInfo, fudiTargetInfo, faJiaTargetInfo,
     sheShenPrompt, sheShenSelectedCardIds, sheShenDistribution,
     result, lastJudgeResult,
     cancelTreasureSkill, confirmTreasureTargets, pickQiYiCard, skipQiYiCurrentTarget, cancelQiYiCards,
+    pickQiYiDecisionCard,
     toggleLongLinCard, confirmLongLinPick, cancelLongLinPick,
     selectWuguCard, cancelWuguPick, selectTanNangCard, selectFudiCard, selectFaJiaCard,
     toggleSheShenCard, assignSheShenCard, unassignSheShenCard, finishSheShen,
@@ -67,8 +71,8 @@ export function BattleOverlays() {
 
   return (
     <>
-      {/* 宝具技能 浮层 — 侠胆自己选牌时不要遮挡手牌, 侠胆激活时也无需浮层; 驭人/烽火/绝击/疗伤/治愈/负荆用内联提示或无提示 */}
-      {treasureSkill && phase !== 'xiaDanPickCard' && !xiaDanActive && treasureSkill !== 'yu-ren' && treasureSkill !== 'feng-huo' && treasureSkill !== 'jue-ji' && treasureSkill !== 'liao-shang' && treasureSkill !== 'zhi-yu' && treasureSkill !== 'fu-jing' && (
+      {/* 宝具技能 浮层 — 侠胆自己选牌时不要遮挡手牌, 侠胆激活时也无需浮层; 驭人/烽火/绝击/疗伤/治愈/负荆用内联提示或无提示; 起义有自己的 banner + 顺序选牌弹框, 不用此通用浮层 */}
+      {treasureSkill && phase !== 'xiaDanPickCard' && !xiaDanActive && treasureSkill !== 'yu-ren' && treasureSkill !== 'feng-huo' && treasureSkill !== 'jue-ji' && treasureSkill !== 'liao-shang' && treasureSkill !== 'zhi-yu' && treasureSkill !== 'fu-jing' && treasureSkill !== 'qi-yi' && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
@@ -83,15 +87,6 @@ export function BattleOverlays() {
             </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
               <button onClick={cancelTreasureSkill}>取消</button>
-              {phase === 'treasureSelectTargets' && (
-                <button
-                  className="primary"
-                  disabled={treasureTargetIds.length === 0}
-                  onClick={confirmTreasureTargets}
-                >
-                  确认 ({treasureTargetIds.length}/2)
-                </button>
-              )}
               {phase === 'treasureSelectWeapon' && (
                 <button
                   className="primary"
@@ -102,6 +97,38 @@ export function BattleOverlays() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 起义: 选目标阶段底部状态条 — 扁平化文字提示, 不挡场上英雄卡 (玩家直接点场上英雄) */}
+      {treasureSkill === 'qi-yi' && phase === 'treasureSelectTargets' && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          background: 'rgba(0,0,0,0.75)',
+          padding: '6px 16px',
+          display: 'flex', gap: '14px', alignItems: 'center', justifyContent: 'center',
+          zIndex: 80, pointerEvents: 'auto',
+        }}>
+          <span style={{ color: '#ffd54f', fontSize: '13px' }}>
+            ✊ 起义 — 直接点击场上英雄 (有手牌) 选择目标
+          </span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+            已选 {treasureTargetIds.length}/2
+          </span>
+          <button
+            style={{ fontSize: '12px', padding: '2px 10px' }}
+            onClick={cancelTreasureSkill}
+          >
+            取消
+          </button>
+          <button
+            className="primary"
+            style={{ fontSize: '12px', padding: '2px 10px' }}
+            disabled={treasureTargetIds.length === 0}
+            onClick={confirmTreasureTargets}
+          >
+            确认选目标
+          </button>
         </div>
       )}
 
@@ -456,6 +483,59 @@ export function BattleOverlays() {
           </div>
         </div>
       )}
+
+      {/* 起义 (陈胜 摸牌前) Step 3: 单独弹框从已选目标手牌中抽 1 张, 类似探囊取物 */}
+      {phase === 'qiYiPrompt' && qiYiDecision && qiYiStep === 'pickCards' && (() => {
+        const currentTid = treasureTargetIds.find(tid => !qiYiCardMap[tid])
+        if (!currentTid) return null
+        const cand = qiYiDecision.candidates.find(c => c.id === currentTid)
+        if (!cand) return null
+        const pickedCount = treasureTargetIds.filter(tid => qiYiCardMap[tid]).length
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 100,
+          }}>
+            <div style={{
+              background: 'var(--bg-medium)', border: '2px solid #ffd54f',
+              borderRadius: '12px', padding: '24px', minWidth: '420px', maxWidth: '720px', maxHeight: '80vh', overflow: 'auto',
+              boxShadow: '0 4px 24px rgba(255,213,79,0.4)',
+            }}>
+              <h2 style={{ color: '#ffd54f', fontSize: '22px', marginBottom: '16px', textAlign: 'center' }}>
+                ⚔️ 起义 — 从 {cand.name} 的手牌中抽 1 张
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', marginBottom: '12px' }}>
+                已抽 {pickedCount}/{treasureTargetIds.length}
+              </p>
+              {cand.hand.length > 0 ? (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {cand.hand.map((c: Card, idx: number) => {
+                    const suitColor = c.suit === 'heart' || c.suit === 'diamond' ? '#e57373' : 'var(--text-light)'
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => pickQiYiDecisionCard(currentTid, c.id)}
+                        style={{
+                          padding: '6px 12px', fontSize: '13px',
+                          background: 'var(--bg-dark)',
+                          border: '1px solid #b8860b',
+                          color: suitColor, borderRadius: '4px', cursor: 'pointer',
+                          minWidth: '72px',
+                        }}
+                      >
+                        【{c.name}】{c.suit === 'heart' ? '♥' : c.suit === 'diamond' ? '♦' : c.suit === 'spade' ? '♠' : '♣'}{c.number === 1 ? 'A' : c.number > 10 ? ['J','Q','K'][c.number - 11] : c.number}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center' }}>该角色无手牌可抽</p>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 釜底抽薪 选目标牌浮层 (弃牌) */}
       {phase === 'selectFudiCard' && fudiTargetInfo && (

@@ -1062,110 +1062,35 @@ export function FloatingPrompts() {
                 </div>
               )}
 
-              {/* 30. 起义 — Step 2: 选 1-2 个目标 (无手牌灰掉) */}
+              {/* 30. 起义 — Step 2: 选 1-2 个目标 — 直接点击场上英雄, 状态栏放入手牌提示位 */}
               {phase === 'qiYiPrompt' && qiYiDecision && qiYiStep === 'pickTargets' && (
                 <div style={{
                   pointerEvents: 'auto',
                   width: '70%',
                   margin: '0 auto',
-                  padding: '8px 10px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  padding: '6px 12px',
                   background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
                   borderRadius: '6px',
                   border: '2px solid #ffd54f',
-                  color: '#ffd54f', fontSize: '12px',
+                  color: '#ffd54f', fontSize: '13px',
                   boxShadow: '0 2px 12px rgba(255,213,79,0.4)',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                    <span>
-                      ⚔️ <b style={{ fontSize: '13px' }}>起义</b> — 选择 1-2 个目标 (已选 {treasureTargetIds.length}/2):
-                    </span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button style={treasureBtnStyle} onClick={cancelQiYiDecision}>上一步</button>
-                      <button
-                        className="primary"
-                        style={{ ...treasureBtnStyle, opacity: treasureTargetIds.length === 0 ? 0.5 : 1 }}
-                        disabled={treasureTargetIds.length === 0}
-                        onClick={confirmQiYiDecision}
-                      >
-                        确认
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {qiYiDecision.candidates.map(c => {
-                      const picked = treasureTargetIds.includes(c.id)
-                      const disabled = c.handSize === 0
-                      return (
-                        <button
-                          key={c.id}
-                          onClick={() => pickQiYiDecisionTarget(c.id)}
-                          disabled={disabled}
-                          style={{
-                            padding: '4px 10px', fontSize: '12px',
-                            background: picked ? 'rgba(255,213,79,0.4)' : 'var(--bg-medium)',
-                            border: picked ? '1px solid #ffd54f' : '1px solid var(--border-wood)',
-                            color: disabled ? 'var(--text-muted)' : (picked ? '#fff' : 'var(--text-light)'),
-                            opacity: disabled ? 0.4 : 1,
-                            borderRadius: '3px',
-                            cursor: disabled ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          {picked ? '✓ ' : ''}{c.name} ({c.handSize}张)
-                        </button>
-                      )
-                    })}
-                  </div>
+                  <span style={{ flex: 1 }}>
+                    ⚔️ <b style={{ fontSize: '14px' }}>起义</b> — 直接点击场上英雄 (有手牌) 选择目标 (已选 {treasureTargetIds.length}/2)
+                  </span>
+                  <button
+                    className="primary"
+                    style={{ ...treasureBtnStyle, opacity: treasureTargetIds.length === 0 ? 0.5 : 1 }}
+                    disabled={treasureTargetIds.length === 0}
+                    onClick={confirmQiYiDecision}
+                  >
+                    确认
+                  </button>
                 </div>
               )}
 
-              {/* 30. 起义 — Step 3: 抽牌 (一次 1 个目标, 类似探囊取物) */}
-              {phase === 'qiYiPrompt' && qiYiDecision && qiYiStep === 'pickCards' && (() => {
-                // 当前抽牌目标 = 已选目标中第一个 cardMap 里没牌的
-                const currentTid = treasureTargetIds.find(tid => !qiYiCardMap[tid])
-                if (!currentTid) return null
-                const cand = qiYiDecision.candidates.find(c => c.id === currentTid)
-                if (!cand) return null
-                const pickedCount = treasureTargetIds.filter(tid => qiYiCardMap[tid]).length
-                return (
-                  <div style={{
-                    pointerEvents: 'auto',
-                    width: '70%',
-                    margin: '0 auto',
-                    padding: '8px 10px',
-                    background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
-                    borderRadius: '6px',
-                    border: '2px solid #ffd54f',
-                    color: '#ffd54f', fontSize: '12px',
-                    boxShadow: '0 2px 12px rgba(255,213,79,0.4)',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                      <span>
-                        ⚔️ <b style={{ fontSize: '13px' }}>起义</b> — 从 <b style={{ color: '#fff' }}>{cand.name}</b> 手牌中抽 1 张 (已抽 {pickedCount}/{treasureTargetIds.length})
-                      </span>
-                      <button style={treasureBtnStyle} onClick={cancelQiYiDecision}>上一步</button>
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                      {cand.hand.map((c: Card) => {
-                        const suitColor = c.suit === 'heart' || c.suit === 'diamond' ? '#e57373' : 'var(--text-light)'
-                        return (
-                          <button
-                            key={c.id}
-                            onClick={() => pickQiYiDecisionCard(currentTid, c.id)}
-                            style={{
-                              padding: '3px 8px', fontSize: '11px',
-                              background: 'var(--bg-medium)',
-                              border: '1px solid var(--border-wood)',
-                              color: suitColor, borderRadius: '3px', cursor: 'pointer',
-                            }}
-                          >
-                            【{c.name}】{c.suit === 'heart' ? '♥' : c.suit === 'diamond' ? '♦' : c.suit === 'spade' ? '♠' : '♣'}{c.number === 1 ? 'A' : c.number > 10 ? ['J','Q','K'][c.number - 11] : c.number}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })()}
+              {/* 30. 起义 — Step 3: 抽牌 — 单独浮层, 见 BattleOverlays */}
 
               {/* 31. 疏财 — 选手牌 → 选英雄 → 确认 */}
               {shuCaiActive && (() => {

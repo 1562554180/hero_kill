@@ -17,6 +17,8 @@ export function BattleField() {
     shenTouActive,
     shuCaiActive, shuCaiTargetId,
     selectShuCaiTarget,
+    qiYiDecision, qiYiStep,
+    pickQiYiDecisionTarget,
     derived,
     confirmTarget, toggleTarget, toggleKillMultiTarget,
     selectLuYeQiangTarget, selectTanNangTarget, selectFudiTarget,
@@ -34,6 +36,8 @@ export function BattleField() {
     shenTouActive: s.shenTouActive,
     shuCaiActive: s.shuCaiActive, shuCaiTargetId: s.shuCaiTargetId,
     selectShuCaiTarget: s.selectShuCaiTarget,
+    qiYiDecision: s.qiYiDecision, qiYiStep: s.qiYiStep,
+    pickQiYiDecisionTarget: s.pickQiYiDecisionTarget,
     derived: s.derived,
     confirmTarget: s.confirmTarget, toggleTarget: s.toggleTarget, toggleKillMultiTarget: s.toggleKillMultiTarget,
     selectLuYeQiangTarget: s.selectLuYeQiangTarget, selectTanNangTarget: s.selectTanNangTarget, selectFudiTarget: s.selectFudiTarget,
@@ -139,7 +143,9 @@ export function BattleField() {
   const dimInvalidTargets = !!(derived && (
     (phase === 'selectTarget' && (pendingCardType === 'kill' || (pendingCardType === 'scheme' && pendingSchemeName === '探囊取物'))) ||
     (phase === 'treasureSelectTarget' && (useBattleStore.getState().treasureSkill === 'jue-ji' || useBattleStore.getState().treasureSkill === 'liao-shang' || useBattleStore.getState().treasureSkill === 'zhi-yu')) ||
-    (phase === 'selectFudiTarget')
+    (phase === 'selectFudiTarget') ||
+    // 起义 (陈胜 摸牌前) 选目标: 灰掉无手牌 / 非候选的英雄
+    (phase === 'qiYiPrompt' && qiYiStep === 'pickTargets')
   ))
 
   const renderOtherHeroCard = (h: typeof others[0], dimInvalid?: boolean) => {
@@ -161,14 +167,17 @@ export function BattleField() {
             (phase === 'selectKillMultiTargets') ||
             (phase === 'selectLuYeQiangTarget' && luYeQiangCandidates.some(lc => lc.id === h.hero.id)) ||
             (phase === 'treasureSelectTarget') ||
-            (phase === 'treasureSelectTargets') ||
+            // 起义 (treasureSkill): 仅允许选有手牌的英雄
+            (phase === 'treasureSelectTargets' && useBattleStore.getState().treasureSkill === 'qi-yi' && h.handCards.length > 0) ||
+            // 起义 (陈胜 摸牌前): 仅允许选有手牌的英雄
+            (phase === 'qiYiPrompt' && qiYiStep === 'pickTargets' && !!qiYiDecision?.candidates.some(c => c.id === h.hero.id) && h.handCards.length > 0) ||
             (phase === 'selectFudiTarget' && isValidTarget(h.hero.id)) ||
             (phase === 'sheShenDistribute' && h.currentHp > 0) ||
             (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id)) ||
             (shuCaiActive && h.currentHp > 0)
           )
         }
-        isSelected={selectedTargetId === h.hero.id || selectedTargets.includes(h.hero.id) || (shuCaiActive && shuCaiTargetId === h.hero.id)}
+        isSelected={selectedTargetId === h.hero.id || selectedTargets.includes(h.hero.id) || (shuCaiActive && shuCaiTargetId === h.hero.id) || (phase === 'qiYiPrompt' && qiYiStep === 'pickTargets' && treasureTargetIds.includes(h.hero.id))}
         dimmed={(!!dimInvalid && !isValidTarget(h.hero.id)) || (shouldDimInvalidTargets && !isValidTarget(h.hero.id))}
         onClick={() => {
           if (shuCaiActive) {
@@ -191,7 +200,16 @@ export function BattleField() {
           else if (phase === 'selectFudiTarget') selectFudiTarget(h.hero.id)
           else if (phase === 'treasureSelectTarget') pickTreasureTarget(h.hero.id)
           else if (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id)) selectManWuTarget(h.hero.id)
+          else if (phase === 'qiYiPrompt' && qiYiStep === 'pickTargets') {
+            // 起义 (陈胜 摸牌前): 直接点击场上英雄选择/取消
+            if (h.handCards.length === 0) return
+            if (!qiYiDecision?.candidates.some(c => c.id === h.hero.id)) return
+            pickQiYiDecisionTarget(h.hero.id)
+            return
+          }
           else if (phase === 'treasureSelectTargets') {
+            // 起义: 仅选有手牌的英雄 (其他 treasureSkill 当前未使用 treasureSelectTargets 阶段)
+            if (useBattleStore.getState().treasureSkill === 'qi-yi' && h.handCards.length === 0) return
             const t = treasureTargetIds
             if (t.includes(h.hero.id)) {
               useBattleStore.setState({ treasureTargetIds: t.filter(id => id !== h.hero.id) })
