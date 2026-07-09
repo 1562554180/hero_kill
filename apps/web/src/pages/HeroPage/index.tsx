@@ -439,17 +439,20 @@ export function HeroPage() {
                         const icon = getSkillIcon(t.skill?.name ?? t.name)
                         // 校验: 与英雄自身技能/已装备槽位 skill.id 重复 → 禁用
                         const conflictWithHero = (selectedConfig?.skills ?? []).some(s => s.id === t.skill?.id)
-                        const conflictEquipped = [
-                          ...selectedInstance.treasures.main,
-                          ...selectedInstance.treasures.sub,
-                        ].some((tt, idx) => {
-                          if (!tt) return false
-                          // 排除当前正在替换的槽
-                          if (idx === (activeSlot.slotType === 'main'
-                            ? activeSlot.slotIndex
-                            : selectedInstance.treasures.main.length + activeSlot.slotIndex)) return false
-                          return tt.skill?.id === t.skill?.id
-                        })
+                        const conflictEquipped = (() => {
+                          // 同槽 (即将被替换) 跳过; 主/辅分别查, 避免合并数组下标算错
+                          // skill.id 是星级相关键 (不同星级强化如 treasure-qiang-hua-3 / -5 不会冲突)
+                          const mainArr = selectedInstance.treasures?.main ?? []
+                          const subArr = selectedInstance.treasures?.sub ?? []
+                          const isMain = activeSlot.slotType === 'main'
+                          const sameSlot = (slotArr: typeof mainArr, idx: number) =>
+                            isMain === (slotArr === mainArr) && idx === activeSlot.slotIndex
+                          const checkArr = (arr: typeof mainArr) => arr.some((tt, i) => {
+                            if (!tt || sameSlot(arr, i)) return false
+                            return tt.skill?.id === t.skill?.id
+                          })
+                          return checkArr(mainArr) || checkArr(subArr)
+                        })()
                         const isDisabled = conflictWithHero || conflictEquipped
                         const conflictReason = conflictWithHero
                           ? '与英雄自身技能重复'
