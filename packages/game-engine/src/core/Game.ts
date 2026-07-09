@@ -206,6 +206,14 @@ export class Game {
     return this.shenTouActive.has(playerId)
   }
 
+  /** 妙计: 锦囊打出且未被无懈可击取消时, 立即摸1张 */
+  private triggerMiaoJi(player: Player): void {
+    if (!player.hasSkillOrTreasure('miao-ji')) return
+    const drawn = this.cardDeck.draw(1)
+    if (drawn.length > 0) player.drawCards(drawn)
+    this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
+  }
+
   /**
    * 计算当前引擎状态的 derived snapshot (可序列化派生数据).
    * 阶段 3 步骤 B: 在状态变更 emit 时附带, 让主线程子组件 render 期不再调 engine 方法.
@@ -2788,14 +2796,9 @@ export class Game {
     if (schemeNullified) {
       // 被抵消, 不执行效果
     } else {
-      // 妙计: 立即摸1张 (放在效果执行前, 决斗等长效果也能立即触发)
-      // 釜底抽薪/借刀 在各自的execute函数中触发, 这里跳过避免重复
-      // 神偷转换后的探囊取物仍触发妙计 (用 effectiveCard.name 判定, 不再排除 ♣借刀杀人)
-      if (player.hasSkillOrTreasure('miao-ji') && effectiveCard.name !== '釜底抽薪' && effectiveCard.name !== '借刀杀人') {
-        const drawn = this.cardDeck.draw(1)
-        player.drawCards(drawn)
-        this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
-      }
+      // 妙计: 牌打出且未被无懈可击取消, 立即摸1张 (放在所有效果执行前)
+      // 神偷转换后的探囊取物仍触发妙计 (effectiveCard.name === '探囊取物' 符合条件)
+      this.triggerMiaoJi(player)
       if (card.name === '无中生有') {
       const drawn = this.cardDeck.draw(2)
       player.drawCards(drawn)
@@ -2861,12 +2864,6 @@ export class Game {
       if (pickedId) await this.takeCardFromTarget(player, target, pickedId, '探囊取物')
     } else if (card.name === '釜底抽薪') {
       await this.executeFudiChouXin(player, targetId, card)
-      // 妙计: 釜底抽薪视为锦囊 → 摸1张
-      if (player.hasSkillOrTreasure('miao-ji')) {
-        const drawn = this.cardDeck.draw(1)
-        player.drawCards(drawn)
-        this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
-      }
     } else if (card.name === '借刀杀人') {
       // 借刀: 走 playerPlayJieDao (支持 UI 预选 holder), 这里只是占位
       return
@@ -3211,15 +3208,9 @@ export class Game {
       sourceHeroId: player.getId(),
       data: { cardId: card.id, cardName: '烽火狼烟', usedAsSkill: '烽火', card, targetHeroIds },
     })
+    // 妙计: 视为打出锦囊, 立即摸1张
+    this.triggerMiaoJi(player)
     await this.executeFengHuoLangYan(player)
-    // 妙计: 烽火狼烟视为锦囊 → 摸1张
-    if (player.hasSkillOrTreasure('miao-ji')) {
-      const drawn = this.cardDeck.draw(1)
-      if (drawn.length > 0) {
-        player.drawCards(drawn)
-        this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
-      }
-    }
     // 乾坤袋被弃 (从装备区) → 摸1张
     if (qianKunDaiLost) {
       const drawn = this.cardDeck.draw(1)
@@ -3397,15 +3388,9 @@ export class Game {
       sourceHeroId: player.getId(),
       data: { cardId: card.id, cardName: '釜底抽薪', usedAsSkill: '释权', card },
     })
+    // 妙计: 视为打出锦囊, 立即摸1张
+    this.triggerMiaoJi(player)
     await this.executeFudiChouXin(player)
-    // 妙计: 使用锦囊摸1张
-    if (player.hasSkillOrTreasure('miao-ji')) {
-      const drawn = this.cardDeck.draw(1)
-      if (drawn.length > 0) {
-        player.drawCards(drawn)
-        this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
-      }
-    }
     // 乾坤袋被弃 → 摸1张
     if (qianKunDaiLost) {
       const drawn = this.cardDeck.draw(1)
@@ -3780,13 +3765,9 @@ export class Game {
       data: { cardId: card.id, cardName: card.name, card },
     })
     this.lastPlayedCardName = card.name
+    // 妙计: 牌打出立即摸1张 (借刀杀人不被无懈可击, 直接触发)
+    this.triggerMiaoJi(player)
     await this.executeJieDao(player, card, holderId)
-    // 妙计
-    if (player.hasSkillOrTreasure('miao-ji')) {
-      const drawn = this.cardDeck.draw(1)
-      player.drawCards(drawn)
-      this.emitSkillTrigger(player, '妙计', '使用锦囊摸1张')
-    }
   }
 
   /** 借刀杀人: 选一个持武器的角色对另一名角色使用杀 (holderId可选: UI已选) */
