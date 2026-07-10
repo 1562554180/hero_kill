@@ -50,4 +50,4 @@ export type GameEventType =
   | 'heal' | 'die' | 'dying'
   | 'skill:trigger' | 'skill:resolve'
   | 'judge' | 'equipment:equip' | 'equipment:unequip'
-  | 'scheme:nullify' | 'wugu:reveal' | 'wugu:pickStart'
+  | 'scheme:nullify' | 'wugu:reveal' | 'wugu:pickStart' | 'wugu:complete'

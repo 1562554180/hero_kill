@@ -7,7 +7,7 @@ export type {
   FudiTargetCtx, FudiPickCtx, TanNangTargetCtx, TanNangPickCtx, JieDaoTargetCtx, JieDaoAttackTargetCtx,
   WuguPickCtx, MultiTargetCtx, DualCardCtx, LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx,
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
-  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
+  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, MenShenConfirmCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, BuDao3Ctx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
   SheShenCtx, SheShenTriggerCtx, PanLongGunCtx, TaiJiCtx
 } from './core/handler-context.js'

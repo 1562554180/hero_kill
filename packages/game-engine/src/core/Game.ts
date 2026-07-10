@@ -13,7 +13,7 @@ import type {
   FudiTargetCtx, FudiPickCtx, TanNangTargetCtx, TanNangPickCtx, JieDaoTargetCtx, JieDaoAttackTargetCtx,
   WuguPickCtx, MultiTargetCtx, DualCardCtx, LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx,
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
-  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
+  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, MenShenConfirmCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
   SheShenCtx, SheShenTriggerCtx, PanLongGunCtx,
   ShiXinTriggerCtx, ShenDuanCtx, BuDao3Ctx, TaiJiCtx, CiFuCtx
@@ -24,7 +24,7 @@ export type {
   FudiTargetCtx, FudiPickCtx, TanNangTargetCtx, TanNangPickCtx, JieDaoTargetCtx, JieDaoAttackTargetCtx,
   WuguPickCtx, MultiTargetCtx, DualCardCtx, LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx,
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
-  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
+  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, MenShenConfirmCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
   SheShenCtx, SheShenTriggerCtx, PanLongGunCtx,
   ShiXinTriggerCtx, ShenDuanCtx, BuDao3Ctx, TaiJiCtx, CiFuCtx
@@ -335,12 +335,15 @@ export class Game {
       .filter(id => this.canPlayerUseAsKill(id))
 
     // 每个角色判定区状态 (HeroBattleCard 右上角判定动画用)
-    const heroJudgeStatus: Record<string, { hasThunder: boolean; hasImprisoned: boolean }> = {}
+    // hasMenShenProtection: 该角色当前被门神(秦琼)保护中 (右上角门神标记用)
+    const menShenProtectedIds = new Set(this.menShenMap.values())
+    const heroJudgeStatus: Record<string, { hasThunder: boolean; hasImprisoned: boolean; hasMenShenProtection: boolean }> = {}
     for (const p of this.players) {
       const judges = p.getJudgeCards()
       heroJudgeStatus[p.getId()] = {
         hasThunder: judges.some(c => c.name === '手捧雷'),
         hasImprisoned: judges.some(c => c.name === '画地为牢'),
+        hasMenShenProtection: menShenProtectedIds.has(p.getId()),
       }
     }
 
@@ -725,7 +728,7 @@ export class Game {
     const cards = this.cardDeck.draw(1)
     let card = cards[0]
     const judgeHeroId = judgingPlayer?.getId()
-    this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'reveal' } })
+    this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'reveal', card: { ...card } } })
 
     // 变法链: 从判定方开始, 顺时针遍历所有存活玩家
     // 每人可改一次, 多个变法玩家按顺序链式修改, 以最后一个为准
@@ -759,7 +762,7 @@ export class Game {
           player.consumeToken('shen-duan', 1)
           card = { ...card, suit: newSuit }
           this.emitSkillTrigger(player, '神断', `改${card.name}花色为${newSuit}`)
-          this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'replace' } })
+          this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'replace', card: { ...card } } })
         }
       }
 
@@ -779,7 +782,7 @@ export class Game {
             this.cardDeck.discard([card])
             this.emitSkillTrigger(player, '变法', `用${replacement.name}替换${card.name}`)
             card = replacement
-            this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'replace' } })
+            this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'replace', card: { ...card } } })
           }
         }
       }
@@ -827,7 +830,7 @@ export class Game {
               this.cardDeck.discard([card])
               this.emitSkillTrigger(player, '超脱', `用${replacement.name}(${replacement.suit})替换${card.name}`)
               card = replacement
-              this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'replace' } })
+              this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'replace', card: { ...card } } })
             }
           }
         }
@@ -835,7 +838,7 @@ export class Game {
     }
 
     this.cardDeck.discard([card])
-    this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'result' } })
+    this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'result', card: { ...card } } })
     // 智圣: 场上判定结束后, 若判定牌点数<=7, 所有"东方朔"摸1张牌
     if (card.number <= 7) {
       for (const player of this.players) {
@@ -1057,6 +1060,12 @@ export class Game {
       if (player.getRole() === 'player' && this.pendingWuguContinuation) {
         await this.pendingWuguContinuation()
       }
+
+      // 门神: 秦琼出牌阶段结束后, 询问是否发动并指定1名队友保护
+      // 到下回合开始前对该队友的【杀】/【决斗】视为对秦琼打出
+      if (player.hasSkillOrTreasure('men-shen')) {
+        await this.promptMenShenTarget(player)
+      }
     }
 
     // 击杀最后一个敌人 → 立即结束游戏 (跳过弃牌阶段)
@@ -1089,23 +1098,26 @@ export class Game {
       this.skipNextTurnPlayerId = player.getId()
       this.emitSkillTrigger(player, '蓄谋', '摸3张，跳下回合')
     }
-    // 门神: 秦琼回合结束可指定1目标, 到下回合开始前对该目标的【杀】/【决斗】视为对秦琼打出
-    if (player.hasSkillOrTreasure('men-shen')) {
-      void this.promptMenShenTarget(player)
-    }
   }
 
   private async promptMenShenTarget(qinQiong: Player): Promise<void> {
     const candidates = this.getAlivePlayers().filter(p => p.getId() !== qinQiong.getId())
     if (candidates.length === 0) return
     let chosenId: string | null = null
-    if (qinQiong.getRole() === 'player' && this.config.menShenTargetHandler) {
-      chosenId = await this.config.menShenTargetHandler({ qinQiongId: qinQiong.getId(), candidateIds: candidates.map(p => p.getId()) })
+    if (qinQiong.getRole() === 'player') {
+      // 玩家: 先询问是否发动, 确认后再选目标 (玩家自己决定保护谁)
+      const confirmed = this.config.menShenConfirmHandler
+        ? await this.config.menShenConfirmHandler({ qinQiongId: qinQiong.getId() })
+        : true
+      if (!confirmed) return
+      if (this.config.menShenTargetHandler) {
+        chosenId = await this.config.menShenTargetHandler({ qinQiongId: qinQiong.getId(), candidateIds: candidates.map(p => p.getId()) })
+      }
     } else {
-      // AI: 选血量最低的敌人优先
-      const enemies = candidates.filter(p => p.getRole() !== qinQiong.getRole())
-      const target = (enemies.length > 0 ? enemies : candidates)
-        .sort((a, b) => a.getCurrentHp() - b.getCurrentHp())[0]
+      // AI: 门神是保护技能, 只对队友使用. 选血量最低的存活队友
+      const teammates = candidates.filter(p => p.getRole() === qinQiong.getRole())
+      if (teammates.length === 0) return
+      const target = teammates.slice().sort((a, b) => a.getCurrentHp() - b.getCurrentHp())[0]
       chosenId = target?.getId() ?? null
     }
     if (chosenId) {
@@ -4193,6 +4205,11 @@ export class Game {
         await doPick(ordered[i])
       }
       this.pendingWuguContinuation = null
+      // 五谷丰登全部派完 (牌堆耗尽时可能 < 存活人数), 主动通知 web 层关弹框
+      this.eventBus.emit({
+        type: 'wugu:complete', sourceHeroId: player.getId(),
+        data: { distributed: cards.length },
+      })
     }
 
     // 玩家选牌 (playerActionHandler 等待 wuguPickHandler 返回)

@@ -29,7 +29,7 @@ import type {
   FudiTargetCtx, FudiPickCtx, TanNangTargetCtx, TanNangPickCtx, JieDaoTargetCtx, JieDaoAttackTargetCtx,
   WuguPickCtx, MultiTargetCtx, DualCardCtx, LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx,
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
-  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
+  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, MenShenConfirmCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, BuDao3Ctx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
   SheShenCtx, SheShenTriggerCtx, PanLongGunCtx, TaiJiCtx,
 } from '@hero-legend/game-engine'
@@ -67,6 +67,7 @@ export type HandlerName =
   | 'manWuPickCardHandler'
   | 'manWuHandler'
   | 'jueJiHandler'
+  | 'menShenConfirmHandler'
   | 'menShenTargetHandler'
   | 'sanBanFuHandler'
   | 'zhenShaHandler'
@@ -90,7 +91,7 @@ export type HandlerCtx =
   | FudiTargetCtx | FudiPickCtx | TanNangTargetCtx | TanNangPickCtx | JieDaoTargetCtx | JieDaoAttackTargetCtx
   | WuguPickCtx | MultiTargetCtx | DualCardCtx | LuYeQiangTargetCtx | LongLinPickCtx | BoLangChuiCtx
   | FaJiaPickCtx | YuRuYiCtx | DiscardPickCtx | BaWangMountCtx | QiangLueCtx | CiKeCtx | DieHunCtx
-  | HouZhuCtx | TianXiangCtx | ManWuPickCardCtx | ManWuCtx | JueJiCtx | MenShenTargetCtx | SanBanFuCtx
+  | HouZhuCtx | TianXiangCtx | ManWuPickCardCtx | ManWuCtx | JueJiCtx | MenShenTargetCtx | MenShenConfirmCtx | SanBanFuCtx
   | ZhenShaCtx | JueBieCtx | BuDaoCtx | BuDao3Ctx | FuChouTriggerCtx | FuChouChooseCtx | FuChouPickCtx | DyingRescueCtx
   | SheShenCtx | SheShenTriggerCtx | PanLongGunCtx | TaiJiCtx
   | undefined  // awaitUIReady 无 ctx
@@ -279,5 +280,5 @@ export const ALL_EVENT_TYPES: GameEventType[] = [
   'phase:start', 'phase:end', 'card:play', 'card:draw', 'card:discard', 'card:gain',
   'damage:deal', 'damage:receive', 'damage:prevent', 'heal', 'dying', 'die',
   'skill:trigger', 'skill:resolve', 'judge', 'equipment:equip', 'equipment:unequip',
-  'scheme:nullify', 'wugu:reveal', 'wugu:pickStart',
+  'scheme:nullify', 'wugu:reveal', 'wugu:pickStart', 'wugu:complete',
 ]

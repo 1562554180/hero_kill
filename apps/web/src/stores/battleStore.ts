@@ -14,7 +14,7 @@ import type {
   FudiTargetCtx, FudiPickCtx, TanNangTargetCtx, TanNangPickCtx, JieDaoTargetCtx, JieDaoAttackTargetCtx,
   WuguPickCtx, MultiTargetCtx, DualCardCtx, LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx,
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
-  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
+  HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, MenShenConfirmCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, BuDao3Ctx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
   SheShenCtx, SheShenTriggerCtx, PanLongGunCtx, TaiJiCtx
 } from '@hero-legend/game-engine'
@@ -209,7 +209,7 @@ class GameProxy {
 // 用 let gameRef: GameProxy | null 直接替换
 let gameRef: GameProxy | null = null
 
-export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm' | 'selectFuChouDiscard' | 'dyingRescue' | 'chaoTuoPick' | 'houZhuTarget' | 'qiYiPrompt' | 'sheShenTrigger' | 'sheShenDistribute' | 'buDao3Trigger' | 'buDao3Give' | 'taiJi'
+export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenConfirm' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm' | 'selectFuChouDiscard' | 'dyingRescue' | 'chaoTuoPick' | 'houZhuTarget' | 'qiYiPrompt' | 'sheShenTrigger' | 'sheShenDistribute' | 'buDao3Trigger' | 'buDao3Give' | 'taiJi'
 
 interface BattleState {
   gameState: GameState | null
@@ -332,9 +332,11 @@ interface BattleState {
   tianXiangJudgeCard: { name: string; suit: string; number: number } | null
   tianXiangEquipment: Card[]
   resolveTianXiang: ((cardId: string | null) => void) | null
-  // 门神: 秦琼回合结束选择保护目标
+  // 门神: 秦琼出牌阶段结束选择保护目标
   menShenCandidates: { id: string; name: string; currentHp: number; maxHp: number }[]
   resolveMenShenTarget: ((targetId: string | null) => void) | null
+  // 门神: 是否发动确认
+  resolveMenShenConfirm: ((confirmed: boolean) => void) | null
   // 诀别: 虞姬濒死选择男性
   jueBieCandidates: { id: string; name: string; currentHp: number; maxHp: number }[]
   resolveJueBieTarget: ((targetId: string | null) => void) | null
@@ -399,7 +401,7 @@ interface BattleState {
   resolveHouZhu: ((targetId: string | null) => void) | null
   judgeCard: Card | null
   // 最近一次判定结果 (含来源名/牌名, 供中央显示; 显示2.5秒后自动清空)
-  lastJudgeResult: { judgeHeroName: string; judgeCardName: string; resultCard: { suit: string; number: number; name: string } } | null
+  lastJudgeResult: { judgeHeroName: string; judgeCardName: string; resultCard: Card } | null
 
   startBattle: (config: GameConfig) => Promise<BattleResult>
   /** 阶段 3 步骤 E: 释放 Worker (战斗页卸载 / 切换关卡时调, 防 Worker 泄漏) */
@@ -525,6 +527,8 @@ interface BattleState {
   selectShuCaiTarget: (heroId: string) => void
   confirmShuCai: () => Promise<void>
   // 门神
+  confirmMenShen: () => void
+  cancelMenShenConfirm: () => void
   selectMenShenTarget: (targetId: string) => void
   cancelMenShenTarget: () => void
   // 诀别
@@ -792,6 +796,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolveTianXiang: null,
   menShenCandidates: [],
   resolveMenShenTarget: null,
+  resolveMenShenConfirm: null,
   jueBieCandidates: [],
   resolveJueBieTarget: null,
   zhenShaPrompt: null,
@@ -1078,15 +1083,14 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           await new Promise(resolve => setTimeout(resolve, 400))
           return ctx.candidates[0]?.id ?? null
         }
-        // 玩家: 进入选牌 UI; 总人数 = min(存活英雄数, 候选牌数)
-        // 牌堆耗尽时 executeWuguFengdeng 只翻到剩余牌数 < 存活人数, 必须以候选数为准
-        // 否则 wuguPicks.length 永远追不上 wuguTotalPickers, 弹框永远不关
+        // 玩家: 进入选牌 UI; 总人数 = 当前存活英雄数 (引擎 CardDeck.draw 牌堆耗尽时
+        // 会自动触发 reshuffleDiscard 把弃牌堆洗入抽牌堆, 只有两堆都空才返回少于 N 张)
         const aliveCount = (game.getState()?.heroes ?? []).filter(h => h.currentHp > 0).length
         set({
           phase: 'selectWugu',
           wuguCandidates: [...ctx.candidates],
           wuguPicks: [],
-          wuguTotalPickers: Math.min(aliveCount, ctx.candidates.length),
+          wuguTotalPickers: aliveCount,
         })
         const cardId = await new Promise<string | null>(resolve => {
           set({ resolveWuguPick: resolve })
@@ -1342,6 +1346,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
         })
         return new Promise<string | null>(resolve => {
           set({ resolveTianXiang: resolve })
+        })
+      },
+      menShenConfirmHandler: async (_ctx: MenShenConfirmCtx) => {
+        set({ phase: 'menShenConfirm' })
+        return new Promise<boolean>(resolve => {
+          set({ resolveMenShenConfirm: resolve })
         })
       },
       menShenTargetHandler: async (ctx: MenShenTargetCtx) => {
@@ -1689,28 +1699,34 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           }
         }
       }
+      // 五谷丰登 全部派完 (引擎 emit 'wugu:complete', 兜底关弹框, 处理牌堆耗尽场景:
+      // cards.length < aliveCount 时 card:gain 永远追不上 wuguTotalPickers)
+      if (event.type === 'wugu:complete') {
+        set({ wuguCandidates: null, wuguPicks: [], wuguTotalPickers: 0 })
+      }
       // 判定事件: reveal (翻牌)/replace (被替换)/result (最终) — 都更新中央展示
       if (event.type === 'judge') {
         const data = event.data as any
         const phase = data?.phase as string | undefined
         const heroName = event.sourceHeroId ? getHeroName(event.sourceHeroId) : ''
         const judgeCardName = (data?.judgeCardName as string) ?? ''
-        // result 阶段如果 data 里没有 cardName/suit (理论上有), 兜底用 resultSuit/resultNumber
         const cardName = (data?.cardName as string) ?? ''
         const suit = (data?.suit as string) ?? ''
         const number = (data?.number as number) ?? 0
-        // JudgePhase 的 skipped 分支没有 cardName/suit, 用 resultSuit/resultNumber 推断
-        const finalCardName = cardName || (data?.cardId ? '' : '')
+        // 优先用引擎直接发送的完整 Card (含 id/type), 兜底用 cardName/suit/number 合成
+        const resultCard: Card = data?.card && typeof data.card === 'object'
+          ? data.card as Card
+          : { id: `__judge_${Date.now()}`, suit: suit as any, number, name: cardName as any, type: 'basic' } as Card
         set({ lastJudgeResult: {
           judgeHeroName: heroName,
           judgeCardName,
-          resultCard: { suit, number, name: finalCardName },
+          resultCard,
         }})
         // 仅 result 阶段后定时清除
         if (phase === 'result') {
           setTimeout(() => {
             const cur = get().lastJudgeResult
-            if (cur && cur.resultCard.name === cardName && cur.resultCard.suit === suit) {
+            if (cur && cur.resultCard.name === resultCard.name && cur.resultCard.suit === resultCard.suit) {
               set({ lastJudgeResult: null })
             }
           }, 3000)
@@ -1786,12 +1802,6 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       // 玩家回合开始: 重置 侠胆/驭人 已用标记
       if (event.type === 'turn:start' && event.sourceHeroId === game.getPlayer()?.getId()) {
         set({ xiaDanUsedThisTurn: false, yuRenUsedThisTurn: false })
-      }
-      // 任意角色回合开始: 清五谷丰登弹框残余状态 (上回合牌堆耗尽可能遗留未关弹框)
-      if (event.type === 'turn:start') {
-        set(s => s.wuguCandidates ? {
-          wuguCandidates: null, wuguPicks: [], wuguTotalPickers: 0,
-        } : s)
       }
       // 装备: equippedCards 更新延后到飞行卡动画完成 (onComplete), 避免装备栏立即显示新装备
       // (但 playerHand 需立即同步, 因为手牌已经少了那张装备牌)
@@ -3092,6 +3102,18 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   },
 
   // 门神: 选保护目标 / 取消 = 不发动
+  confirmMenShen: () => {
+    const { resolveMenShenConfirm } = get()
+    if (!resolveMenShenConfirm) return
+    resolveMenShenConfirm(true)
+    set({ resolveMenShenConfirm: null, phase: 'waiting' })
+  },
+  cancelMenShenConfirm: () => {
+    const { resolveMenShenConfirm } = get()
+    if (!resolveMenShenConfirm) return
+    resolveMenShenConfirm(false)
+    set({ resolveMenShenConfirm: null, phase: 'waiting' })
+  },
   selectMenShenTarget: (targetId: string) => {
     const { resolveMenShenTarget } = get()
     if (!resolveMenShenTarget) return
