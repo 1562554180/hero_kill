@@ -180,6 +180,11 @@ export interface MenShenTargetCtx {
   candidateIds: string[]
 }
 
+/** 门神: 秦琼出牌阶段结束询问是否发动 (true=发动, 进入选目标; false=不发动). AI 由引擎自动决策. */
+export interface MenShenConfirmCtx {
+  qinQiongId: string
+}
+
 export interface SanBanFuCtx {
   attackerId: string
   defenderId: string

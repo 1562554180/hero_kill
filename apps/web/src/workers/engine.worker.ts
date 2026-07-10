@@ -18,9 +18,9 @@ import type {
   JieDaoTargetCtx, JieDaoAttackTargetCtx, WuguPickCtx, MultiTargetCtx, DualCardCtx,
   LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx, FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx,
   BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx, HouZhuCtx, TianXiangCtx, ManWuPickCardCtx,
-  ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx, ZhenShaCtx, JueBieCtx, BuDaoCtx,
+  ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx, ZhenShaCtx, JueBieCtx, BuDaoCtx, BuDao3Ctx,
   FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
-  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx,
+  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx, TaiJiCtx,
 } from '@hero-legend/game-engine'
 import type { Card, EquipmentSlot, GameEvent } from '@hero-legend/shared-types'
 import type {
@@ -182,6 +182,8 @@ function buildWrappedConfig(config: SerializedGameConfig): GameConfig {
   wrapped.zhenShaHandler = (ctx: ZhenShaCtx) => forwardHandler('zhenShaHandler', ctx)
   wrapped.jueBieHandler = (ctx: JueBieCtx) => forwardHandler('jueBieHandler', ctx)
   wrapped.buDaoHandler = (ctx: BuDaoCtx) => forwardHandler('buDaoHandler', ctx)
+  wrapped.buDao3TriggerHandler = (ctx: { playerId: string }) => forwardHandler('buDao3TriggerHandler', ctx)
+  wrapped.buDao3GiveHandler = (ctx: BuDao3Ctx) => forwardHandler('buDao3GiveHandler', ctx)
   wrapped.panLongGunHandler = (ctx: PanLongGunCtx) => forwardHandler('panLongGunHandler', ctx)
   wrapped.fuChouTriggerHandler = (ctx: FuChouTriggerCtx) => forwardHandler('fuChouTriggerHandler', ctx)
   wrapped.fuChouChooseHandler = (ctx: FuChouChooseCtx) => forwardHandler('fuChouChooseHandler', ctx)
@@ -189,6 +191,7 @@ function buildWrappedConfig(config: SerializedGameConfig): GameConfig {
   wrapped.dyingRescueHandler = (ctx: DyingRescueCtx) => forwardHandler('dyingRescueHandler', ctx)
   wrapped.sheShenTriggerHandler = (ctx: SheShenTriggerCtx) => forwardHandler('sheShenTriggerHandler', ctx)
   wrapped.sheShenDistributeHandler = (ctx: SheShenCtx) => forwardHandler('sheShenDistributeHandler', ctx)
+  wrapped.taiJiHandler = (ctx: TaiJiCtx) => forwardHandler('taiJiHandler', ctx)
   wrapped.awaitUIReady = () => forwardHandler<void>('awaitUIReady', undefined)
   return wrapped
 }

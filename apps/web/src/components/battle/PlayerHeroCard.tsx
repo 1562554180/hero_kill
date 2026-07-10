@@ -12,6 +12,7 @@ export function PlayerHeroCard() {
     selectShuCaiTarget,
     derived,
     confirmTarget, playKill, respondWithCard, assignSheShenCard,
+    buDao3GivePrompt, selectBuDao3Target,
   } = useBattleStore(useShallow(s => ({
     gameState: s.gameState, phase: s.phase, pendingCardId: s.pendingCardId, pendingCardType: s.pendingCardType, playerHand: s.playerHand,
     selectedTargetId: s.selectedTargetId, jieDaoCandidates: s.jieDaoCandidates, jieDaoHolders: s.jieDaoHolders,
@@ -21,6 +22,8 @@ export function PlayerHeroCard() {
     derived: s.derived,
     confirmTarget: s.confirmTarget, playKill: s.playKill, respondWithCard: s.respondWithCard,
     assignSheShenCard: s.assignSheShenCard,
+    buDao3GivePrompt: s.buDao3GivePrompt,
+    selectBuDao3Target: s.selectBuDao3Target,
   })))
 
   const player = useMemo(() => gameState?.heroes.find(h => h.role === 'player'), [gameState])
@@ -73,10 +76,16 @@ export function PlayerHeroCard() {
       isCurrentTurn={isPlayerTurn}
       isDying={isDying}
       isDead={isDead}
-      isSelectable={(isPendingTargeting && jieDaoCandidates.length > 0 && isPlayerValidTarget) || (phase === 'sheShenDistribute' && player.currentHp > 0) || isHealTargetable || (shuCaiActive && player.currentHp > 0)}
+      isSelectable={(isPendingTargeting && jieDaoCandidates.length > 0 && isPlayerValidTarget) || (phase === 'sheShenDistribute' && player.currentHp > 0) || isHealTargetable || (shuCaiActive && player.currentHp > 0) || (phase === 'buDao3Give' && !!buDao3GivePrompt?.selectedCardId && !!buDao3GivePrompt.candidates.find(c => c.id === player.hero.id) && player.currentHp > 0)}
       dimmed={isHealTargetable === false && phase === 'treasureSelectTarget' && (tSkill === 'liao-shang' || tSkill === 'zhi-yu') && player.currentHp > 0}
-      isSelected={selectedTargetId === player.hero.id || (shuCaiActive && shuCaiTargetId === player.hero.id)}
+      isSelected={selectedTargetId === player.hero.id || (shuCaiActive && shuCaiTargetId === player.hero.id) || (phase === 'buDao3Give' && !!buDao3GivePrompt?.selectedCardId && !!buDao3GivePrompt.candidates.find(c => c.id === player.hero.id))}
       onClick={() => {
+        if (phase === 'buDao3Give' && buDao3GivePrompt?.selectedCardId) {
+          if (buDao3GivePrompt.candidates.some(c => c.id === player.hero.id) && player.currentHp > 0) {
+            selectBuDao3Target(player.hero.id)
+          }
+          return
+        }
         if (shuCaiActive) {
           if (player.currentHp > 0) selectShuCaiTarget(player.hero.id)
           return

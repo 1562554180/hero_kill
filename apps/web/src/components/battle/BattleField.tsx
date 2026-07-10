@@ -19,11 +19,15 @@ export function BattleField() {
     selectShuCaiTarget,
     qiYiDecision, qiYiStep,
     pickQiYiDecisionTarget,
+    buDao3GivePrompt,
+    taiJiPrompt,
     derived,
     confirmTarget, toggleTarget, toggleKillMultiTarget,
     selectLuYeQiangTarget, selectTanNangTarget, selectFudiTarget,
     pickTreasureTarget, selectManWuTarget,
     assignSheShenCard,
+    selectBuDao3Target,
+    selectTaiJiTarget,
   } = useBattleStore(useShallow(s => ({
     gameState: s.gameState, phase: s.phase, pendingCardId: s.pendingCardId, pendingCardType: s.pendingCardType, playerHand: s.playerHand,
     selectedTargetId: s.selectedTargetId, selectedTargets: s.selectedTargets,
@@ -38,11 +42,15 @@ export function BattleField() {
     selectShuCaiTarget: s.selectShuCaiTarget,
     qiYiDecision: s.qiYiDecision, qiYiStep: s.qiYiStep,
     pickQiYiDecisionTarget: s.pickQiYiDecisionTarget,
+    buDao3GivePrompt: s.buDao3GivePrompt,
+    taiJiPrompt: s.taiJiPrompt,
     derived: s.derived,
     confirmTarget: s.confirmTarget, toggleTarget: s.toggleTarget, toggleKillMultiTarget: s.toggleKillMultiTarget,
     selectLuYeQiangTarget: s.selectLuYeQiangTarget, selectTanNangTarget: s.selectTanNangTarget, selectFudiTarget: s.selectFudiTarget,
     pickTreasureTarget: s.pickTreasureTarget, selectManWuTarget: s.selectManWuTarget,
     assignSheShenCard: s.assignSheShenCard,
+    selectBuDao3Target: s.selectBuDao3Target,
+    selectTaiJiTarget: s.selectTaiJiTarget,
   })))
 
   const dyingTargetId = useBattleStore(s => s.dyingRescuePrompt?.targetId ?? null)
@@ -174,12 +182,28 @@ export function BattleField() {
             (phase === 'selectFudiTarget' && isValidTarget(h.hero.id)) ||
             (phase === 'sheShenDistribute' && h.currentHp > 0) ||
             (manWuPrompt !== null && manWuPrompt.candidates.some((c: any) => c.id === h.hero.id)) ||
-            (shuCaiActive && h.currentHp > 0)
+            (shuCaiActive && h.currentHp > 0) ||
+            // 布道: 选牌后点存活角色 (含自己) 给出
+            (phase === 'buDao3Give' && !!buDao3GivePrompt?.selectedCardId && !!buDao3GivePrompt.candidates.find(c => c.id === h.hero.id)) ||
+            // 太极: 选杀后点攻击范围内角色反击
+            (phase === 'taiJi' && !!taiJiPrompt?.selectedCardId && !!taiJiPrompt.candidates.find(c => c.id === h.hero.id))
           )
         }
-        isSelected={selectedTargetId === h.hero.id || selectedTargets.includes(h.hero.id) || (shuCaiActive && shuCaiTargetId === h.hero.id) || (phase === 'qiYiPrompt' && qiYiStep === 'pickTargets' && treasureTargetIds.includes(h.hero.id))}
+        isSelected={selectedTargetId === h.hero.id || selectedTargets.includes(h.hero.id) || (shuCaiActive && shuCaiTargetId === h.hero.id) || (phase === 'qiYiPrompt' && qiYiStep === 'pickTargets' && treasureTargetIds.includes(h.hero.id)) || (phase === 'buDao3Give' && buDao3GivePrompt?.candidates.find(c => c.id === h.hero.id)?.id === h.hero.id && !!buDao3GivePrompt.selectedCardId) || (phase === 'taiJi' && !!taiJiPrompt?.selectedCardId && !!taiJiPrompt.candidates.find(c => c.id === h.hero.id))}
         dimmed={(!!dimInvalid && !isValidTarget(h.hero.id)) || (shouldDimInvalidTargets && !isValidTarget(h.hero.id))}
         onClick={() => {
+          if (phase === 'taiJi' && taiJiPrompt?.selectedCardId) {
+            if (taiJiPrompt.candidates.some(c => c.id === h.hero.id) && h.currentHp > 0) {
+              selectTaiJiTarget(h.hero.id)
+            }
+            return
+          }
+          if (phase === 'buDao3Give' && buDao3GivePrompt?.selectedCardId) {
+            if (buDao3GivePrompt.candidates.some(c => c.id === h.hero.id) && h.currentHp > 0) {
+              selectBuDao3Target(h.hero.id)
+            }
+            return
+          }
           if (shuCaiActive) {
             if (h.currentHp > 0) selectShuCaiTarget(h.hero.id)
             return

@@ -31,6 +31,7 @@ export function FloatingPrompts() {
     menShenCandidates, jueBieCandidates,
     shenTouActive,
     zhenShaPrompt, buDaoPrompt, sanBanFuPrompt, panLongGunPrompt,
+    buDao3TriggerPrompt,
     fuChouTriggerPrompt, fuChouChoosePrompt, fuChouPickSelected,
     sheShenTriggerPrompt,
     dyingRescuePrompt,
@@ -57,6 +58,7 @@ export function FloatingPrompts() {
     selectJueBieTarget, cancelJueBieTarget,
     confirmZhenSha, cancelZhenSha,
     selectBuDaoCard,
+    confirmBuDao3Trigger, cancelBuDao3Trigger,
     confirmSanBanFu, cancelSanBanFu,
     confirmPanLongGun, cancelPanLongGun,
     confirmFuChouTrigger, cancelFuChouTrigger,
@@ -85,6 +87,7 @@ export function FloatingPrompts() {
     menShenCandidates: s.menShenCandidates, jueBieCandidates: s.jueBieCandidates,
     shenTouActive: s.shenTouActive,
     zhenShaPrompt: s.zhenShaPrompt, buDaoPrompt: s.buDaoPrompt, sanBanFuPrompt: s.sanBanFuPrompt,
+    buDao3TriggerPrompt: s.buDao3TriggerPrompt,
     fuChouTriggerPrompt: s.fuChouTriggerPrompt, fuChouChoosePrompt: s.fuChouChoosePrompt, fuChouPickSelected: s.fuChouPickSelected,
     sheShenTriggerPrompt: s.sheShenTriggerPrompt,
     dyingRescuePrompt: s.dyingRescuePrompt,
@@ -111,6 +114,7 @@ export function FloatingPrompts() {
     selectJueBieTarget: s.selectJueBieTarget, cancelJueBieTarget: s.cancelJueBieTarget,
     confirmZhenSha: s.confirmZhenSha, cancelZhenSha: s.cancelZhenSha,
     selectBuDaoCard: s.selectBuDaoCard,
+    confirmBuDao3Trigger: s.confirmBuDao3Trigger, cancelBuDao3Trigger: s.cancelBuDao3Trigger,
     confirmSanBanFu: s.confirmSanBanFu, cancelSanBanFu: s.cancelSanBanFu,
     confirmPanLongGun: s.confirmPanLongGun, cancelPanLongGun: s.cancelPanLongGun,
     panLongGunPrompt: s.panLongGunPrompt,
@@ -161,6 +165,7 @@ export function FloatingPrompts() {
     || !!sheShenTriggerPrompt
     || !!panLongGunPrompt
     || (phase === 'buDaoKill' && !!buDaoPrompt)
+    || (phase === 'buDao3Trigger' && !!buDao3TriggerPrompt)
     || phase === 'chaoTuoPick'
     || phase === 'houZhuTarget'
     || (phase === 'dyingRescue' && !!dyingRescuePrompt)
@@ -169,7 +174,7 @@ export function FloatingPrompts() {
     || phase === 'selectKillMultiTargets'
     || (phase === 'qiYiPrompt' && !!qiYiDecision)
     || shuCaiActive
-  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, qiangLuePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, sheShenTriggerPrompt, buDaoPrompt, dyingRescuePrompt, qiYiDecision, panLongGunPrompt, shuCaiActive])
+  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, qiangLuePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, sheShenTriggerPrompt, buDaoPrompt, buDao3TriggerPrompt, dyingRescuePrompt, qiYiDecision, panLongGunPrompt, shuCaiActive])
 
   const killMultiCardId = useBattleStore(s => s.killMultiCardId)
   const [wolfFangPromptRect, setWolfFangPromptRect] = useState<{ left: number; top: number; width: number } | null>(null)
@@ -838,6 +843,30 @@ export function FloatingPrompts() {
                   <div style={{ marginBottom: '6px' }}>⚔️ 补刀 — {buDaoPrompt.victimName} 攻击范围内被掉血，是否出【杀】？不消耗出杀次数</div>
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     <button style={treasureBtnStyle} onClick={() => selectBuDaoCard(null)}>不补</button>
+                  </div>
+                </div>
+              )}
+
+              {/* 23.5 布道 — 张三丰摸牌前是否发动 */}
+              {phase === 'buDao3Trigger' && buDao3TriggerPrompt && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  width: '70%',
+                  margin: '0 auto',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  padding: '6px 12px',
+                  background: 'linear-gradient(135deg, rgba(255,213,79,0.18), rgba(184,134,11,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #ffd54f',
+                  color: '#ffd54f', fontSize: '13px',
+                  boxShadow: '0 2px 12px rgba(255,213,79,0.4)',
+                }}>
+                  <span style={{ flex: 1 }}>
+                    ⚔️ <b style={{ fontSize: '14px' }}>布道</b> — 是否发动？
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button style={treasureBtnStyle} onClick={cancelBuDao3Trigger}>放弃</button>
+                    <button className="primary" style={treasureBtnStyle} onClick={confirmBuDao3Trigger}>发动</button>
                   </div>
                 </div>
               )}

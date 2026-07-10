@@ -15,8 +15,8 @@ import type {
   WuguPickCtx, MultiTargetCtx, DualCardCtx, LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx,
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
   HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
-  ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
-  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx
+  ZhenShaCtx, JueBieCtx, BuDaoCtx, BuDao3Ctx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
+  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx, TaiJiCtx
 } from '@hero-legend/game-engine'
 import type { GameState, BattleResult, Card, GameEvent, GameEventType, HeroInstance, EquipmentSlot } from '@hero-legend/shared-types'
 import type { FlyingCard, FlyingStage } from '../components/FlyingCard'
@@ -209,7 +209,7 @@ class GameProxy {
 // 用 let gameRef: GameProxy | null 直接替换
 let gameRef: GameProxy | null = null
 
-export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm' | 'selectFuChouDiscard' | 'dyingRescue' | 'chaoTuoPick' | 'houZhuTarget' | 'qiYiPrompt' | 'sheShenTrigger' | 'sheShenDistribute'
+export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm' | 'selectFuChouDiscard' | 'dyingRescue' | 'chaoTuoPick' | 'houZhuTarget' | 'qiYiPrompt' | 'sheShenTrigger' | 'sheShenDistribute' | 'buDao3Trigger' | 'buDao3Give' | 'taiJi'
 
 interface BattleState {
   gameState: GameState | null
@@ -347,6 +347,26 @@ interface BattleState {
   panLongGunPrompt: { defenderName: string } | null
   resolvePanLongGun: ((proceed: boolean) => void) | null
   resolveBuDao: ((cardId: string | null) => void) | null
+  // 布道 (张三丰): 摸牌前是否发动 + 摸3张后选给牌
+  buDao3TriggerPrompt: { playerId: string; playerName: string } | null
+  resolveBuDao3Trigger: ((use: boolean) => void) | null
+  buDao3GivePrompt: {
+    playerId: string
+    playerName: string
+    drawn: Card[]
+    candidates: { id: string; name: string; currentHp: number; maxHp: number }[]
+    /** 已选中的牌 (点击后高亮, 再点角色给出) */
+    selectedCardId: string | null
+  } | null
+  resolveBuDao3Give: ((pick: { targetId: string; cardId: string } | null) => void) | null
+  // 太极: 张三丰出闪后立即反击, 选杀 + 选目标
+  taiJiPrompt: {
+    playerId: string
+    killableCards: Card[]
+    candidates: { id: string; name: string; currentHp: number; maxHp: number }[]
+    selectedCardId: string | null
+  } | null
+  resolveTaiJi: ((pick: { cardId: string; targetId: string } | null) => void) | null
   // 三板斧: 程咬金出杀时确认
   sanBanFuPrompt: { targetName: string } | null
   resolveSanBanFu: ((use: boolean) => void) | null
@@ -515,6 +535,16 @@ interface BattleState {
   cancelZhenSha: () => void
   // 补刀
   selectBuDaoCard: (cardId: string | null) => void
+  // 布道: 是否发动 / 选牌 / 选目标 / 取消
+  confirmBuDao3Trigger: () => void
+  cancelBuDao3Trigger: () => void
+  selectBuDao3Card: (cardId: string) => void
+  selectBuDao3Target: (targetId: string) => void
+  cancelBuDao3Give: () => void
+  // 太极: 选杀牌 + 选目标 / 取消
+  selectTaiJiKillCard: (cardId: string) => void
+  selectTaiJiTarget: (targetId: string) => void
+  cancelTaiJi: () => void
   // 三板斧
   confirmSanBanFu: () => void
   cancelSanBanFu: () => void
@@ -772,6 +802,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
   resolvePanLongGun: null,
   sanBanFuPrompt: null,
   resolveSanBanFu: null,
+  buDao3TriggerPrompt: null,
+  resolveBuDao3Trigger: null,
+  buDao3GivePrompt: null,
+  resolveBuDao3Give: null,
+  taiJiPrompt: null,
+  resolveTaiJi: null,
   fuChouTriggerPrompt: null,
   resolveFuChouTrigger: null,
   fuChouChoosePrompt: null,
@@ -902,6 +938,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       resolvePanLongGun: null,
       sanBanFuPrompt: null,
       resolveSanBanFu: null,
+      buDao3TriggerPrompt: null,
+      resolveBuDao3Trigger: null,
+      buDao3GivePrompt: null,
+      resolveBuDao3Give: null,
+      taiJiPrompt: null,
+      resolveTaiJi: null,
       fuChouTriggerPrompt: null,
       resolveFuChouTrigger: null,
       fuChouChoosePrompt: null,
@@ -1036,13 +1078,15 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           await new Promise(resolve => setTimeout(resolve, 400))
           return ctx.candidates[0]?.id ?? null
         }
-        // 玩家: 进入选牌 UI; 总人数 = 当前存活英雄数
+        // 玩家: 进入选牌 UI; 总人数 = min(存活英雄数, 候选牌数)
+        // 牌堆耗尽时 executeWuguFengdeng 只翻到剩余牌数 < 存活人数, 必须以候选数为准
+        // 否则 wuguPicks.length 永远追不上 wuguTotalPickers, 弹框永远不关
         const aliveCount = (game.getState()?.heroes ?? []).filter(h => h.currentHp > 0).length
         set({
           phase: 'selectWugu',
           wuguCandidates: [...ctx.candidates],
           wuguPicks: [],
-          wuguTotalPickers: aliveCount,
+          wuguTotalPickers: Math.min(aliveCount, ctx.candidates.length),
         })
         const cardId = await new Promise<string | null>(resolve => {
           set({ resolveWuguPick: resolve })
@@ -1393,6 +1437,66 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           set({ resolveBuDao: resolve })
         })
       },
+      buDao3TriggerHandler: async (ctx: { playerId: string }) => {
+        const player = P(ctx.playerId)
+        set({
+          phase: 'buDao3Trigger',
+          buDao3TriggerPrompt: { playerId: player.getId(), playerName: player.getName() },
+        })
+        const use = await new Promise<boolean>(resolve => {
+          set({ resolveBuDao3Trigger: resolve })
+        })
+        set({ resolveBuDao3Trigger: null, buDao3TriggerPrompt: null, phase: 'waiting' })
+        return use
+      },
+      buDao3GiveHandler: async (ctx: BuDao3Ctx) => {
+        const player = P(ctx.zhangSanFengId)
+        const game = gameRef!
+        // 候选: ctx.candidateIds (含自己, 由引擎传过来)
+        const candidates = ctx.candidateIds.map((id: string) => {
+          const p = game.getPlayerById(id)
+          if (!p) throw new Error(`布道候选 ${id} 未找到`)
+          return { id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() }
+        })
+        set({
+          phase: 'buDao3Give',
+          buDao3GivePrompt: {
+            playerId: player.getId(),
+            playerName: player.getName(),
+            drawn: [...ctx.drawn],
+            candidates,
+            selectedCardId: null,
+          },
+        })
+        const pick = await new Promise<{ targetId: string; cardId: string } | null>(resolve => {
+          set({ resolveBuDao3Give: resolve })
+        })
+        set({ resolveBuDao3Give: null, buDao3GivePrompt: null, phase: pick ? 'waiting' : 'waiting' })
+        return pick
+      },
+      taiJiHandler: async (ctx: TaiJiCtx) => {
+        const game = gameRef!
+        const candidates = ctx.candidateIds.map((id: string) => {
+          const p = game.getPlayerById(id)
+          if (!p) throw new Error(`太极候选 ${id} 未找到`)
+          return { id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() }
+        })
+        set({
+          phase: 'taiJi',
+          playerHand: [...ctx.killableCards],
+          taiJiPrompt: {
+            playerId: ctx.zhangSanFengId,
+            killableCards: [...ctx.killableCards],
+            candidates,
+            selectedCardId: null,
+          },
+        })
+        const pick = await new Promise<{ cardId: string; targetId: string } | null>(resolve => {
+          set({ resolveTaiJi: resolve })
+        })
+        set({ resolveTaiJi: null, taiJiPrompt: null, phase: 'waiting' })
+        return pick
+      },
       panLongGunHandler: async (ctx: PanLongGunCtx) => {
         const attacker = P(ctx.attackerId)
         // AI 装备者: 默认继续追击 (省 UI)
@@ -1682,6 +1786,12 @@ export const useBattleStore = create<BattleState>((set, get) => ({
       // 玩家回合开始: 重置 侠胆/驭人 已用标记
       if (event.type === 'turn:start' && event.sourceHeroId === game.getPlayer()?.getId()) {
         set({ xiaDanUsedThisTurn: false, yuRenUsedThisTurn: false })
+      }
+      // 任意角色回合开始: 清五谷丰登弹框残余状态 (上回合牌堆耗尽可能遗留未关弹框)
+      if (event.type === 'turn:start') {
+        set(s => s.wuguCandidates ? {
+          wuguCandidates: null, wuguPicks: [], wuguTotalPickers: 0,
+        } : s)
       }
       // 装备: equippedCards 更新延后到飞行卡动画完成 (onComplete), 避免装备栏立即显示新装备
       // (但 playerHand 需立即同步, 因为手牌已经少了那张装备牌)
@@ -3039,6 +3149,65 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     }
     resolveBuDao(cardId)
     set({ resolveBuDao: null, buDaoPrompt: null, phase: 'waiting' })
+  },
+
+  // 布道: 是否发动
+  confirmBuDao3Trigger: () => {
+    const { resolveBuDao3Trigger } = get()
+    if (!resolveBuDao3Trigger) return
+    resolveBuDao3Trigger(true)
+    set({ resolveBuDao3Trigger: null, buDao3TriggerPrompt: null, phase: 'waiting' })
+  },
+  cancelBuDao3Trigger: () => {
+    const { resolveBuDao3Trigger } = get()
+    if (!resolveBuDao3Trigger) return
+    resolveBuDao3Trigger(false)
+    set({ resolveBuDao3Trigger: null, buDao3TriggerPrompt: null, phase: 'waiting' })
+  },
+  // 布道: 选牌 (高亮等待点目标) / 选目标 (完成) / 取消 (全部留给自己)
+  selectBuDao3Card: (cardId: string) => {
+    const { buDao3GivePrompt } = get()
+    if (!buDao3GivePrompt) return
+    if (!buDao3GivePrompt.drawn.find(c => c.id === cardId)) return
+    set({
+      buDao3GivePrompt: { ...buDao3GivePrompt, selectedCardId: cardId },
+    })
+  },
+  selectBuDao3Target: (targetId: string) => {
+    const { buDao3GivePrompt, resolveBuDao3Give } = get()
+    if (!buDao3GivePrompt || !resolveBuDao3Give) return
+    if (!buDao3GivePrompt.selectedCardId) return
+    if (!buDao3GivePrompt.candidates.find(c => c.id === targetId)) return
+    resolveBuDao3Give({ targetId, cardId: buDao3GivePrompt.selectedCardId })
+    set({ resolveBuDao3Give: null, buDao3GivePrompt: null, phase: 'waiting' })
+  },
+  cancelBuDao3Give: () => {
+    const { resolveBuDao3Give } = get()
+    if (!resolveBuDao3Give) return
+    resolveBuDao3Give(null)
+    set({ resolveBuDao3Give: null, buDao3GivePrompt: null, phase: 'waiting' })
+  },
+
+  // 太极: 选杀 / 选目标 / 取消
+  selectTaiJiKillCard: (cardId: string) => {
+    const { taiJiPrompt } = get()
+    if (!taiJiPrompt) return
+    if (!taiJiPrompt.killableCards.find(c => c.id === cardId)) return
+    set({ taiJiPrompt: { ...taiJiPrompt, selectedCardId: cardId } })
+  },
+  selectTaiJiTarget: (targetId: string) => {
+    const { taiJiPrompt, resolveTaiJi } = get()
+    if (!taiJiPrompt || !resolveTaiJi) return
+    if (!taiJiPrompt.selectedCardId) return
+    if (!taiJiPrompt.candidates.find(c => c.id === targetId)) return
+    resolveTaiJi({ cardId: taiJiPrompt.selectedCardId, targetId })
+    set({ resolveTaiJi: null, taiJiPrompt: null, phase: 'waiting' })
+  },
+  cancelTaiJi: () => {
+    const { resolveTaiJi } = get()
+    if (!resolveTaiJi) return
+    resolveTaiJi(null)
+    set({ resolveTaiJi: null, taiJiPrompt: null, phase: 'waiting' })
   },
 
   // 三板斧: 发动 / 不用

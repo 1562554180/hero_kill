@@ -30,8 +30,8 @@ import type {
   WuguPickCtx, MultiTargetCtx, DualCardCtx, LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx,
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
   HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
-  ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
-  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx,
+  ZhenShaCtx, JueBieCtx, BuDaoCtx, BuDao3Ctx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
+  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx, TaiJiCtx,
 } from '@hero-legend/game-engine'
 import type { HeroInstance } from '@hero-legend/shared-types'
 
@@ -72,6 +72,8 @@ export type HandlerName =
   | 'zhenShaHandler'
   | 'jueBieHandler'
   | 'buDaoHandler'
+  | 'buDao3TriggerHandler'
+  | 'buDao3GiveHandler'
   | 'panLongGunHandler'
   | 'fuChouTriggerHandler'
   | 'fuChouChooseHandler'
@@ -79,6 +81,7 @@ export type HandlerName =
   | 'dyingRescueHandler'
   | 'sheShenTriggerHandler'
   | 'sheShenDistributeHandler'
+  | 'taiJiHandler'
   | 'awaitUIReady'
 
 // ctx 联合类型 — Worker 接收 handler-call 时透传, 主线程按 name 分派到强类型实现
@@ -88,8 +91,8 @@ export type HandlerCtx =
   | WuguPickCtx | MultiTargetCtx | DualCardCtx | LuYeQiangTargetCtx | LongLinPickCtx | BoLangChuiCtx
   | FaJiaPickCtx | YuRuYiCtx | DiscardPickCtx | BaWangMountCtx | QiangLueCtx | CiKeCtx | DieHunCtx
   | HouZhuCtx | TianXiangCtx | ManWuPickCardCtx | ManWuCtx | JueJiCtx | MenShenTargetCtx | SanBanFuCtx
-  | ZhenShaCtx | JueBieCtx | BuDaoCtx | FuChouTriggerCtx | FuChouChooseCtx | FuChouPickCtx | DyingRescueCtx
-  | SheShenCtx | SheShenTriggerCtx | PanLongGunCtx
+  | ZhenShaCtx | JueBieCtx | BuDaoCtx | BuDao3Ctx | FuChouTriggerCtx | FuChouChooseCtx | FuChouPickCtx | DyingRescueCtx
+  | SheShenCtx | SheShenTriggerCtx | PanLongGunCtx | TaiJiCtx
   | undefined  // awaitUIReady 无 ctx
 
 // ---------- 启动配置 (可序列化) ----------

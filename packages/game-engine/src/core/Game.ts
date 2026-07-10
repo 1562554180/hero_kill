@@ -100,7 +100,9 @@ export interface GameConfig {
   manWuHandler?: (ctx: ManWuCtx) => Promise<string | null>
   /** 绝击: AI/玩家 是否发动以及选 (弃武器/null=受1血) + 目标. 返回null=不发动 */
   jueJiHandler?: (ctx: JueJiCtx) => Promise<{ weaponCardId: string | null; targetId: string } | null>
-  /** 门神: 秦琼回合结束选择保护目标 */
+  /** 门神: 秦琼出牌阶段结束询问是否发动 (true=发动进入选目标; false=不发动). AI 由引擎自动决策 */
+  menShenConfirmHandler?: (ctx: MenShenConfirmCtx) => Promise<boolean>
+  /** 门神: 秦琼确认发动后选择保护目标 (仅队友) */
   menShenTargetHandler?: (ctx: MenShenTargetCtx) => Promise<string | null>
   /** 三板斧: 程咬金出杀时是否发动 */
   sanBanFuHandler?: (ctx: SanBanFuCtx) => Promise<boolean>
@@ -568,7 +570,7 @@ export class Game {
     return Math.random() < treasure.triggerRate + levelBonus + bonus
   }
 
-  /** 杀造成伤害后：攻击类辅印触发（吸血/杀之贪/杀之卸） */
+  /** 杀造成伤害后：攻击类辅印触发（吸血/杀贪/杀卸） */
   private async onKillDamageDealt(attacker: Player, defender: Player): Promise<void> {
     // 强化 已在 executeKill 伤害计算阶段上移 (作为伤害修正, 领先于复仇/补刀/反击)
     // 吸血: 30%几率回复1点体力
@@ -579,13 +581,13 @@ export class Game {
         this.triggerPingYuan(attacker)
       }
     }
-    // 杀之贪: 30%几率摸1张牌
+    // 杀贪: 30%几率摸1张牌
     if (this.rollSubTreasure(attacker, 'treasure-sha-zhi-tan')) {
       const drawn = this.cardDeck.draw(1)
       attacker.drawCards(drawn)
-      this.emitSkillTrigger(attacker, '杀之贪', '摸1张牌')
+      this.emitSkillTrigger(attacker, '杀贪', '摸1张牌')
     }
-    // 杀之卸: 30%几率弃置目标1张装备牌
+    // 杀卸: 30%几率弃置目标1张装备牌
     if (this.rollSubTreasure(attacker, 'treasure-sha-zhi-xie')) {
       const equipSlots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
       for (const slot of equipSlots) {
@@ -593,35 +595,35 @@ export class Game {
         if (card) {
           defender.unequip(slot)
           this.cardDeck.discard([card])
-          this.emitSkillTrigger(attacker, '杀之卸', `弃置【${(card as any).name}】`)
+          this.emitSkillTrigger(attacker, '杀卸', `弃置【${(card as any).name}】`)
           break
         }
       }
     }
   }
 
-  /** 受到杀的伤害后：防御类辅印触发（伤之仇/伤之贪/伤之卸/伤之削） */
+  /** 受到杀的伤害后：防御类辅印触发（伤仇/伤贪/伤卸/伤削） */
   private async onKillDamageReceived(victim: Player, attacker: Player): Promise<void> {
     if (!attacker.isAlive()) return
     // 破咒 (attacker): 每次有防御型辅印尝试触发时，独立 35% 几率让该次触发失效
     const suppressThis = () => this.rollSubTreasure(attacker, 'treasure-po-zhou')
-    // 伤之仇: 30%几率让伤害来源受到1点伤害
+    // 伤仇: 30%几率让伤害来源受到1点伤害
     if (!suppressThis() && this.rollSubTreasure(victim, 'treasure-shang-zhi-chou')) {
       // 曼舞: 反弹的伤害，受击方(attacker)有曼舞则可转移
       if (await this.promptManWu(attacker, victim, 1)) {
-        this.emitSkillTrigger(victim, '伤之仇', '反弹被转移')
+        this.emitSkillTrigger(victim, '伤仇', '反弹被转移')
       } else {
-        this.emitSkillTrigger(victim, '伤之仇', '反击1点伤害')
+        this.emitSkillTrigger(victim, '伤仇', '反击1点伤害')
         await this.applyDamage(victim, attacker, 1, undefined, { skipFuChouOnly: true })
       }
     }
-    // 伤之贪: 30%几率摸1张牌
+    // 伤贪: 30%几率摸1张牌
     if (!suppressThis() && this.rollSubTreasure(victim, 'treasure-shang-zhi-tan')) {
       const drawn = this.cardDeck.draw(1)
       victim.drawCards(drawn)
-      this.emitSkillTrigger(victim, '伤之贪', '摸1张牌')
+      this.emitSkillTrigger(victim, '伤贪', '摸1张牌')
     }
-    // 伤之卸: 30%几率弃置伤害来源1张装备牌
+    // 伤卸: 30%几率弃置伤害来源1张装备牌
     if (!suppressThis() && this.rollSubTreasure(victim, 'treasure-shang-zhi-xie')) {
       const equipSlots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
       for (const slot of equipSlots) {
@@ -629,19 +631,19 @@ export class Game {
         if (card) {
           attacker.unequip(slot)
           this.cardDeck.discard([card])
-          this.emitSkillTrigger(victim, '伤之卸', `弃置【${(card as any).name}】`)
+          this.emitSkillTrigger(victim, '伤卸', `弃置【${(card as any).name}】`)
           break
         }
       }
     }
-    // 伤之削: 30%几率弃置伤害来源1张手牌
+    // 伤削: 30%几率弃置伤害来源1张手牌
     if (!suppressThis() && this.rollSubTreasure(victim, 'treasure-shang-zhi-xue')) {
       if (attacker.getHandSize() > 0) {
         const hand = attacker.getHand()
         const card = hand[Math.floor(Math.random() * hand.length)]
         this.removeHandCard(attacker,card.id)
         this.cardDeck.discard([card])
-        this.emitSkillTrigger(victim, '伤之削', `弃置【${(card as any).name}】`)
+        this.emitSkillTrigger(victim, '伤削', `弃置【${(card as any).name}】`)
       }
     }
     // 石化: 30%几率令对方回合直接结束 (跳过对方下一回合)
@@ -1847,7 +1849,7 @@ export class Game {
 
     // 复仇: 受伤后可发动, 判定成功后来源弃2牌或掉1血
     // AI 受害者: 对友方造成的伤害不发动; 玩家受方仍由玩家选择是否发动
-    // skipFuChou: 复仇反弹/绝击/伤之仇等场景下不再次触发复仇 (避免死循环)
+    // skipFuChou: 复仇反弹/绝击/伤仇等场景下不再次触发复仇 (避免死循环)
     const fuChouSkipForAlly = victim.getRole() !== 'player' && attacker.getRole() === 'ally'
     if (victim.hasSkillOrTreasure('fu-chou') && attacker.isAlive() && !fuChouSkipForAlly && !skipFuChou) {
       await this.promptFuChou(victim, attacker)
@@ -2725,7 +2727,7 @@ export class Game {
   /**
    * 统一伤害处理: takeDamage → damage events → 濒死救援 → onDamageReceived → 死亡判定
    * @param skipOnDamageReceived 复仇反弹等场景不需要触发 onDamageReceived (避免死循环)
-   * @param afterOnDamageReceived 杀伤害额外逻辑 (强化/吸血/伤之仇等)
+   * @param afterOnDamageReceived 杀伤害额外逻辑 (强化/吸血/伤仇等)
    * @param sourceAction 伤害来源的"有效牌型" (kill/dodge/scheme/judge/...) — 武圣/傲剑把红牌当杀时, sourceCard.name != '杀', 用此字段补刀/补杀等技能判断
    */
   async applyDamage(
@@ -2735,7 +2737,7 @@ export class Game {
     sourceCard?: Card,
     options?: {
       skipOnDamageReceived?: boolean
-      /** 只跳过复仇 (避免死循环), 仍触发舍身/法家/集权等其他受伤技能. 用于复仇反弹/绝击/伤之仇等场景 */
+      /** 只跳过复仇 (避免死循环), 仍触发舍身/法家/集权等其他受伤技能. 用于复仇反弹/绝击/伤仇等场景 */
       skipFuChouOnly?: boolean
       /** 跳过舍身触发. 用于负荆主动掉血等"主动失去体力"场景 (按官方规则不应触发舍身) */
       skipSheShen?: boolean
