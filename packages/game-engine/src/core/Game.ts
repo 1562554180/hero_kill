@@ -1502,6 +1502,8 @@ export class Game {
       // 玉如意/国色: 判定, 红色视为闪 — 每次杀只判定一次
       if (dodgeCount < dodgeNeeded && await this.tryYuRuYiDodge(defender, '杀', attacker.getWeaponName())) {
         dodgeCount++
+        // 太极: 玉如意判定成功(红色视为闪)后也可立即反击
+        if (dodgeCount >= dodgeNeeded) await this.promptTaiJi(defender)
       }
       for (let i = 0; i < dodgeNeeded; i++) {
         if (dodgeCount >= dodgeNeeded) break
@@ -3335,7 +3337,7 @@ export class Game {
         }
         if (await this.checkDieHun(target, '万箭齐发')) continue
         // 玉如意/国色: 受到万箭齐发时也可判定, 红色视为闪
-        if (await this.tryYuRuYiDodge(target, '万箭齐发')) continue
+        if (await this.tryYuRuYiDodge(target, '万箭齐发')) { await this.promptTaiJi(target); continue }
         const dodgeCard = await this.promptAoeResponse(target, player.getId(), '万箭齐发', 'dodge')
         if (dodgeCard) {
           await this.emitAndSync({
@@ -3358,6 +3360,8 @@ export class Game {
             target.drawCards(drawn)
             this.emitSkillTrigger(target, '轻灵', '出闪后摸1张')
           }
+          // 太极: 万箭出闪后可立即对攻击范围内角色出1张杀
+          if (dodgeCard.name === '闪') await this.promptTaiJi(target)
         } else {
           let damage = 1
           if (wanJianBoost) damage += 1

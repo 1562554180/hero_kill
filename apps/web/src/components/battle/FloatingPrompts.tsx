@@ -38,6 +38,8 @@ export function FloatingPrompts() {
     chaoTuoPrompt, houZhuPrompt,
     ciKePrompt, qiangLuePrompt, yuRuYiPrompt, dieHunPrompt,
     xiaDanActive, xiaDanTargetName,
+    taiJiPrompt,
+    confirmTaiJi, cancelTaiJi,
     yuRenCardIds,
     selectedDualCards,
     shuCaiActive, shuCaiSelectedCardIds, shuCaiTargetId,
@@ -95,6 +97,8 @@ export function FloatingPrompts() {
     chaoTuoPrompt: s.chaoTuoPrompt, houZhuPrompt: s.houZhuPrompt,
     ciKePrompt: s.ciKePrompt, qiangLuePrompt: s.qiangLuePrompt, yuRuYiPrompt: s.yuRuYiPrompt, dieHunPrompt: s.dieHunPrompt,
     xiaDanActive: s.xiaDanActive, xiaDanTargetName: s.xiaDanTargetName,
+    taiJiPrompt: s.taiJiPrompt,
+    confirmTaiJi: s.confirmTaiJi, cancelTaiJi: s.cancelTaiJi,
     yuRenCardIds: s.yuRenCardIds,
     selectedDualCards: s.selectedDualCards,
     shuCaiActive: s.shuCaiActive, shuCaiSelectedCardIds: s.shuCaiSelectedCardIds, shuCaiTargetId: s.shuCaiTargetId,
@@ -176,7 +180,9 @@ export function FloatingPrompts() {
     || phase === 'selectKillMultiTargets'
     || (phase === 'qiYiPrompt' && !!qiYiDecision)
     || shuCaiActive
-  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, qiangLuePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, sheShenTriggerPrompt, buDaoPrompt, buDao3TriggerPrompt, dyingRescuePrompt, qiYiDecision, panLongGunPrompt, shuCaiActive])
+    || phase === 'taiJiConfirm'
+    || (phase === 'taiJi' && !!taiJiPrompt)
+  , [phase, pendingCardId, pendingCardType, xiaDanActive, treasureSkill, ciKePrompt, qiangLuePrompt, yuRuYiPrompt, dieHunPrompt, manWuRedHeartCards, manWuPrompt, tianXiangEquipment, tianXiangJudgeCard, zhenShaPrompt, sanBanFuPrompt, fuChouTriggerPrompt, fuChouChoosePrompt, sheShenTriggerPrompt, buDaoPrompt, buDao3TriggerPrompt, dyingRescuePrompt, qiYiDecision, panLongGunPrompt, shuCaiActive, taiJiPrompt])
 
   const killMultiCardId = useBattleStore(s => s.killMultiCardId)
   const [wolfFangPromptRect, setWolfFangPromptRect] = useState<{ left: number; top: number; width: number } | null>(null)
@@ -1139,6 +1145,54 @@ export function FloatingPrompts() {
               )}
 
               {/* 30. 起义 — Step 3: 抽牌 — 单独浮层, 见 BattleOverlays */}
+
+              {/* 30.5 太极 — 出闪后是否立即发动反击 */}
+              {phase === 'taiJiConfirm' && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'linear-gradient(135deg, rgba(120,80,200,0.18), rgba(60,40,140,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #9575cd',
+                  color: '#d1c4e9', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(120,80,200,0.4)',
+                }}>
+                  <span style={{ flex: 1 }}>
+                    ☯️ <b style={{ fontSize: '14px' }}>太极</b> — 出闪后立即反击, 是否发动?(可对攻击范围内1名角色使用1张【杀】)
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button style={treasureBtnStyle} onClick={cancelTaiJi}>不发动</button>
+                    <button className="primary" style={treasureBtnStyle} onClick={confirmTaiJi}>发动</button>
+                  </div>
+                </div>
+              )}
+
+              {/* 30.6 太极 — 选杀 + 选目标 (手牌点选 + 角色点选) */}
+              {phase === 'taiJi' && taiJiPrompt && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  width: '70%',
+                  margin: '0 auto',
+                  padding: '5px 8px',
+                  background: 'linear-gradient(135deg, rgba(120,80,200,0.18), rgba(60,40,140,0.18))',
+                  borderRadius: '6px',
+                  border: '2px solid #9575cd',
+                  color: '#d1c4e9', fontSize: '13px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px',
+                  boxShadow: '0 2px 12px rgba(120,80,200,0.4)',
+                }}>
+                  <span style={{ flex: 1 }}>
+                    ☯️ <b style={{ fontSize: '14px' }}>太极</b> —
+                    {taiJiPrompt.selectedCardId
+                      ? <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>请点选攻击范围内1名角色</span>
+                      : <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>请点选手牌选1张杀</span>}
+                  </span>
+                  <button style={treasureBtnStyle} onClick={cancelTaiJi}>不反击</button>
+                </div>
+              )}
 
               {/* 31. 疏财 — 选手牌 → 选英雄 → 确认 */}
               {shuCaiActive && (() => {

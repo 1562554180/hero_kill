@@ -209,7 +209,7 @@ class GameProxy {
 // 用 let gameRef: GameProxy | null 直接替换
 let gameRef: GameProxy | null = null
 
-export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenConfirm' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm' | 'selectFuChouDiscard' | 'dyingRescue' | 'chaoTuoPick' | 'houZhuTarget' | 'qiYiPrompt' | 'sheShenTrigger' | 'sheShenDistribute' | 'buDao3Trigger' | 'buDao3Give' | 'taiJi'
+export type BattlePhase = 'idle' | 'playing' | 'selectTarget' | 'waiting' | 'ended' | 'judgeReplace' | 'awaitingResponse' | 'selectMultiTargets' | 'selectKillMultiTargets' | 'selectDualCards' | 'selectLuYeQiangTarget' | 'longLinDisarm' | 'selectJieDaoHolder' | 'selectJieDaoTarget' | 'selectTanNangTarget' | 'selectTanNangCard' | 'selectWugu' | 'selectFudiTarget' | 'selectFudiCard' | 'selectFaJiaCard' | 'treasureSkill' | 'treasureSelectCard' | 'treasureSelect2Cards' | 'treasureSelectTarget' | 'treasureSelectTargets' | 'treasureSelectEquipment' | 'treasureSelectWeapon' | 'treasureSelectQiYiCards' | 'xiaDanPickCard' | 'selectDiscardCards' | 'selectBaWangMount' | 'tianXiang' | 'menShenConfirm' | 'menShenTarget' | 'jueBieTarget' | 'buDaoKill' | 'sanBanFuConfirm' | 'selectFuChouDiscard' | 'dyingRescue' | 'chaoTuoPick' | 'houZhuTarget' | 'qiYiPrompt' | 'sheShenTrigger' | 'sheShenDistribute' | 'buDao3Trigger' | 'buDao3Give' | 'taiJiConfirm' | 'taiJi'
 
 interface BattleState {
   gameState: GameState | null
@@ -548,6 +548,7 @@ interface BattleState {
   // 太极: 选杀牌 + 选目标 / 取消
   selectTaiJiKillCard: (cardId: string) => void
   selectTaiJiTarget: (targetId: string) => void
+  confirmTaiJi: () => void
   cancelTaiJi: () => void
   // 三板斧
   confirmSanBanFu: () => void
@@ -1492,7 +1493,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
           return { id: p.getId(), name: p.getName(), currentHp: p.getCurrentHp(), maxHp: p.getMaxHp() }
         })
         set({
-          phase: 'taiJi',
+          phase: 'taiJiConfirm',
           playerHand: [...ctx.killableCards],
           taiJiPrompt: {
             playerId: ctx.zhangSanFengId,
@@ -3210,12 +3211,18 @@ export const useBattleStore = create<BattleState>((set, get) => ({
     set({ resolveBuDao3Give: null, buDao3GivePrompt: null, phase: 'waiting' })
   },
 
-  // 太极: 选杀 / 选目标 / 取消
+  // 太极: 确认发动 / 选杀 / 选目标 / 取消
+  confirmTaiJi: () => {
+    const { phase } = get()
+    if (phase !== 'taiJiConfirm') return
+    set({ phase: 'taiJi' })
+  },
   selectTaiJiKillCard: (cardId: string) => {
-    const { taiJiPrompt } = get()
-    if (!taiJiPrompt) return
+    const { taiJiPrompt, phase } = get()
+    if (!taiJiPrompt || phase !== 'taiJi') return
     if (!taiJiPrompt.killableCards.find(c => c.id === cardId)) return
-    set({ taiJiPrompt: { ...taiJiPrompt, selectedCardId: cardId } })
+    // 再次点击已选牌 = 取消选中
+    set({ taiJiPrompt: { ...taiJiPrompt, selectedCardId: taiJiPrompt.selectedCardId === cardId ? null : cardId } })
   },
   selectTaiJiTarget: (targetId: string) => {
     const { taiJiPrompt, resolveTaiJi } = get()

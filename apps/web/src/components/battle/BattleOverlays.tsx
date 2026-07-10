@@ -55,10 +55,6 @@ export function BattleOverlays() {
     playerJueJiSelf: st.playerJueJiSelf,
     selectBuDao3Card: st.selectBuDao3Card,
     cancelBuDao3Give: st.cancelBuDao3Give,
-    taiJiPrompt: st.taiJiPrompt,
-    selectTaiJiKillCard: st.selectTaiJiKillCard,
-    selectTaiJiTarget: st.selectTaiJiTarget,
-    cancelTaiJi: st.cancelTaiJi,
   })))
 
   const {
@@ -68,7 +64,7 @@ export function BattleOverlays() {
     wuguCandidates, wuguPicks, wuguTotalPickers, tanNangTargetInfo, fudiTargetInfo, faJiaTargetInfo,
     sheShenPrompt, sheShenSelectedCardIds, sheShenDistribution,
     result, lastJudgeResult,
-    buDao3GivePrompt, taiJiPrompt,
+    buDao3GivePrompt,
     cancelTreasureSkill, confirmTreasureTargets, pickQiYiCard, skipQiYiCurrentTarget, cancelQiYiCards,
     pickQiYiDecisionCard,
     toggleLongLinCard, confirmLongLinPick, cancelLongLinPick,
@@ -76,7 +72,6 @@ export function BattleOverlays() {
     toggleSheShenCard, assignSheShenCard, unassignSheShenCard, finishSheShen,
     playerJueJiSelf,
     selectBuDao3Card, cancelBuDao3Give,
-    selectTaiJiKillCard, selectTaiJiTarget, cancelTaiJi,
   } = s
 
   return (
@@ -809,50 +804,6 @@ export function BattleOverlays() {
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <button onClick={cancelBuDao3Give} style={{ fontSize: '12px', padding: '4px 12px' }}>
               全部留给自己 (取消)
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 太极 (张三丰) 出闪后立即反击 — 选杀 + 选目标 (无遮罩, 类似布道给牌风格) */}
-      {phase === 'taiJi' && taiJiPrompt && (
-        <div style={{
-          position: 'fixed', top: 'calc(12% + 30px)', left: '50%', transform: 'translateX(-50%)',
-          zIndex: 80,
-          background: 'var(--bg-medium)', border: '2px solid #ffd54f',
-          borderRadius: '12px', padding: '16px 20px', minWidth: '420px', maxWidth: '720px',
-        }}>
-          <h2 style={{ color: '#ffd54f', fontSize: '18px', marginBottom: '8px', textAlign: 'center' }}>
-            ☯️ 太极 — 出闪后立即反击 (选1张杀 + 攻击范围内目标)
-          </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '12px', textAlign: 'center' }}>
-            {taiJiPrompt.selectedCardId ? '已选杀, 点击场上攻击范围内的角色' : '点击下方手牌选中一张当杀'}
-          </p>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '12px' }}>
-            {taiJiPrompt.killableCards.map(card => {
-              const isSelected = taiJiPrompt.selectedCardId === card.id
-              return (
-                <div
-                  key={card.id}
-                  onClick={() => selectTaiJiKillCard(card.id)}
-                  style={{
-                    cursor: 'pointer',
-                    position: 'relative',
-                    outline: isSelected ? '3px solid #ffd54f' : 'none',
-                    borderRadius: '4px',
-                    boxShadow: isSelected ? '0 0 12px rgba(255,213,79,0.7)' : 'none',
-                    transition: 'outline 0.15s, box-shadow 0.15s',
-                  }}
-                  title={isSelected ? '已选中, 点击角色出杀' : '点击选中'}
-                >
-                  <HandCard card={card} disabled={true} canPlayKill={false} isFullHp={true} aoJianActive={false} hasHongZhuang={false} huiChunAvailable={false} onPlayKill={noop} onPlayHeal={noop} onEquip={noop} />
-                </div>
-              )
-            })}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <button onClick={cancelTaiJi} style={{ fontSize: '12px', padding: '4px 12px' }}>
-              不反击 (取消)
             </button>
           </div>
         </div>

@@ -276,7 +276,7 @@ export const heroes: Hero[] = [
     description: '太极宗师，以柔克刚',
     skills: [
       { id: 'bu-dao', name: '布道', type: 'active', description: '摸牌阶段，你可以摸3张牌，然后将其中1张交给任意一名角色' },
-      { id: 'tai-ji', name: '太极', type: 'active', description: '每出1张【闪】后，可立即对攻击范围内的1名角色使用1张【杀】' },
+      { id: 'tai-ji', name: '太极', type: 'active', description: '每使用或打出1张【闪】(玉如意判定成功的红色也视为闪)后，可对攻击范围内的1名角色使用1张【杀】' },
     ],
   },
   {
