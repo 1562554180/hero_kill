@@ -749,21 +749,20 @@ export function BattleOverlays() {
             {lastJudgeResult.judgeHeroName && `【${lastJudgeResult.judgeHeroName}】 `}
             {lastJudgeResult.judgeCardName ? `判定【${lastJudgeResult.judgeCardName}】` : '判定结果'}
           </div>
-          <div style={{
-            background: 'var(--bg-dark)', color: 'var(--text-light)',
-            padding: '14px 22px', borderRadius: '10px',
-            border: '3px solid #ffd700', boxShadow: '0 0 24px rgba(255,215,0,0.5), 0 4px 16px rgba(0,0,0,0.6)',
-            fontSize: '20px', fontWeight: 'bold',
-            display: 'flex', alignItems: 'center', gap: '12px',
-            minWidth: '160px', justifyContent: 'center',
-          }}>
-            <span style={{ color: lastJudgeResult.resultCard.suit === 'spade' || lastJudgeResult.resultCard.suit === 'club' ? '#fff' : '#e57373', fontSize: '28px' }}>
-              {({ spade: '♠', heart: '♥', diamond: '♦', club: '♣' } as any)[lastJudgeResult.resultCard.suit] ?? ''}
-            </span>
-            <span>{lastJudgeResult.resultCard.name}</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '16px' }}>
-              {lastJudgeResult.resultCard.number > 13 ? '' : lastJudgeResult.resultCard.number === 1 ? 'A' : lastJudgeResult.resultCard.number > 10 ? ['J','Q','K'][lastJudgeResult.resultCard.number - 11] : lastJudgeResult.resultCard.number}
-            </span>
+          <div>
+            <HandCard
+              card={lastJudgeResult.resultCard}
+              disabled={true}
+              canPlayKill={false}
+              isFullHp={true}
+              aoJianActive={false}
+              hasHongZhuang={false}
+              huiChunAvailable={false}
+              isHandCardSelect={true}
+              onPlayKill={noop}
+              onPlayHeal={noop}
+              onEquip={noop}
+            />
           </div>
         </div>
       )}

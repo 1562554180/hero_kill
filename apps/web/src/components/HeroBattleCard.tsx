@@ -131,18 +131,27 @@ function HeroBattleCardInner({ hero, isCurrentTurn, isSelectable, isSelected, di
               : 'none',
       }}
     >
-      {/* 判定区动画图标 (右上角): 手捧雷(引线闪)+ 画地为牢(锁开合) */}
+      {/* 判定区动画图标 (右上角): 手捧雷(引线闪)+ 画地为牢(锁开合) + 门神保护 */}
       {(() => {
         const status = judgeStatus
         const hasThunder = status?.hasThunder ?? false
         const hasImprisoned = status?.hasImprisoned ?? false
-        if (!hasThunder && !hasImprisoned) return null
+        const hasMenShen = status?.hasMenShenProtection ?? false
+        if (!hasThunder && !hasImprisoned && !hasMenShen) return null
         return (
           <div style={{
             position: 'absolute', top: '2px', right: '2px',
             display: 'flex', flexDirection: 'column', gap: '3px',
             zIndex: 5, pointerEvents: 'none',
           }}>
+            {hasMenShen && (
+              <div title="门神保护中" style={{
+                width: '22px', height: '22px', borderRadius: '4px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(30,20,10,0.75)', border: '1px solid #daa520',
+                fontSize: '14px', lineHeight: 1,
+              }}>🚪</div>
+            )}
             {hasThunder && (
               <svg viewBox="0 0 24 24" width="22" height="22">
                 {/* 手雷身 (深灰椭圆) */}

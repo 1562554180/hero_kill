@@ -2,6 +2,10 @@ import React, { Suspense, lazy } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './styles/global.css'
+import { installApiInterceptor } from './lib/apiInterceptor'
+
+// 全局拦截 401: 登录超时/会话失效时统一跳登录页 (须在任何 fetch 前安装)
+installApiInterceptor()
 
 // 路由懒加载: 每个页面单独 chunk, 首屏只加载当前路由
 const MainPage = lazy(() => import('./pages/MainPage').then(m => ({ default: m.MainPage })))

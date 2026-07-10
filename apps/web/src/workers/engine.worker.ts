@@ -18,7 +18,7 @@ import type {
   JieDaoTargetCtx, JieDaoAttackTargetCtx, WuguPickCtx, MultiTargetCtx, DualCardCtx,
   LuYeQiangTargetCtx, LongLinPickCtx, BoLangChuiCtx, FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx,
   BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx, HouZhuCtx, TianXiangCtx, ManWuPickCardCtx,
-  ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx, ZhenShaCtx, JueBieCtx, BuDaoCtx, BuDao3Ctx,
+  ManWuCtx, JueJiCtx, MenShenTargetCtx, MenShenConfirmCtx, SanBanFuCtx, ZhenShaCtx, JueBieCtx, BuDaoCtx, BuDao3Ctx,
   FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
   SheShenCtx, SheShenTriggerCtx, PanLongGunCtx, TaiJiCtx,
 } from '@hero-legend/game-engine'
@@ -177,6 +177,7 @@ function buildWrappedConfig(config: SerializedGameConfig): GameConfig {
   wrapped.manWuPickCardHandler = (ctx: ManWuPickCardCtx) => forwardHandler('manWuPickCardHandler', ctx)
   wrapped.manWuHandler = (ctx: ManWuCtx) => forwardHandler('manWuHandler', ctx)
   wrapped.jueJiHandler = (ctx: JueJiCtx) => forwardHandler('jueJiHandler', ctx)
+  wrapped.menShenConfirmHandler = (ctx: MenShenConfirmCtx) => forwardHandler('menShenConfirmHandler', ctx)
   wrapped.menShenTargetHandler = (ctx: MenShenTargetCtx) => forwardHandler('menShenTargetHandler', ctx)
   wrapped.sanBanFuHandler = (ctx: SanBanFuCtx) => forwardHandler('sanBanFuHandler', ctx)
   wrapped.zhenShaHandler = (ctx: ZhenShaCtx) => forwardHandler('zhenShaHandler', ctx)

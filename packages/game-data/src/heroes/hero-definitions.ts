@@ -118,7 +118,7 @@ export const heroes: Hero[] = [
     description: '门神，忠义无双',
     skills: [
       { id: 'fan-ji', name: '反击', type: 'passive', description: '被【杀】或【决斗】损血后，可立即对伤害来源打出一张【杀】（红色不可回避）', triggerEvent: 'damage:receive' },
-      { id: 'men-shen', name: '门神', type: 'passive', description: '回合结束可指定一目标，直到下回合开始，对该目标的【杀】和【决斗】均视为对你打出', triggerEvent: 'turn:end' },
+      { id: 'men-shen', name: '门神', type: 'passive', description: '出牌阶段结束可指定一目标，直到你下回合开始，对该目标的【杀】和【决斗】均视为对你打出', triggerEvent: 'phase:end' },
     ],
   },
   {

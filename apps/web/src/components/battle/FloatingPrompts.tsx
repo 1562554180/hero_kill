@@ -54,6 +54,7 @@ export function FloatingPrompts() {
     confirmDieHun, cancelDieHun,
     selectManWuCard, selectManWuTarget, confirmManWuCard, cancelManWu,
     selectTianXiangCard,
+    confirmMenShen, cancelMenShenConfirm,
     selectMenShenTarget, cancelMenShenTarget,
     selectJueBieTarget, cancelJueBieTarget,
     confirmZhenSha, cancelZhenSha,
@@ -110,6 +111,7 @@ export function FloatingPrompts() {
     confirmDieHun: s.confirmDieHun, cancelDieHun: s.cancelDieHun,
     selectManWuCard: s.selectManWuCard, selectManWuTarget: s.selectManWuTarget, confirmManWuCard: s.confirmManWuCard, cancelManWu: s.cancelManWu,
     selectTianXiangCard: s.selectTianXiangCard,
+    confirmMenShen: s.confirmMenShen, cancelMenShenConfirm: s.cancelMenShenConfirm,
     selectMenShenTarget: s.selectMenShenTarget, cancelMenShenTarget: s.cancelMenShenTarget,
     selectJueBieTarget: s.selectJueBieTarget, cancelJueBieTarget: s.cancelJueBieTarget,
     confirmZhenSha: s.confirmZhenSha, cancelZhenSha: s.cancelZhenSha,
@@ -665,7 +667,24 @@ export function FloatingPrompts() {
                 </div>
               )}
 
-              {/* 17. 门神 — 秦琼回合结束选保护目标 */}
+              {/* 17a. 门神 — 出牌阶段结束询问是否发动 */}
+              {phase === 'menShenConfirm' && (
+                <div style={{
+                  pointerEvents: 'auto',
+                  padding: '8px 12px',
+                  background: 'rgba(99,179,237,0.12)', borderRadius: '4px',
+                  border: '1px solid rgba(99,179,237,0.3)',
+                  color: '#90caf9', fontSize: '12px',
+                }}>
+                  <div style={{ marginBottom: '6px' }}>🚪 门神 — 是否发动？指定1名角色，到你下回合开始前对其的【杀】/【决斗】将转移给你</div>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <button style={treasureBtnStyle} onClick={confirmMenShen}>发动</button>
+                    <button style={treasureBtnStyle} onClick={cancelMenShenConfirm}>不发动</button>
+                  </div>
+                </div>
+              )}
+
+              {/* 17b. 门神 — 出牌阶段结束选保护目标 */}
               {phase === 'menShenTarget' && (
                 <div style={{
                   pointerEvents: 'auto',
@@ -674,7 +693,7 @@ export function FloatingPrompts() {
                   border: '1px solid rgba(99,179,237,0.3)',
                   color: '#90caf9', fontSize: '12px',
                 }}>
-                  <div style={{ marginBottom: '6px' }}>🚪 门神 — 回合结束可指定1个目标，到下回合开始前对其的【杀】/【决斗】将转移给你</div>
+                  <div style={{ marginBottom: '6px' }}>🚪 门神 — 选择1个保护目标，到你下回合开始前对其的【杀】/【决斗】将转移给你</div>
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     {menShenCandidates.map(c => (
                       <button key={c.id} style={treasureBtnStyle} onClick={() => selectMenShenTarget(c.id)}>

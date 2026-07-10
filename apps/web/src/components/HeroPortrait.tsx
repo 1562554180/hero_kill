@@ -2,13 +2,19 @@ import { memo } from 'react'
 import type { BattleHero } from '@hero-legend/shared-types'
 import { HERO_NAME_TO_ID as NAME_TO_ID } from '../heroPortraitNames'
 
-// 自动扫 images/ 下所有 JPG, 按文件名匹配 hero ID
-const portraitModules = import.meta.glob('../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
+// 自动扫 images/ 下所有 JPG, 按文件名匹配 hero ID; 根目录缺失时 fallback 到 avatars/
+const rootModules = import.meta.glob('../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
+const avatarModules = import.meta.glob('../images/avatars/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
 const HERO_PORTRAIT_IMAGES: Record<string, string> = {}
-for (const [path, url] of Object.entries(portraitModules)) {
+for (const [path, url] of Object.entries(rootModules)) {
   const filename = path.replace('../images/', '').replace('.jpg', '')
   const heroId = NAME_TO_ID[filename]
   if (heroId) HERO_PORTRAIT_IMAGES[heroId] = url
+}
+for (const [path, url] of Object.entries(avatarModules)) {
+  const filename = path.replace('../images/avatars/', '').replace('.jpg', '')
+  const heroId = NAME_TO_ID[filename]
+  if (heroId && !HERO_PORTRAIT_IMAGES[heroId]) HERO_PORTRAIT_IMAGES[heroId] = url
 }
 
 interface Props {

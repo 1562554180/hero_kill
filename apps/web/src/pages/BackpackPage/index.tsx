@@ -7,12 +7,18 @@ import { HERO_NAME_TO_ID as NAME_TO_ID } from '../../heroPortraitNames'
 
 const API = '/api'
 
-const portraitModules = import.meta.glob('../../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
+const rootModules = import.meta.glob('../../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
+const avatarModules = import.meta.glob('../../images/avatars/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
 const HERO_PORTRAITS: Record<string, string> = {}
-for (const [path, url] of Object.entries(portraitModules)) {
+for (const [path, url] of Object.entries(rootModules)) {
   const filename = path.replace('../../images/', '').replace('.jpg', '')
   const heroId = NAME_TO_ID[filename]
   if (heroId) HERO_PORTRAITS[heroId] = url
+}
+for (const [path, url] of Object.entries(avatarModules)) {
+  const filename = path.replace('../../images/avatars/', '').replace('.jpg', '')
+  const heroId = NAME_TO_ID[filename]
+  if (heroId && !HERO_PORTRAITS[heroId]) HERO_PORTRAITS[heroId] = url
 }
 
 type Tab = 'stones' | 'tickets' | 'treasures' | 'materials'
@@ -38,6 +44,9 @@ const MAT_LABEL: Record<string, string> = {
 const SLOT_LABEL: Record<string, string> = { main: '主印槽', sub: '辅印槽' }
 
 const TREASURE_PAGE_SIZE = 48
+
+/** 星级 → 罗马数字 (辅印 tooltip 显示) */
+const ROMAN_STAR: Record<number, string> = { 1: 'Ⅰ', 2: 'Ⅱ', 3: 'Ⅲ', 4: 'Ⅳ', 5: 'Ⅴ' }
 
 // 星级 → 边框色
 const STAR_BORDER: Record<number, string> = {
@@ -116,6 +125,46 @@ export function BackpackPage() {
       return (b.starLevel ?? 0) - (a.starLevel ?? 0)
     })
   }, [treasures])
+
+  /**
+   * 宝具合并展示分组:
+   * - 主印: 同 (type,name,star) 总是合并 → icon × n
+   * - 辅印: 仅当全部 level=0 时才合并, 否则单独展示 (避免混淆未强化与强化过的)
+   */
+  type TreasureGroup = {
+    key: string
+    type: 'main' | 'sub'
+    name: string
+    starLevel: number
+    items: Treasure[]
+    totalCount: number
+    merged: boolean
+  }
+  const groupedTreasures = useMemo<TreasureGroup[]>(() => {
+    const map = new Map<string, TreasureGroup>()
+    for (const t of sortedTreasures) {
+      const key = `${t.type}|${t.name}|${t.starLevel ?? 0}`
+      const existing = map.get(key)
+      if (existing) {
+        existing.items.push(t)
+        existing.totalCount += (t.count ?? 1)
+      } else {
+        map.set(key, {
+          key,
+          type: t.type as 'main' | 'sub',
+          name: t.name,
+          starLevel: t.starLevel ?? 0,
+          items: [t],
+          totalCount: t.count ?? 1,
+          merged: false,
+        })
+      }
+    }
+    for (const g of map.values()) {
+      g.merged = g.type === 'main' || g.items.every(it => (it.level ?? 0) === 0)
+    }
+    return Array.from(map.values())
+  }, [sortedTreasures])
 
   // 宝具 → 装备它的英雄 (一个宝具同时只能被一个英雄装备, 因 id 唯一)
   const equippedMap = useMemo(() => {
@@ -343,30 +392,34 @@ export function BackpackPage() {
               </button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(52px, 1fr))', columnGap: '4px', rowGap: '16px' }}>
-              {sortedTreasures.slice(treasurePage * TREASURE_PAGE_SIZE, (treasurePage + 1) * TREASURE_PAGE_SIZE).map(t => {
-                const n = t.count ?? 1
-                const equipped = equippedMap.get(t.id)
+              {groupedTreasures.slice(treasurePage * TREASURE_PAGE_SIZE, (treasurePage + 1) * TREASURE_PAGE_SIZE).map(g => {
+                const rep = g.items[0]  // 代表实例 (合并时所有项同 (name,star,type), 单项时即本身)
+                const n = g.totalCount
+                const equipped = g.items.map(it => equippedMap.get(it.id)).find(Boolean) ?? null
                 const equippedHeroName = equipped
                   ? heroMap.get(equipped.heroId)?.name ?? equipped.heroId
                   : null
-                const lvl = t.level ?? 0
-                const cnt = t.enhanceCount ?? 0
+                const lvl = rep.level ?? 0
+                const cnt = rep.enhanceCount ?? 0
                 const atMaxLevel = lvl >= MAX_LEVEL
-                const isSub = t.type === 'sub'
+                const isSub = g.type === 'sub'
                 const rate = isSub && !atMaxLevel ? nextEnhanceRate(lvl) : null
                 const rateColor = rate == null ? '#ff6b6b'
                   : rate >= 80 ? '#7ec850'
                   : rate >= 50 ? 'var(--text-gold)'
                   : rate >= 20 ? '#ff9e3a'
                   : '#ff6b6b'
-                const icon = getSkillIcon(t.skill?.name ?? t.name)
+                const icon = getSkillIcon(rep.skill?.name ?? g.name)
                 const isEquipped = !!equipped
-                const borderColor = isEquipped ? '#ff6b6b' : (STAR_BORDER[t.starLevel] ?? 'var(--border-wood)')
+                const borderColor = isEquipped ? '#ff6b6b' : (STAR_BORDER[g.starLevel] ?? 'var(--border-wood)')
+                const displayName = isSub
+                  ? `${g.name} ${ROMAN_STAR[g.starLevel] ?? g.starLevel}`
+                  : g.name
                 return (
                   <div
-                    key={t.id}
+                    key={g.key}
                     className="treasure-cell"
-                    onDoubleClick={() => openSingleDecompose(t.id)}
+                    onDoubleClick={() => openSingleDecompose(rep.id)}
                     title="双击分解"
                     style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: busy ? 'not-allowed' : 'pointer' }}
                   >
@@ -387,9 +440,9 @@ export function BackpackPage() {
                         <div style={{
                           position: 'absolute', inset: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)',
+                          color: rep.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)',
                           fontSize: '20px', fontWeight: 'bold',
-                        }}>{t.name?.[0] ?? '?'}</div>
+                        }}>{g.name?.[0] ?? '?'}</div>
                       )}
                       {/* 数量角标 */}
                       {n > 1 && (
@@ -414,15 +467,17 @@ export function BackpackPage() {
                       boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span style={{ color: t.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)', fontWeight: 'bold', fontSize: '13px' }}>
-                          {t.name}{n > 1 && <span style={{ color: 'var(--text-muted)', marginLeft: '4px' }}>×{n}</span>}
+                        <span style={{ color: rep.type === 'main' ? 'var(--text-gold)' : 'var(--color-blue)', fontWeight: 'bold', fontSize: '13px' }}>
+                          {displayName}{n > 1 && <span style={{ color: 'var(--text-muted)', marginLeft: '4px' }}>×{n}</span>}
                         </span>
-                        <span style={{ color: 'var(--text-gold)', fontSize: '11px' }}>
-                          {'★'.repeat(t.starLevel)}
-                        </span>
+                        {!isSub && (
+                          <span style={{ color: 'var(--text-gold)', fontSize: '11px' }}>
+                            {'★'.repeat(g.starLevel)}
+                          </span>
+                        )}
                       </div>
                       <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginBottom: '4px' }}>
-                        {t.type === 'main' ? '主印' : '辅印'} | 触发率: {Math.round(t.triggerRate * 100)}%
+                        {rep.type === 'main' ? '主印' : '辅印'} | 触发率: {Math.round(rep.triggerRate * 100)}%
                       </div>
                       {isSub && (
                         <div style={{ display: 'flex', gap: '10px', fontSize: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
@@ -447,7 +502,7 @@ export function BackpackPage() {
                           : '未装备'}
                       </div>
                       <div style={{ color: 'var(--text-light)', fontSize: '11px', lineHeight: 1.4 }}>
-                        {t.skill?.description ?? ''}
+                        {rep.skill?.description ?? ''}
                       </div>
                     </div>
                   </div>
@@ -455,7 +510,7 @@ export function BackpackPage() {
               })}
             </div>
             {(() => {
-              const totalPages = Math.ceil(treasures.length / TREASURE_PAGE_SIZE)
+              const totalPages = Math.ceil(groupedTreasures.length / TREASURE_PAGE_SIZE)
               if (totalPages <= 1) return null
               return (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '12px' }}>

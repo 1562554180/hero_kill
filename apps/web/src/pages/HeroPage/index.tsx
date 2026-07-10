@@ -5,11 +5,16 @@ import { getSkillIcon } from '../../skillIcons'
 import { HERO_NAME_TO_ID as NAME_TO_ID } from '../../heroPortraitNames'
 import { BanishConfirmModal } from '../../components/BanishConfirmModal'
 
-const portraitModules = import.meta.glob('../../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
+const rootModules = import.meta.glob('../../images/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
+const avatarModules = import.meta.glob('../../images/avatars/*.jpg', { eager: true, import: 'default' }) as Record<string, string>
 const HERO_PORTRAITS_BY_NAME: Record<string, string> = {}
-for (const [path, url] of Object.entries(portraitModules)) {
+for (const [path, url] of Object.entries(rootModules)) {
   const filename = path.replace('../../images/', '').replace('.jpg', '')
   HERO_PORTRAITS_BY_NAME[filename] = url
+}
+for (const [path, url] of Object.entries(avatarModules)) {
+  const filename = path.replace('../../images/avatars/', '').replace('.jpg', '')
+  if (!HERO_PORTRAITS_BY_NAME[filename]) HERO_PORTRAITS_BY_NAME[filename] = url
 }
 // 同时按 heroId 索引 (兼容旧代码)
 const HERO_PORTRAITS: Record<string, string> = {}
@@ -409,7 +414,7 @@ export function HeroPage() {
               {activeSlot && (() => {
                 const candidates = inventory.filter(t => t.type === activeSlot.slotType)
                 const heroStar = selectedInstance.starLevel ?? 1
-                const PAGE_SIZE = 20
+                const PAGE_SIZE = 40
                 const totalPages = Math.ceil(candidates.length / PAGE_SIZE)
                 const safePage = Math.min(equipPage, Math.max(0, totalPages - 1))
                 const pageItems = candidates.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)

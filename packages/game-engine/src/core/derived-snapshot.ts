@@ -78,8 +78,8 @@ export interface DerivedSnapshot {
   /** 玩家手牌中所有"可当杀使用"的 cardId (含杀本身 + 红色牌[傲剑] + 装备[傲剑] + 拼点[武穆] 等).
    *  用于补刀 buDaoKill 阶段判定手牌是否可当杀出 (替代 game.canPlayerUseAsKill). */
   validKillCardIds: string[]
-  /** 每个角色判定区状态: hasThunder=有手捧雷, hasImprisoned=有画地为牢 (HeroBattleCard 判定动画用). */
-  heroJudgeStatus: Record<string, { hasThunder: boolean; hasImprisoned: boolean }>
+  /** 每个角色判定区状态: hasThunder=有手捧雷, hasImprisoned=有画地为牢, hasMenShenProtection=被门神保护中 (HeroBattleCard 右上角标记用). */
+  heroJudgeStatus: Record<string, { hasThunder: boolean; hasImprisoned: boolean; hasMenShenProtection: boolean }>
   /** 每个非玩家角色的手牌 (DEBUG_SHOW_AI_HAND 用, 生产环境可忽略). 玩家本身不在 map 里. */
   enemyHandsByHeroId: Record<string, Card[]>
 }
