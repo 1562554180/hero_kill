@@ -17,6 +17,8 @@ export interface TreasureDefinition {
     rangeBonus?: number
     handBonus?: number
   }
+  /** 被动生效（不参与概率触发，每次都视为触发） */
+  passive?: boolean
 }
 
 // 主印：英雄专属技能，100%触发
@@ -107,6 +109,14 @@ export const treasureDefinitions: TreasureDefinition[] = [
   { id: 'treasure-sha-zhi-xie-4', name: '杀之卸·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 30% 几率弃置目标一张装备牌。', baseTriggerRate: 0.30, starLevel: 4, category: '攻击' },
   { id: 'treasure-sha-zhi-xie-5', name: '杀之卸·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 35% 几率弃置目标一张装备牌。', baseTriggerRate: 0.35, starLevel: 5, category: '攻击' },
 
+  // ===== 辅印 - 破咒 (攻击类) =====
+  // 你使用【杀】造成伤害后，目标本次伤害的防御型辅印失效（每个目标辅印独立判定）
+  { id: 'treasure-po-zhou', name: '破咒', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 15% 几率令目标本次伤害的防御型辅印失效。', baseTriggerRate: 0.15, starLevel: 1, category: '攻击' },
+  { id: 'treasure-po-zhou-2', name: '破咒·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 20% 几率令目标本次伤害的防御型辅印失效。', baseTriggerRate: 0.20, starLevel: 2, category: '攻击' },
+  { id: 'treasure-po-zhou-3', name: '破咒·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 25% 几率令目标本次伤害的防御型辅印失效。', baseTriggerRate: 0.25, starLevel: 3, category: '攻击' },
+  { id: 'treasure-po-zhou-4', name: '破咒·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 30% 几率令目标本次伤害的防御型辅印失效。', baseTriggerRate: 0.30, starLevel: 4, category: '攻击' },
+  { id: 'treasure-po-zhou-5', name: '破咒·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【杀】造成伤害后，基础 35% 几率令目标本次伤害的防御型辅印失效。', baseTriggerRate: 0.35, starLevel: 5, category: '攻击' },
+
   // ===== 辅印 - 防御类 =====
   { id: 'treasure-shang-zhi-chou', name: '伤之仇', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 15% 几率令伤害来源受到1点伤害。', baseTriggerRate: 0.15, starLevel: 1, category: '防御' },
   { id: 'treasure-shang-zhi-chou-2', name: '伤之仇·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 20% 几率令伤害来源受到1点伤害。', baseTriggerRate: 0.20, starLevel: 2, category: '防御' },
@@ -174,6 +184,14 @@ export const treasureDefinitions: TreasureDefinition[] = [
   { id: 'treasure-shang-zhi-xue-4', name: '伤之削·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 30% 几率弃置伤害来源一张手牌。', baseTriggerRate: 0.30, starLevel: 4, category: '防御' },
   { id: 'treasure-shang-zhi-xue-5', name: '伤之削·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你受到【杀】的伤害后，基础 35% 几率弃置伤害来源一张手牌。', baseTriggerRate: 0.35, starLevel: 5, category: '防御' },
 
+  // ===== 辅印 - 护盾 (防御类) =====
+  // 游戏开始时获得护盾，可抵消最多 N 点伤害（N = 星级，1★→1, 5★→5）
+  { id: 'treasure-hu-dun', name: '护盾', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '游戏开始时，你获得 1 点护盾，可抵消最多 1 点伤害。', baseTriggerRate: 0, starLevel: 1, category: '防御', passive: true },
+  { id: 'treasure-hu-dun-2', name: '护盾·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '游戏开始时，你获得 2 点护盾，可抵消最多 2 点伤害。', baseTriggerRate: 0, starLevel: 2, category: '防御', passive: true },
+  { id: 'treasure-hu-dun-3', name: '护盾·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '游戏开始时，你获得 3 点护盾，可抵消最多 3 点伤害。', baseTriggerRate: 0, starLevel: 3, category: '防御', passive: true },
+  { id: 'treasure-hu-dun-4', name: '护盾·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '游戏开始时，你获得 4 点护盾，可抵消最多 4 点伤害。', baseTriggerRate: 0, starLevel: 4, category: '防御', passive: true },
+  { id: 'treasure-hu-dun-5', name: '护盾·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '游戏开始时，你获得 5 点护盾，可抵消最多 5 点伤害。', baseTriggerRate: 0, starLevel: 5, category: '防御', passive: true },
+
   // ===== 辅印 - 锦囊类 =====
   { id: 'treasure-tan-shou', name: '贪手', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '摸牌阶段开始时，基础 15% 几率额外摸一张牌。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
   { id: 'treasure-tan-shou-2', name: '贪手·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '摸牌阶段开始时，基础 20% 几率额外摸一张牌。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
@@ -216,6 +234,14 @@ export const treasureDefinitions: TreasureDefinition[] = [
   { id: 'treasure-wu-xie-3', name: '无懈·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无懈可击】时，基础 25% 几率摸一张牌。', baseTriggerRate: 0.25, starLevel: 3, category: '锦囊' },
   { id: 'treasure-wu-xie-4', name: '无懈·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无懈可击】时，基础 30% 几率摸一张牌。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
   { id: 'treasure-wu-xie-5', name: '无懈·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你使用【无懈可击】时，基础 35% 几率摸一张牌。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
+
+  // ===== 辅印 - 饕餮 (锦囊类) =====
+  // 你的回合结束时，基础 X% 几率本回合弃牌阶段手牌上限变为 20（下个回合恢复）
+  { id: 'treasure-tao-tie', name: '饕餮', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你的回合结束时，基础 15% 几率本回合弃牌阶段手牌上限变为 20。', baseTriggerRate: 0.15, starLevel: 1, category: '锦囊' },
+  { id: 'treasure-tao-tie-2', name: '饕餮·贰', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你的回合结束时，基础 20% 几率本回合弃牌阶段手牌上限变为 20。', baseTriggerRate: 0.20, starLevel: 2, category: '锦囊' },
+  { id: 'treasure-tao-tie-3', name: '饕餮·叁', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你的回合结束时，基础 25% 几率本回合弃牌阶段手牌上限变为 20。', baseTriggerRate: 0.25, starLevel: 3, category: '锦囊' },
+  { id: 'treasure-tao-tie-4', name: '饕餮·肆', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你的回合结束时，基础 30% 几率本回合弃牌阶段手牌上限变为 20。', baseTriggerRate: 0.30, starLevel: 4, category: '锦囊' },
+  { id: 'treasure-tao-tie-5', name: '饕餮·伍', sourceHeroId: null, sourceSkillId: null, type: 'sub', description: '你的回合结束时，基础 35% 几率本回合弃牌阶段手牌上限变为 20。', baseTriggerRate: 0.35, starLevel: 5, category: '锦囊' },
 ]
 
 export function getTreasureDefinitionById(id: string): TreasureDefinition | undefined {

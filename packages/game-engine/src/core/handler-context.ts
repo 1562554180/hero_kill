@@ -237,3 +237,45 @@ export interface SheShenTriggerCtx {
   victimId: string
   damage: number
 }
+
+/** 噬心: 妲己受伤后选是否发动 + 选弃哪张牌 (返回 cardId=弃该牌发动; null=不发动) */
+export interface ShiXinTriggerCtx {
+  victimId: string
+  attackerId: string
+  damage: number
+  options: { hand: Card[]; equipment: Card[] }
+}
+
+/** 神断: 包拯判定时选是否发动 + 选改成哪个花色 (返回 'spade'|'heart'|'club'|'diamond' = 改成的花色; null=不发动) */
+export interface ShenDuanCtx {
+  baoZhengId: string
+  judgeCard: Card
+  judgeHeroId: string
+}
+
+/** 布道: 张三丰摸牌阶段是否发动 + 摸3张后选给谁哪张牌 */
+export interface BuDao3Ctx {
+  zhangSanFengId: string
+  candidateIds: string[]
+  /** 摸到的3张牌 (待分配的) */
+  drawn: Card[]
+}
+
+/** 太极: 张三丰打出闪后, 是否立即对攻击范围内角色出杀 + 选目标 (返回 cardId=出该杀; null=不发动) */
+export interface TaiJiCtx {
+  zhangSanFengId: string
+  /** 攻击范围内可出杀的目标 */
+  candidateIds: string[]
+  /** 手牌中可作杀的牌 (含 闪/红桃牌等) */
+  killableCards: Card[]
+}
+
+/** 词赋: 东方朔回合开始阶段判定后, 选分配 (黑: 给某角色; 红: 放牌堆顶/底) */
+export interface CiFuCtx {
+  dongFangSuoId: string
+  /** 判定牌的副本 (实际处理时由引擎结算) */
+  judgeCard: Card
+  /** 黑色时: candidateIds=场上所有存活角色; 红色时: 固定 top/bottom 二选一 */
+  candidateIds: string[]
+  isBlack: boolean
+}

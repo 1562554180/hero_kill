@@ -253,6 +253,40 @@ export const heroes: Hero[] = [
       { id: 'hui-chun', name: '回春', type: 'passive', description: '在自己的回合外，你可以将任意一张红桃手牌或装备牌当作【药】使用', triggerEvent: 'heal' },
     ],
   },
+
+  // ===== 新增英雄 =====
+  {
+    id: 'bao-zheng', name: '包拯', faction: '臣', starLevel: 3, baseHp: 1,
+    description: '黑面青天，断案如神',
+    skills: [
+      { id: 'shen-duan', name: '神断', type: 'active', description: '出牌阶段，你可以弃1张手牌获得1个神断标记（上限2）。任意角色判定时，你可以弃1个标记将判定牌的花色改为任意花色' },
+      { id: 'ping-yuan', name: '平冤', type: 'passive', description: '你每次血量变化（受伤或恢复）后，摸1张牌', triggerEvent: 'damage:receive' },
+    ],
+  },
+  {
+    id: 'dong-fang-suo', name: '东方朔', faction: '民', starLevel: 3, baseHp: 3,
+    description: '智圣，词赋惊世',
+    skills: [
+      { id: 'ci-fu', name: '词赋', type: 'active', description: '回合开始阶段，你可以进行一次判定：若为黑色，你可以将该牌交给任意角色；若为红色，你可以将该牌置于牌堆顶或牌堆底' },
+      { id: 'zhi-sheng', name: '智圣', type: 'passive', description: '场上任意判定结束后，若判定牌点数<=7，你摸1张牌', triggerEvent: 'judge' },
+    ],
+  },
+  {
+    id: 'zhang-san-feng', name: '张三丰', faction: '民', starLevel: 3, baseHp: 4,
+    description: '太极宗师，以柔克刚',
+    skills: [
+      { id: 'bu-dao', name: '布道', type: 'active', description: '摸牌阶段，你可以摸3张牌，然后将其中1张交给任意一名角色' },
+      { id: 'tai-ji', name: '太极', type: 'active', description: '每出1张【闪】后，可立即对攻击范围内的1名角色使用1张【杀】' },
+    ],
+  },
+  {
+    id: 'da-ji', name: '妲己', faction: '臣', starLevel: 3, baseHp: 3,
+    description: '狐媚惑主',
+    skills: [
+      { id: 'shi-xin', name: '噬心', type: 'active', description: '你受到伤害后可以弃1张牌（手牌或装备区），立刻对伤害来源造成X点来自你的伤害，X为你本次受到的伤害' },
+      { id: 'mei-guo', name: '媚国', type: 'passive', description: '当你的血量少于5点时，全场角色不可在自己回合对你主动出【杀】（响应锦囊或技能时可以出）' },
+    ],
+  },
 ]
 
 export function getHeroById(id: string): Hero | undefined {

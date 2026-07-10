@@ -52,6 +52,15 @@ export class CardDeck {
     return this.discardPile.splice(idx, 1)[0]
   }
 
+  /** 把牌放到牌堆顶或底 (东方朔 词赋 使用). where: 'top' = 下一张抽到, 'bottom' = 最后才抽到 */
+  placeOnTopOrBottom(card: Card, where: 'top' | 'bottom'): void {
+    if (where === 'top') {
+      this.drawPile.push(card)
+    } else {
+      this.drawPile.unshift(card)
+    }
+  }
+
   discardById(cardIds: string[], hand: Card[]): Card[] {
     const discarded: Card[] = []
     for (const id of cardIds) {

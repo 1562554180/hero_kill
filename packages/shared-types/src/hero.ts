@@ -41,6 +41,8 @@ export interface BattleHero {
   judgeCards: string[]    // 判定区的延时锦囊
   statusEffects: StatusEffect[]
   skillUsesThisTurn: Record<string, number>
+  /** 技能标记 (e.g. 包拯 神断标记). key=标记id, value=数量 */
+  tokens: Record<string, number>
 }
 
 export interface StatusEffect {

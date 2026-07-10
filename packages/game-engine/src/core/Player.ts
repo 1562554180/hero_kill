@@ -9,6 +9,8 @@ export class Player {
   private judgeAreaCards: Card[] = []  // 判定区的实际卡牌对象
   private equippedCards: Map<EquipmentSlot, Card> = new Map()
   private usedKillThisTurn = false
+  private shield = 0  // 护盾：游戏开始时由 护盾 辅印设置；伤害优先扣除 shield，剩余才扣 HP
+  private handLimitOverride: number | null = null  // 饕餮：本回合弃牌阶段手牌上限临时覆盖
 
   constructor(hero: Hero, instance: HeroInstance, role: Role) {
     const baseHp = getHpByStar(hero.baseHp, instance.starLevel)
@@ -27,6 +29,7 @@ export class Player {
       judgeCards: [],
       statusEffects: [],
       skillUsesThisTurn: {},
+      tokens: {},
     }
   }
 
@@ -44,6 +47,7 @@ export class Player {
   }
 
   getHandLimit(): number {
+    if (this.handLimitOverride !== null) return this.handLimitOverride
     let limit = this.hero.currentHp
     // 乾坤袋: 手牌上限+1
     if (this.getArmorName() === '乾坤袋') limit += 1
@@ -83,6 +87,21 @@ export class Player {
     this.hero.currentHp -= actual
     return actual
   }
+
+  // === 护盾 (sub-treasure) ===
+  getShield(): number { return this.shield }
+  setShield(value: number): void { this.shield = Math.max(0, value) }
+  /** 优先从 shield 吸收伤害，返回被 shield 抵消的点数 */
+  absorbShield(amount: number): number {
+    if (this.shield <= 0) return 0
+    const absorbed = Math.min(amount, this.shield)
+    this.shield -= absorbed
+    return absorbed
+  }
+
+  // === 饕餮 (sub-treasure) ===
+  setHandLimitOverride(value: number | null): void { this.handLimitOverride = value }
+  getHandLimitOverride(): number | null { return this.handLimitOverride }
 
   heal(amount: number): number {
     const before = this.hero.currentHp
@@ -213,6 +232,24 @@ export class Player {
 
   getSkillUseCount(skillId: string): number {
     return this.hero.skillUsesThisTurn[skillId] ?? 0
+  }
+
+  /** 获取技能标记数量 */
+  getToken(tokenId: string): number {
+    return this.hero.tokens[tokenId] ?? 0
+  }
+
+  /** 增加技能标记 (+1) */
+  addToken(tokenId: string, delta: number = 1): void {
+    this.hero.tokens[tokenId] = (this.hero.tokens[tokenId] ?? 0) + delta
+  }
+
+  /** 消耗技能标记 (返回是否成功) */
+  consumeToken(tokenId: string, delta: number = 1): boolean {
+    const cur = this.hero.tokens[tokenId] ?? 0
+    if (cur < delta) return false
+    this.hero.tokens[tokenId] = cur - delta
+    return true
   }
 
   getFaction(): string { return this.hero.hero.faction }

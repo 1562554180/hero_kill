@@ -134,6 +134,8 @@ export class JudgePhase extends Phase {
         } else {
           const dmg = player.takeDamage(3)
           eventBus.emit({ type: 'damage:receive', sourceHeroId: player.getId(), data: { damage: dmg, from: '手捧雷' } })
+          // 平冤: 血量变化后摸1张 (不走 applyDamage, 这里手动触发)
+          if (dmg > 0) game.triggerPingYuan(player)
           game.emitSkillTrigger(player, '手捧雷', `黑桃${result.number}-受到3点伤害`)
           game.cardDeck.discard([thunder])
           if (!player.isAlive()) {

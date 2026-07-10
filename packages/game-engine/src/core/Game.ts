@@ -15,7 +15,8 @@ import type {
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
   HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
-  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx
+  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx,
+  ShiXinTriggerCtx, ShenDuanCtx, BuDao3Ctx, TaiJiCtx, CiFuCtx
 } from './handler-context.js'
 
 export type {
@@ -25,7 +26,8 @@ export type {
   FaJiaPickCtx, YuRuYiCtx, DiscardPickCtx, BaWangMountCtx, QiangLueCtx, CiKeCtx, DieHunCtx,
   HouZhuCtx, TianXiangCtx, ManWuPickCardCtx, ManWuCtx, JueJiCtx, MenShenTargetCtx, SanBanFuCtx,
   ZhenShaCtx, JueBieCtx, BuDaoCtx, FuChouTriggerCtx, FuChouChooseCtx, FuChouPickCtx, DyingRescueCtx,
-  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx
+  SheShenCtx, SheShenTriggerCtx, PanLongGunCtx,
+  ShiXinTriggerCtx, ShenDuanCtx, BuDao3Ctx, TaiJiCtx, CiFuCtx
 } from './handler-context.js'
 
 export interface GameConfig {
@@ -122,6 +124,18 @@ export interface GameConfig {
   sheShenDistributeHandler?: (ctx: SheShenCtx) => Promise<Record<string, string[]> | null>
   /** 舍身: 受伤后是否发动 (玩家专用; AI 默认发动) */
   sheShenTriggerHandler?: (ctx: SheShenTriggerCtx) => Promise<boolean>
+  /** 噬心: 妲己受伤后是否发动 + 选弃哪张牌 (返回 cardId=弃该牌发动; null=不发动) */
+  shiXinTriggerHandler?: (ctx: ShiXinTriggerCtx) => Promise<string | null>
+  /** 神断: 包拯在场上判定时是否发动 + 改成哪个花色 (返回目标花色 = 改成的花色; null=不发动) */
+  shenDuanHandler?: (ctx: ShenDuanCtx) => Promise<'spade' | 'heart' | 'club' | 'diamond' | null>
+  /** 布道: 张三丰摸牌阶段是否发动 (true=摸3张并提示给牌; false=不发动) */
+  buDao3TriggerHandler?: (ctx: { playerId: string }) => Promise<boolean>
+  /** 布道: 摸3张后选给谁哪张 (返回 { targetId, cardId }; null=全留自己) */
+  buDao3GiveHandler?: (ctx: BuDao3Ctx) => Promise<{ targetId: string; cardId: string } | null>
+  /** 太极: 张三丰打出闪后是否立即出杀 + 选目标 (返回 cardId+targetId; null=不发动) */
+  taiJiHandler?: (ctx: TaiJiCtx) => Promise<{ cardId: string; targetId: string } | null>
+  /** 词赋: 东方朔回合开始判定后选分配 (黑: targetId 给某角色; 红: 'top' | 'bottom') */
+  ciFuHandler?: (ctx: CiFuCtx) => Promise<{ kind: 'give'; targetId: string } | { kind: 'place'; where: 'top' | 'bottom' } | null>
 }
 
 export class Game {
@@ -400,7 +414,7 @@ export class Game {
   async judgeWithSkills(
     player: Player,
     reason: string,
-  ): Promise<{ skipped: boolean; suit: Suit; number: number }> {
+  ): Promise<{ skipped: boolean; suit: Suit; number: number; card?: Card }> {
     // 构造虚拟判定牌供天香使用
     const judgeCard = { name: reason, type: 'skill' as const, suit: 'spade' as const, number: 1, id: `skill-${reason}-${Date.now()}` } as unknown as Card
     const skipped = await this.promptTianXiang(player, judgeCard)
@@ -410,7 +424,7 @@ export class Game {
     const effectiveSuit: Suit = j.suit === 'spade' && player.hasSkillOrTreasure('hong-zhuang')
       ? 'heart'
       : j.suit
-    return { skipped: false, suit: effectiveSuit, number: j.card.number }
+    return { skipped: false, suit: effectiveSuit, number: j.card.number, card: j.card }
   }
 
   constructor(private config: GameConfig) {
@@ -547,6 +561,8 @@ export class Game {
       return id === skillId || id.startsWith(skillId + '-')
     })
     if (!treasure) return false
+    // 被动宝具（无 RNG）：直接视为触发（如护盾）
+    if (treasure.isPassive) return true
     const bonus = getSubTriggerBonus(player.hero.instance.starLevel)
     const levelBonus = (treasure.level ?? 0) * 0.01
     return Math.random() < treasure.triggerRate + levelBonus + bonus
@@ -560,6 +576,7 @@ export class Game {
       if (attacker.getCurrentHp() < attacker.getMaxHp()) {
         attacker.heal(1)
         this.emitSkillTrigger(attacker, '吸血', '回复1点体力')
+        this.triggerPingYuan(attacker)
       }
     }
     // 杀之贪: 30%几率摸1张牌
@@ -586,8 +603,10 @@ export class Game {
   /** 受到杀的伤害后：防御类辅印触发（伤之仇/伤之贪/伤之卸/伤之削） */
   private async onKillDamageReceived(victim: Player, attacker: Player): Promise<void> {
     if (!attacker.isAlive()) return
+    // 破咒 (attacker): 每次有防御型辅印尝试触发时，独立 35% 几率让该次触发失效
+    const suppressThis = () => this.rollSubTreasure(attacker, 'treasure-po-zhou')
     // 伤之仇: 30%几率让伤害来源受到1点伤害
-    if (this.rollSubTreasure(victim, 'treasure-shang-zhi-chou')) {
+    if (!suppressThis() && this.rollSubTreasure(victim, 'treasure-shang-zhi-chou')) {
       // 曼舞: 反弹的伤害，受击方(attacker)有曼舞则可转移
       if (await this.promptManWu(attacker, victim, 1)) {
         this.emitSkillTrigger(victim, '伤之仇', '反弹被转移')
@@ -597,13 +616,13 @@ export class Game {
       }
     }
     // 伤之贪: 30%几率摸1张牌
-    if (this.rollSubTreasure(victim, 'treasure-shang-zhi-tan')) {
+    if (!suppressThis() && this.rollSubTreasure(victim, 'treasure-shang-zhi-tan')) {
       const drawn = this.cardDeck.draw(1)
       victim.drawCards(drawn)
       this.emitSkillTrigger(victim, '伤之贪', '摸1张牌')
     }
     // 伤之卸: 30%几率弃置伤害来源1张装备牌
-    if (this.rollSubTreasure(victim, 'treasure-shang-zhi-xie')) {
+    if (!suppressThis() && this.rollSubTreasure(victim, 'treasure-shang-zhi-xie')) {
       const equipSlots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
       for (const slot of equipSlots) {
         const card = attacker.getEquippedCard(slot)
@@ -616,7 +635,7 @@ export class Game {
       }
     }
     // 伤之削: 30%几率弃置伤害来源1张手牌
-    if (this.rollSubTreasure(victim, 'treasure-shang-zhi-xue')) {
+    if (!suppressThis() && this.rollSubTreasure(victim, 'treasure-shang-zhi-xue')) {
       if (attacker.getHandSize() > 0) {
         const hand = attacker.getHand()
         const card = hand[Math.floor(Math.random() * hand.length)]
@@ -626,7 +645,7 @@ export class Game {
       }
     }
     // 石化: 30%几率令对方回合直接结束 (跳过对方下一回合)
-    if (this.rollSubTreasure(victim, 'treasure-shi-hua')) {
+    if (!suppressThis() && this.rollSubTreasure(victim, 'treasure-shi-hua')) {
       this.skipCurrentTurnPlayerId = attacker.getId()
       this.emitSkillTrigger(victim, '石化', `${attacker.getName()}回合直接结束`)
     }
@@ -716,6 +735,32 @@ export class Game {
       : alivePlayers
 
     for (const player of orderedPlayers) {
+      // 神断: 包拯在场时, 可弃1个神断标记将当前判定牌花色改为任意花色 (不改牌, 只改花色)
+      if (player.hasSkillOrTreasure('shen-duan') && player.getToken('shen-duan') > 0) {
+        let newSuit: 'spade' | 'heart' | 'club' | 'diamond' | null = null
+        if (player.getRole() === 'player' && this.config.shenDuanHandler) {
+          newSuit = await this.config.shenDuanHandler({
+            baoZhengId: player.getId(),
+            judgeCard: card,
+            judgeHeroId: judgeHeroId ?? '',
+          })
+        } else if (player.getRole() !== 'player') {
+          // AI: 包拯只对自己的判定发动 (默认50%); 别人的判定不发动
+          if (judgeHeroId === player.getId() && Math.random() < 0.5) {
+            // 智能选: 画地为牢想要黑桃2-9 触发跳过, 手捧雷想避免黑桃2-9; 简化为不改
+            // 这里用默认50%概率选个花色(随机)
+            const suits: ('spade' | 'heart' | 'club' | 'diamond')[] = ['spade', 'heart', 'club', 'diamond']
+            newSuit = suits[Math.floor(Math.random() * 4)]
+          }
+        }
+        if (newSuit) {
+          player.consumeToken('shen-duan', 1)
+          card = { ...card, suit: newSuit }
+          this.emitSkillTrigger(player, '神断', `改${card.name}花色为${newSuit}`)
+          this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'replace' } })
+        }
+      }
+
       // 变法: 替换判定牌
       if (player.hasSkillOrTreasure('bian-fa') && player.useSkill('bian-fa') && player.getHandSize() > 0) {
         let replaceCardId: string | null = null
@@ -789,6 +834,17 @@ export class Game {
 
     this.cardDeck.discard([card])
     this.eventBus.emit({ type: 'judge', sourceHeroId: judgeHeroId, data: { suit: card.suit, number: card.number, cardName: card.name, judgeCardName, phase: 'result' } })
+    // 智圣: 场上判定结束后, 若判定牌点数<=7, 所有"东方朔"摸1张牌
+    if (card.number <= 7) {
+      for (const player of this.players) {
+        if (player.isAlive() && player.hasSkillOrTreasure('zhi-sheng')) {
+          const drawn = this.cardDeck.draw(1)
+          if (drawn.length === 0) continue
+          player.drawCards(drawn)
+          this.emitSkillTrigger(player, '智圣', `${judgeCardName ?? '判定'}点数${card.number}≤7-摸1张`)
+        }
+      }
+    }
     return { suit: card.suit, card }
   }
 
@@ -800,6 +856,17 @@ export class Game {
     for (const player of this.players) {
       const cards = this.cardDeck.draw(4)
       player.drawCards(cards)
+      // 护盾 (sub-treasure): 装备护盾的玩家开局获得 N 点护盾（N = 星级）
+      const shieldTreasure = player.hero.instance.treasures.sub.find(t => {
+        if (!t) return false
+        const id = t.skill?.id ?? ''
+        return id === 'treasure-hu-dun' || id.startsWith('treasure-hu-dun-')
+      })
+      if (shieldTreasure) {
+        const capacity = shieldTreasure.starLevel
+        player.setShield(capacity)
+        this.emitSkillTrigger(player, '护盾', `获得 ${capacity} 点护盾`)
+      }
     }
 
     this.currentPlayerIndex = 0
@@ -933,6 +1000,11 @@ export class Game {
     await new JudgePhase().execute(ctx)
     this.eventBus.emit({ type: 'phase:end', sourceHeroId: player.getId(), data: { phase: 'judge' } })
 
+    // 词赋: 东方朔回合开始阶段进行一次判定 (在判定阶段后)
+    if (player.isAlive() && player.hasSkillOrTreasure('ci-fu')) {
+      await this.promptCiFu(player)
+    }
+
     if (!player.isAlive()) { this.advanceToNextAlive(); return }
 
     // 起义 (陈胜): 摸牌前询问是否放弃摸牌 → 改拿至多2名其他角色各1张手牌
@@ -989,9 +1061,16 @@ export class Game {
     if (this.isOver) return
 
     // 弃牌阶段
+    // 饕餮 (sub-treasure): 回合结束时 35% 几率本回合弃牌阶段手牌上限变为 20
+    if (this.rollSubTreasure(player, 'treasure-tao-tie')) {
+      player.setHandLimitOverride(20)
+      this.emitSkillTrigger(player, '饕餮', '本回合手牌上限变为 20')
+    }
     this.eventBus.emit({ type: 'phase:start', sourceHeroId: player.getId(), data: { phase: 'discard' } })
     await new DiscardPhase().execute(ctx)
     this.eventBus.emit({ type: 'phase:end', sourceHeroId: player.getId(), data: { phase: 'discard' } })
+    // 弃牌阶段结束后清空 override（下个玩家回合开始时会自动用 HP 计算）
+    player.setHandLimitOverride(null)
 
     // 回合结束触发
     this.onTurnEnd(player)
@@ -1114,6 +1193,7 @@ export class Game {
         player.heal(healAmount)
         this.cardDeck.discard([card])
         this.eventBus.emit({ type: 'heal', sourceHeroId: player.getId(), data: { amount: healAmount } })
+        this.triggerPingYuan(player)
         break
       }
     }
@@ -1278,11 +1358,23 @@ export class Game {
 
   // --- Kill execution ---
 
-  async executeKill(attacker: Player, defender: Player, killCard: Card, opts?: { forceNoDodge?: boolean }): Promise<void> {
+  async executeKill(attacker: Player, defender: Player, killCard: Card, opts?: { forceNoDodge?: boolean; isResponseKill?: boolean }): Promise<void> {
     // 门神: 若defender被秦琼保护, 重定向到秦琼
     defender = this.redirectIfMenShen(attacker, defender)
     if (!attacker.isAlive() || !defender.isAlive()) return
     this.removeCardFromPlayer(attacker, killCard)
+
+    // 媚国: HP<5 的妲己在自己回合不可被主动出杀 (响应杀/决斗/锦囊则不受限)
+    // isResponseKill: 来自 闪后太极反击/决斗响应/南蛮/万箭等响应路径
+    if (!opts?.isResponseKill && defender.hasSkillOrTreasure('mei-guo') && defender.getCurrentHp() < 5) {
+      // 仅在攻击者本人回合内主动出杀时阻断
+      const currentPlayer = this.players[this.currentPlayerIndex]
+      if (currentPlayer && currentPlayer.getId() === attacker.getId()) {
+        this.emitSkillTrigger(defender, '媚国', `${attacker.getName()}不可主动杀我`)
+        this.eventBus.emit({ type: 'damage:prevent', sourceHeroId: defender.getId(), data: { reason: '媚国' } })
+        return
+      }
+    }
     // killsUsedThisTurn 由 caller 累加 (playerPlayKill / playerPlayKillMulti / AI 流程)
 
     const usedAsSkill = killCard.name !== '杀'
@@ -1429,6 +1521,10 @@ export class Game {
             const drawn = this.cardDeck.draw(1)
             defender.drawCards(drawn)
             this.emitSkillTrigger(defender, '轻灵', '出闪后摸1张')
+          }
+          // 太极: 出闪后可立即对攻击范围内角色出1张杀 (无限次)
+          if (dodgeCard.name === '闪') {
+            await this.promptTaiJi(defender)
           }
         } else {
           // 玩家主动选择掉血 / AI 无闪
@@ -1639,6 +1735,12 @@ export class Game {
         victim.drawCards(drawn)
         this.emitSkillTrigger(victim, '集权', '获得造成伤害的牌(已重洗)')
       }
+    }
+
+    // 噬心: 妲己受伤后弃1张牌对来源造成X点来自妲己的伤害 (X=本次累计伤害)
+    // 注: 平冤放在前面是因为先检查噬心再补刀; 噬心本身 damage 不会触发自己或他人受击技能二次反弹 (skipSheShen)
+    if (victim.hasSkillOrTreasure('shi-xin') && attacker.isAlive() && victim.getId() !== attacker.getId()) {
+      await this.promptShiXin(victim, attacker, damage)
     }
 
     // 舍身: 每掉1血摸2张, 可分给其他存活角色 (玩家先选是否发动, 再弹分配 UI; AI 默认发动, 全给同阵营队友)
@@ -2040,6 +2142,189 @@ export class Game {
   }
 
   /**
+   * 噬心: 妲己受伤后, 弃1张牌(手牌或装备)对伤害来源造成X点伤害 (X=本次累计伤害)
+   * - 玩家: 弹询问让玩家选弃哪张牌; 玩家也可选不发动
+   * - AI: 仅在能反击敌人时发动, 弃锦囊/装备优先, 杀/闪最有用
+   * - 注: 噬心造成的伤害走 applyDamage (含濒死救援); skipSheShen 避免妲己自己的舍身二次触发
+   */
+  async promptShiXin(victim: Player, attacker: Player, damage: number): Promise<void> {
+    const hand = victim.getHand()
+    const equipment = this.collectEquipmentCards(victim)
+    if (hand.length === 0 && equipment.length === 0) return  // 无牌可弃
+
+    // 1. 询问 victim 是否发动 + 选哪张
+    let cardId: string | null = null
+    if (victim.getRole() === 'player' && this.config.shiXinTriggerHandler) {
+      cardId = await this.config.shiXinTriggerHandler({
+        victimId: victim.getId(),
+        attackerId: attacker.getId(),
+        damage,
+        options: { hand, equipment },
+      })
+    } else if (victim.getRole() !== 'player') {
+      // AI: 仅反击敌人 (民/臣一般不打民)
+      const isEnemy = (victim.getRole() === 'ally' && attacker.getRole() === 'enemy')
+        || (victim.getRole() === 'enemy' && attacker.getRole() !== 'enemy')
+      if (!isEnemy) return
+      // 优先弃锦囊/装备, 杀/闪最有用
+      const priority = (c: Card) => {
+        if (c.name === '杀' || c.name === '闪') return 3
+        if (c.type === 'equipment') return 1
+        if (c.type === 'scheme') return 0
+        return 2
+      }
+      const sorted = [...hand, ...equipment].sort((a, b) => priority(a) - priority(b))
+      cardId = sorted[0]?.id ?? null
+    }
+    if (!cardId) return
+
+    // 2. 弃牌 (手牌或装备)
+    const handCard = hand.find(c => c.id === cardId)
+    let discardedName = ''
+    if (handCard) {
+      const c = this.removeHandCard(victim, handCard.id)
+      if (c) { this.cardDeck.discard([c]); discardedName = c.name }
+    } else {
+      // 装备区
+      const slots: EquipmentSlot[] = ['weapon', 'armor', 'attackMount', 'defenseMount']
+      for (const s of slots) {
+        const eq = victim.getEquippedCard(s)
+        if (eq && eq.id === cardId) {
+          const removed = victim.unequip(s)
+          if (removed) {
+            this.cardDeck.discard([removed])
+            discardedName = removed.name
+            await this.emitAndSync({ type: 'equipment:unequip', sourceHeroId: victim.getId(), data: { cardId: removed.id, slot: s } })
+          }
+          break
+        }
+      }
+    }
+    if (!discardedName) return
+
+    this.emitSkillTrigger(victim, '噬心', `弃${discardedName}→${attacker.getName()}受${damage}伤`)
+    // 3. 对 attacker 造成 X 点来自 victim 的伤害
+    await this.applyDamage(victim, attacker, damage, undefined, {
+      skipSheShen: true,
+      sourceAction: 'shiXin',
+    })
+  }
+
+  /**
+   * 词赋: 东方朔回合开始阶段进行一次判定
+   * - 黑: 交给任意一名角色
+   * - 红: 置于牌堆顶或牌堆底
+   * 判定牌交给玩家后会从判定堆消失(进弃牌堆在judge()里已完成, 这里直接给牌)
+   * 实际上judge()已经discard掉了卡, 所以我们要从弃牌堆捡回来再分发
+   */
+  async promptCiFu(player: Player): Promise<void> {
+    const result = await this.judgeWithSkills(player, '词赋')
+    if (result.skipped) return  // 天香免判
+    const judgeCard = result.card
+    if (!judgeCard) return
+    const isBlack = isBlackSuit(result.suit)
+
+    // 询问玩家 / AI 决策
+    let action: { kind: 'give'; targetId: string } | { kind: 'place'; where: 'top' | 'bottom' } | null = null
+    if (player.getRole() === 'player' && this.config.ciFuHandler) {
+      const candidates = isBlack ? this.getAlivePlayers().map(p => p.getId()) : []
+      action = await this.config.ciFuHandler({
+        dongFangSuoId: player.getId(),
+        judgeCard,
+        candidateIds: candidates,
+        isBlack,
+      })
+    } else {
+      // AI: 黑给血量最低的队友, 红随机顶/底
+      if (isBlack) {
+        const allies = this.getAlivePlayers().filter(p =>
+          p.getId() !== player.getId() && (p.getRole() === player.getRole() ||
+            (player.getRole() === 'ally' && p.getRole() === 'player') ||
+            (player.getRole() === 'player' && p.getRole() === 'ally'))
+        )
+        const target = allies.length > 0
+          ? allies.sort((a, b) => a.getCurrentHp() - b.getCurrentHp())[0]
+          : this.getAlivePlayers().find(p => p.getId() !== player.getId())
+        if (target) action = { kind: 'give', targetId: target.getId() }
+      } else {
+        action = { kind: 'place', where: Math.random() < 0.5 ? 'top' : 'bottom' }
+      }
+    }
+    if (!action) return
+
+    // 还原卡对象 (从弃牌堆拿回)
+    const recovered = this.cardDeck.takeFromDiscard(judgeCard.id)
+    if (!recovered) return
+
+    if (action.kind === 'give') {
+      const target = this.getPlayerById(action.targetId)
+      if (!target || !target.isAlive()) return
+      target.drawCards([recovered])
+      await this.emitAndSync({
+        type: 'card:gain',
+        sourceHeroId: target.getId(),
+        data: { count: 1, reason: '词赋', from: player.getId(), cards: [recovered.id] },
+      })
+      this.emitSkillTrigger(player, '词赋', `黑${result.suit}→给${target.getName()}`)
+    } else {
+      this.cardDeck.placeOnTopOrBottom(recovered, action.where)
+      this.emitSkillTrigger(player, '词赋', `红${result.suit}→牌堆${action.where === 'top' ? '顶' : '底'}`)
+    }
+  }
+
+  /**
+   * 太极: 张三丰打出闪后可立即对攻击范围内1名角色使用1张杀 (无限次, 每次出闪都可发动)
+   * - 玩家: 询问是否发动 + 选目标 + 选哪张杀 (含傲剑/武穆等)
+   * - AI: 自动选择手牌中第一张可作杀的牌, 目标为血量最低的敌人
+   * - 注: 太极的"杀"不消耗回合杀次数 (类似决斗响应)
+   */
+  async promptTaiJi(player: Player): Promise<void> {
+    if (!player.hasSkillOrTreasure('tai-ji') || !player.isAlive()) return
+
+    // 1. 找手牌中可作杀的牌 (走通用规则: 杀本身 / 武穆闪 / 傲剑红桃)
+    const killableCards = player.getHand().filter(c => this.canUseAsKill(c, player))
+    if (killableCards.length === 0) return
+
+    // 2. 找攻击范围内目标
+    const candidateIds = this.getAlivePlayers()
+      .filter(p => p.getId() !== player.getId() && this.isInAttackRange(player, p))
+      .map(p => p.getId())
+    if (candidateIds.length === 0) return
+
+    // 3. 询问 / AI
+    let pick: { cardId: string; targetId: string } | null = null
+    if (player.getRole() === 'player' && this.config.taiJiHandler) {
+      pick = await this.config.taiJiHandler({
+        zhangSanFengId: player.getId(),
+        candidateIds,
+        killableCards,
+      })
+    } else if (player.getRole() !== 'player') {
+      // AI: 选血量最低的敌人 (或任意非己方)
+      const enemies = candidateIds
+        .map(id => this.getPlayerById(id))
+        .filter((p): p is Player => !!p && (p.getRole() !== player.getRole()))
+      const targetPool = enemies.length > 0 ? enemies : candidateIds.map(id => this.getPlayerById(id)!).filter(Boolean)
+      if (targetPool.length === 0) return
+      const target = targetPool.sort((a, b) => a.getCurrentHp() - b.getCurrentHp())[0]
+      // 优先用真杀(若存在), 否则任意可作杀的牌
+      const realKill = killableCards.find(c => c.name === '杀')
+      const card = realKill ?? killableCards[0]
+      pick = { cardId: card.id, targetId: target.getId() }
+    }
+    if (!pick) return
+
+    const killCard = killableCards.find(c => c.id === pick!.cardId)
+    const target = this.getPlayerById(pick.targetId)
+    if (!killCard || !target || !target.isAlive()) return
+
+    this.emitSkillTrigger(player, '太极', `闪后对${target.getName()}出${killCard.name === '杀' ? '杀' : killCard.name + '当杀'}`)
+    // 不消耗回合杀次数 — 用 isResponseKill 标记让 executeKill 跳过"主动出杀"的判定 (如媚国)
+    // 注: 太极仍然是"主动"出杀 (响应闪后立即反击), 这里 isResponseKill 让媚国放行
+    await this.executeKill(player, target, killCard, { isResponseKill: true })
+  }
+
+  /**
    * 复仇: 受伤后可发动, 判定非红桃则来源弃2张手牌或掉1血 (来源自选, 非随机)
    * - 玩家: 先询问 victim 是否发动, 判定成功后再让 attacker 选 (弃牌/掉血), 弃牌时再让 attacker 选哪2张
    * - AI: 默认发动; 来源手牌≥2时弃牌 (避免掉血), 否则掉血; 弃牌时随机丢前2张
@@ -2428,6 +2713,7 @@ export class Game {
           sourceHeroId: target.getId(),
           data: { amount: healed, from: savior.getId(), reason: 'dying-rescue' },
         })
+        this.triggerPingYuan(target)
         usedCount++
       }
     }
@@ -2455,10 +2741,38 @@ export class Game {
       skipSheShen?: boolean
       afterOnDamageReceived?: () => Promise<void>
       sourceAction?: 'kill' | 'dodge' | 'scheme' | 'judge' | 'mount' | string
+      /** 跳过平冤 (用于濒死救援等"已用掉生命"的二次调整场景) */
+      skipPingYuan?: boolean
     }
   ): Promise<void> {
-    const actual = defender.takeDamage(damage)
+    // 护盾 (sub-treasure): 优先从 shield 吸收伤害
+    const shieldAbsorbed = defender.absorbShield(damage)
+    const damageAfterShield = damage - shieldAbsorbed
+    if (shieldAbsorbed > 0) {
+      this.emitSkillTrigger(defender, '护盾', `抵消 ${shieldAbsorbed} 点伤害`)
+      // 全部被护盾吸收：仍发出 damage 事件用于 UI 动画，但不进入 HP/濒死流程
+      if (damageAfterShield <= 0) {
+        this.eventBus.emit({
+          type: 'damage:deal',
+          sourceHeroId: attacker.getId(),
+          targetHeroId: defender.getId(),
+          data: { damage: 0, sourceAction: options?.sourceAction, absorbedByShield: shieldAbsorbed },
+        })
+        this.eventBus.emit({
+          type: 'damage:receive',
+          sourceHeroId: defender.getId(),
+          data: { damage: 0, from: attacker.getId(), sourceAction: options?.sourceAction, absorbedByShield: shieldAbsorbed },
+        })
+        return
+      }
+    }
+    const actual = defender.takeDamage(damageAfterShield)
     if (actual <= 0) return
+
+    // 平冤: 血量变化(受伤)后摸1张
+    if (!options?.skipPingYuan) {
+      this.triggerPingYuan(defender)
+    }
 
     this.eventBus.emit({
       type: 'damage:deal',
@@ -2625,6 +2939,10 @@ export class Game {
         const drawn = this.cardDeck.draw(1)
         defender.drawCards(drawn)
         this.emitSkillTrigger(defender, '轻灵', '出闪后摸1张')
+      }
+      // 太极: 出闪后可立即对攻击范围内角色出1张杀 (无限次)
+      if (dodgeCard.name === '闪') {
+        await this.promptTaiJi(defender)
       }
       dodgeCount++
     }
@@ -2947,6 +3265,7 @@ export class Game {
         if (p.getCurrentHp() < p.getMaxHp()) {
           const healed = p.heal(1)
           this.eventBus.emit({ type: 'heal', sourceHeroId: p.getId(), data: { amount: healed } })
+          if (healed > 0) this.triggerPingYuan(p)
         }
       }
     } else if (card.name === '五谷丰登') {
@@ -3056,6 +3375,7 @@ export class Game {
     player.heal(healAmount)
     this.cardDeck.discard([card])
     this.eventBus.emit({ type: 'heal', sourceHeroId: player.getId(), data: { amount: healAmount } })
+    this.triggerPingYuan(player)
     this.lastPlayedCardName = '药'
   }
 
@@ -3104,6 +3424,7 @@ export class Game {
     }
     player.heal(healAmount)
     this.eventBus.emit({ type: 'heal', sourceHeroId: player.getId(), data: { amount: healAmount } })
+    this.triggerPingYuan(player)
     this.emitSkillTrigger(player, '回春', `用${card.name}当药`)
   }
 
@@ -3194,8 +3515,41 @@ export class Game {
       player.heal(1)
       this.shuCaiHealedThisTurn = true
       this.eventBus.emit({ type: 'heal', sourceHeroId: player.getId(), data: { amount: 1 } })
+      this.triggerPingYuan(player)
     }
     this.emitSkillTrigger(player, '疏财', `给${target.getName()} ${cardIds.length}张牌`)
+  }
+
+  /**
+   * 平冤: 包拯每次血量变化后摸1张牌
+   * 调用方: applyDamage (实际掉血), playerPlayHeal / playerHuiChunHeal / playerLiaoShang / playerZhiYu / playerShuCai
+   * (跳过的场景: 濒死救援的药 - 已在濒死阶段, 不应再触发摸牌循环)
+   */
+  triggerPingYuan(player: Player): void {
+    if (!player.hasSkillOrTreasure('ping-yuan')) return
+    const drawn = this.cardDeck.draw(1)
+    if (drawn.length === 0) return
+    player.drawCards(drawn)
+    this.eventBus.emit({
+      type: 'card:draw',
+      sourceHeroId: player.getId(),
+      data: { count: 1, reason: '平冤', cards: drawn.map(c => c.id) },
+    })
+    this.emitSkillTrigger(player, '平冤', '血量变化-摸1张')
+  }
+
+  /** 神断 (主动): 出牌阶段弃1张手牌获得1个神断标记 (上限2). 由 UI 触发调用 */
+  playerShenDuan(player: Player, cardId: string): boolean {
+    if (!player.hasSkillOrTreasure('shen-duan')) return false
+    if (player.getToken('shen-duan') >= 2) return false
+    const card = player.getHand().find(c => c.id === cardId)
+    if (!card) return false
+    const removed = this.removeHandCard(player, cardId)
+    if (!removed) return false
+    this.cardDeck.discard([removed])
+    player.addToken('shen-duan', 1)
+    this.emitSkillTrigger(player, '神断', `弃${removed.name}→神断标记(${player.getToken('shen-duan')}/2)`)
+    return true
   }
 
   /** 天香: 判定开始前弃1张牌免判 (见 promptTianXiang) */
@@ -3229,6 +3583,7 @@ export class Game {
     this.cardDeck.discard([card])
     target.heal(1)
     this.eventBus.emit({ type: 'heal', sourceHeroId: target.getId(), data: { amount: 1 } })
+    this.triggerPingYuan(target)
     this.emitSkillTrigger(player, '疗伤', `${target.getName()}回复1体力`)
   }
 
@@ -3247,6 +3602,7 @@ export class Game {
     }
     target.heal(1)
     this.eventBus.emit({ type: 'heal', sourceHeroId: target.getId(), data: { amount: 1 } })
+    this.triggerPingYuan(target)
     this.emitSkillTrigger(player, '治愈', `${target.getName()}回复1体力`)
   }
 

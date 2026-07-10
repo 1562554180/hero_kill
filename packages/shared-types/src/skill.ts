@@ -29,4 +29,6 @@ export interface Treasure {
     rangeBonus?: number
     handBonus?: number
   }
+  /** 被动宝具（不参与概率触发，如护盾）。旧数据 backfill undefined */
+  isPassive?: boolean
 }
