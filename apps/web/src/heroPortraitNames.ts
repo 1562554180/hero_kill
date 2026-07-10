@@ -14,4 +14,5 @@ export const HERO_NAME_TO_ID: Record<string, string> = {
   '岳飞': 'yue-fei', '赵匡胤': 'zhao-kuang-yin', '朱元璋': 'zhu-yuan-zhang', '诸葛亮': 'zhuge-liang',
   '吴三桂': 'wu-san-gui', '宇文化及': 'yu-wen-hua-ji', '孟获': 'meng-huo',
   '萧太后': 'xiao-tai-hou', '兰陵王': 'lan-ling-wang',
+  '包拯': 'bao-zheng', '东方朔': 'dong-fang-suo', '张三丰': 'zhang-san-feng', '妲己': 'da-ji',
 }
